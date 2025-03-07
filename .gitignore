@@ -1,5 +1,15 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Ignore downloaded logos
+logos_downloaded/
+
+# Ignore virtual environment
+.venv/
+
+# Ignore Next.js build files
+.next/
+node_modules/
+
 # dependencies
 /node_modules
 /.pnp
