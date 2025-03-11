@@ -30,8 +30,8 @@ export default function ScrapeAirlinesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Airline Policy Scraper</h1>
 
         <div className="bg-white shadow-md rounded-lg p-6 mb-6">
