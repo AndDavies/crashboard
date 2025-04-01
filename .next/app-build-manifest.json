@@ -6,6 +6,11 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
+    ],
     "/(dashboard)/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -16,15 +21,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/dashboard/page.js"
     ],
-    "/(dashboard)/dashboard/prompts/page": [
+    "/(dashboard)/dashboard/bookmarks/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/dashboard/prompts/page.js"
+      "static/chunks/app/(dashboard)/dashboard/bookmarks/page.js"
     ],
-    "/api/refine-prompt/route": [
+    "/api/twitter/auth/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/refine-prompt/route.js"
+      "static/chunks/app/api/twitter/auth/route.js"
     ]
   }
 }
