@@ -67,15 +67,21 @@ export default function BookmarksPage() {
             'Content-Type': 'application/json',
           },
         });
-        if (!meResponse.ok) {
-          const errorText = await meResponse.text();
-          throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${errorText}`);
+        let meText;
+        try {
+          meText = await meResponse.text();
+        } catch (textError) {
+          throw new Error(`Failed to read response text: ${(textError as Error).message}`);
         }
-        const meData = await meResponse.json();
+        if (!meResponse.ok) {
+          throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${meText || 'No response text'}`);
+        }
+        const meData = JSON.parse(meText);
         setTwitterId(meData.data.id);
         console.log('Twitter ID:', meData.data.id);
       } catch (error) {
-        toast.error('Failed to fetch Twitter ID: ' + (error as Error).message);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        toast.error('Failed to fetch Twitter ID: ' + errorMsg);
         console.error('Twitter ID fetch error:', error);
         setIsLoading(false);
         return;
@@ -92,20 +98,26 @@ export default function BookmarksPage() {
             'Content-Type': 'application/json',
           },
         });
+        let responseText;
+        try {
+          responseText = await response.text();
+        } catch (textError) {
+          throw new Error(`Failed to read bookmarks response text: ${(textError as Error).message}`);
+        }
         if (!response.ok) {
-          const errorText = await response.text();
           if (response.status === 401) {
             console.log('Unauthorized - redirecting to re-authenticate');
             window.location.href = '/api/twitter/auth';
             return;
           }
-          throw new Error(`Failed to fetch bookmarks: ${response.status} - ${errorText}`);
+          throw new Error(`Failed to fetch bookmarks: ${response.status} - ${responseText || 'No response text'}`);
         }
-        const data = await response.json();
+        const data = JSON.parse(responseText);
         setBookmarks(data.data || []);
         setFilteredBookmarks(data.data || []);
       } catch (error) {
-        toast.error('Failed to fetch bookmarks: ' + (error as Error).message);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        toast.error('Failed to fetch bookmarks: ' + errorMsg);
         console.error('Bookmarks fetch error:', error);
       }
     }
