@@ -23,6 +23,7 @@ export default function BookmarksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [segment, setSegment] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [twitterId, setTwitterId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -54,43 +55,53 @@ export default function BookmarksPage() {
       return;
     }
 
-    console.log('Using access token:', accessToken); // Debug token
+    console.log('Using access token:', accessToken);
 
-    try {
-      const meResponse = await fetch('https://api.twitter.com/2/users/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!meResponse.ok) {
-        const errorText = await meResponse.text();
-        throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${errorText}`);
-      }
-      const meData = await meResponse.json();
-      const twitterId = meData.data.id;
-      console.log('Twitter ID:', twitterId); // Debug ID
-
-      const response = await fetch(`https://api.twitter.com/2/users/${twitterId}/bookmarks`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 401) {
-          console.log('Unauthorized - redirecting to re-authenticate');
-          window.location.href = '/api/twitter/auth';
-          return;
+    // Fetch Twitter ID
+    if (!twitterId) {
+      try {
+        const meResponse = await fetch('https://api.twitter.com/2/users/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const meText = await meResponse.text();
+        if (!meResponse.ok) {
+          throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${meText}`);
         }
-        throw new Error(`Failed to fetch bookmarks: ${response.status} - ${errorText}`);
+        const meData = JSON.parse(meText);
+        setTwitterId(meData.data.id);
+        console.log('Twitter ID:', meData.data.id);
+      } catch (error) {
+        toast.error('Failed to fetch Twitter ID: ' + (error as Error).message);
+        console.error('Twitter ID fetch error:', error);
+        setIsLoading(false);
+        return;
       }
-
-      const data = await response.json();
-      setBookmarks(data.data || []);
-      setFilteredBookmarks(data.data || []);
-    } catch (error) {
-      toast.error('Failed to fetch bookmarks: ' + (error as Error).message);
-      console.error('Bookmarks fetch error:', error);
-    } finally {
-      setIsLoading(false);
     }
+
+    // Fetch bookmarks
+    if (twitterId) {
+      try {
+        const response = await fetch(`https://api.twitter.com/2/users/${twitterId}/bookmarks`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const responseText = await response.text();
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log('Unauthorized - redirecting to re-authenticate');
+            window.location.href = '/api/twitter/auth';
+            return;
+          }
+          throw new Error(`Failed to fetch bookmarks: ${response.status} - ${responseText}`);
+        }
+        const data = JSON.parse(responseText);
+        setBookmarks(data.data || []);
+        setFilteredBookmarks(data.data || []);
+      } catch (error) {
+        toast.error('Failed to fetch bookmarks: ' + (error as Error).message);
+        console.error('Bookmarks fetch error:', error);
+      }
+    }
+    setIsLoading(false);
   };
 
   const filterBookmarks = () => {
