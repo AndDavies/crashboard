@@ -1,0 +1,9 @@
+{
+    "builds": [
+      {
+        "src": "app/**",
+        "use": "@vercel/next"
+      }
+    ],
+    "installCommand": "pnpm install --no-frozen-lockfile"
+  }
