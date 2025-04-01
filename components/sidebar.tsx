@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useSidebar } from "./sidebar-provider"
-import { cn } from "@/lib/utils"
-import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
-import { useRouter } from "next/navigation"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSidebar } from "./sidebar-provider";
+import { cn } from "@/lib/utils";
+import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 
 export function Sidebar({ user }: { user: SupabaseUser }) {
-  const pathname = usePathname()
-  const { isOpen, toggle } = useSidebar()
-  const router = useRouter()
+  const pathname = usePathname();
+  const { isOpen, toggle } = useSidebar();
+  const router = useRouter();
 
   const handleSignOut = async () => {
     const response = await fetch("/auth/signout", {
@@ -20,13 +20,13 @@ export function Sidebar({ user }: { user: SupabaseUser }) {
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    });
 
     if (response.ok) {
-      router.push("/login")
-      router.refresh()
+      router.push("/login");
+      router.refresh();
     }
-  }
+  };
 
   return (
     <>
@@ -101,7 +101,7 @@ export function Sidebar({ user }: { user: SupabaseUser }) {
         </div>
       </div>
     </>
-  )
+  );
 }
 
 const navItems = [
@@ -109,6 +109,6 @@ const navItems = [
   { name: "Profile", href: "/dashboard/profile", icon: User },
   { name: "Calendar", href: "/dashboard/calendar", icon: Calendar },
   { name: "Documents", href: "/dashboard/documents", icon: FileText },
+  { name: "Prompts", href: "/dashboard/prompts", icon: FileText }, // Added Prompts route
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-]
-
+];
