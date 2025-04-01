@@ -3,7 +3,7 @@ import { randomBytes, createHash } from 'crypto';
 
 export async function GET() {
   const clientId = process.env.TWITTER_CLIENT_ID!;
-  const redirectUri = 'http://localhost:3000/api/twitter/callback'; // Update for production
+  const redirectUri = 'https://findyourchimps.dev/api/twitter/callback'; // Update for production
   const state = randomBytes(16).toString('hex');
   const codeVerifier = randomBytes(32).toString('base64url');
   const codeChallenge = createHash('sha256')
