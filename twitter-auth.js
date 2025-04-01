@@ -1,13 +1,12 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env.local') }); // Explicitly load .env.local
+require('dotenv').config({ path: path.resolve(__dirname, '.env.local') });
 
 const crypto = require('crypto');
 
-const clientId = process.env.TWITTER_CLIENT_ID;
-const clientSecret = process.env.TWITTER_CLIENT_SECRET;
-const redirectUri = process.env.TWITTER_REDIRECT_URI;
+const clientId = process.env.TWITTER_CLIENT_ID; // Skx3WTk2LWpOUmRRNnJSYmdvNTk6MTpjaQ
+const clientSecret = process.env.TWITTER_CLIENT_SECRET; // P2MADTpG4HmI6ExBIkZxM2ToNCK79lN7VSxTi5qd4fXJHin0_E
+const redirectUri = process.env.TWITTER_REDIRECT_URI; // https://findyourchimps.dev/api/twitter/callback
 
-// Debug: Log the loaded values to confirm
 console.log('TWITTER_CLIENT_ID:', clientId);
 console.log('TWITTER_CLIENT_SECRET:', clientSecret);
 console.log('TWITTER_REDIRECT_URI:', redirectUri);
@@ -17,7 +16,6 @@ if (!clientId || !clientSecret || !redirectUri) {
   process.exit(1);
 }
 
-// Generate PKCE values
 const codeVerifier = crypto.randomBytes(32).toString('base64url');
 const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 
@@ -26,7 +24,6 @@ const authUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&clien
 console.log(authUrl);
 console.log('2. After authorizing, you’ll be redirected. Copy the "code" from the URL (e.g., https://findyourchimps.dev/api/twitter/callback?code=ABC123...).');
 
-// Run this part after getting the code
 async function getAccessToken(code) {
   const response = await fetch('https://api.twitter.com/2/oauth2/token', {
     method: 'POST',
@@ -52,5 +49,4 @@ async function getAccessToken(code) {
   console.log('Expires In:', data.expires_in);
 }
 
-// Replace 'YOUR_CODE_HERE' with the code from the redirect URL
 getAccessToken('YOUR_CODE_HERE');
