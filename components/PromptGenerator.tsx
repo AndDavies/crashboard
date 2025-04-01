@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client'; // Use your browser client
+import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,14 @@ interface Prompt {
   id: string;
   user_id: string;
   prompt_text: string;
-  tags: string[];
+  created_at: string;
+  prompt_tags: { tag_id: string; tags: { name: string } }[]; // Updated to reflect join
+}
+
+interface Tag {
+  id: string;
+  name: string;
+  user_id: string;
   created_at: string;
 }
 
@@ -31,32 +38,46 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
   const [output, setOutput] = useState<string>('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState<string>('');
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   const [refinedPrompt, setRefinedPrompt] = useState<string>('');
   const [savedPrompts, setSavedPrompts] = useState<Prompt[]>([]);
   const [searchTag, setSearchTag] = useState<string>('');
 
-  const supabase = createClient(); // Single instance from your util
+  const supabase = createClient();
 
   useEffect(() => {
+    fetchTags();
     fetchSavedPrompts();
   }, []);
+
+  const fetchTags = async () => {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name', { ascending: true });
+
+    if (error) {
+      toast.error('Failed to fetch tags: ' + error.message);
+      console.error('Fetch tags error:', error);
+    } else {
+      setAvailableTags(data as Tag[]);
+    }
+  };
 
   const fetchSavedPrompts = async () => {
     const { data, error } = await supabase
       .from('prompts')
-      .select('*')
+      .select('*, prompt_tags(tag_id, tags(name))')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
       toast.error('Failed to fetch prompts: ' + error.message);
-      console.error('Fetch error:', error);
+      console.error('Fetch prompts error:', error);
     } else {
       setSavedPrompts(data as Prompt[]);
-      const allTags = new Set(data.flatMap(prompt => prompt.tags));
-      setAvailableTags(Array.from(allTags));
     }
   };
 
@@ -90,31 +111,85 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
     const promptToSave = refinedPrompt || generatedPrompt;
     if (!promptToSave) return;
 
-    const { data, error } = await supabase
+    // Step 1: Insert the prompt
+    const { data: promptData, error: promptError } = await supabase
       .from('prompts')
-      .insert({
-        user_id: user.id,
-        prompt_text: promptToSave,
-        tags,
-      })
-      .select();
+      .insert({ user_id: user.id, prompt_text: promptToSave })
+      .select()
+      .single();
 
-    if (error) {
-      toast.error('Failed to save prompt: ' + error.message);
-      console.error('Save error:', error);
+    if (promptError) {
+      toast.error('Failed to save prompt: ' + promptError.message);
+      console.error('Save prompt error:', promptError);
+      return;
+    }
+
+    // Step 2: Insert new tags and get all tag IDs
+    const tagIds: string[] = [];
+    for (const tagName of tags) {
+      const { data: existingTag, error: tagError } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('name', tagName)
+        .eq('user_id', user.id)
+        .single();
+
+      if (tagError && tagError.code !== 'PGRST116') {
+        toast.error('Failed to check tag: ' + tagError.message);
+        console.error('Tag check error:', tagError);
+        continue;
+      }
+
+      if (existingTag) {
+        tagIds.push(existingTag.id);
+      } else {
+        const { data: newTag, error: insertError } = await supabase
+          .from('tags')
+          .insert({ name: tagName, user_id: user.id })
+          .select()
+          .single();
+
+        if (insertError) {
+          toast.error('Failed to add tag: ' + insertError.message);
+          console.error('Tag insert error:', insertError);
+        } else {
+          tagIds.push(newTag.id);
+          setAvailableTags(prev => [...prev, newTag]);
+        }
+      }
+    }
+
+    // Step 3: Link tags to prompt
+    const promptTagInserts = tagIds.map(tag_id => ({
+      prompt_id: promptData.id,
+      tag_id,
+    }));
+    const { error: linkError } = await supabase
+      .from('prompt_tags')
+      .insert(promptTagInserts);
+
+    if (linkError) {
+      toast.error('Failed to link tags: ' + linkError.message);
+      console.error('Link tags error:', linkError);
     } else {
       toast.success('Prompt saved successfully!');
-      setSavedPrompts(prev => [...data, ...prev]);
-      const newTags = new Set([...availableTags, ...tags]);
-      setAvailableTags(Array.from(newTags));
+      const newPrompt = {
+        ...promptData,
+        prompt_tags: tagIds.map(tag_id => ({
+          tag_id,
+          tags: { name: tags[tagIds.indexOf(tag_id)] },
+        })),
+      };
+      setSavedPrompts(prev => [newPrompt, ...prev]);
     }
   };
 
   const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       e.preventDefault();
-      if (!tags.includes(tagInput.trim())) {
-        setTags(prev => [...prev, tagInput.trim()]);
+      const trimmedTag = tagInput.trim();
+      if (!tags.includes(trimmedTag)) {
+        setTags(prev => [...prev, trimmedTag]);
       }
       setTagInput('');
     }
@@ -132,7 +207,7 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
 
   const handleSearch = () => {
     const filtered = savedPrompts.filter(prompt =>
-      prompt.tags.some(tag => tag.toLowerCase().includes(searchTag.toLowerCase()))
+      prompt.prompt_tags.some(pt => pt.tags.name.toLowerCase().includes(searchTag.toLowerCase()))
     );
     setSavedPrompts(filtered);
   };
@@ -285,15 +360,17 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
             </div>
             {availableTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {availableTags.filter(tag => !tags.includes(tag)).map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => handleTagSelect(tag)}
-                    className="px-2 py-1 rounded-full text-sm bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  >
-                    {tag}
-                  </button>
-                ))}
+                {availableTags
+                  .filter(tag => !tags.includes(tag.name))
+                  .map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleTagSelect(tag.name)}
+                      className="px-2 py-1 rounded-full text-sm bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      {tag.name}
+                    </button>
+                  ))}
               </div>
             )}
           </div>
@@ -337,7 +414,7 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
           {savedPrompts.map(prompt => (
             <div key={prompt.id} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
               <p className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{prompt.prompt_text}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tags: {prompt.tags.join(', ')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tags: {prompt.prompt_tags.map(pt => pt.tags.name).join(', ')}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Saved: {new Date(prompt.created_at).toLocaleString()}</p>
             </div>
           ))}
