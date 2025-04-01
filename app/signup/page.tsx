@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 
 export default async function SignUpPage() {
-  const supabase = createClient()
+  const supabase = await createClient() // Await here
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -52,4 +52,3 @@ export default async function SignUpPage() {
     </div>
   )
 }
-
