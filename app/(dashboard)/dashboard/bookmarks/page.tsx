@@ -48,29 +48,38 @@ export default function BookmarksPage() {
     let accessToken = tokenData?.twitter_access_token;
 
     if (!accessToken || tokenError) {
+      console.log('No token found or error:', tokenError?.message);
       window.location.href = '/api/twitter/auth';
       setIsLoading(false);
       return;
     }
 
+    console.log('Using access token:', accessToken); // Debug token
+
     try {
       const meResponse = await fetch('https://api.twitter.com/2/users/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!meResponse.ok) throw new Error(await meResponse.text());
+      if (!meResponse.ok) {
+        const errorText = await meResponse.text();
+        throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${errorText}`);
+      }
       const meData = await meResponse.json();
       const twitterId = meData.data.id;
+      console.log('Twitter ID:', twitterId); // Debug ID
 
       const response = await fetch(`https://api.twitter.com/2/users/${twitterId}/bookmarks`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
         if (response.status === 401) {
-          window.location.href = '/api/twitter/auth'; // Re-auth if token expired
+          console.log('Unauthorized - redirecting to re-authenticate');
+          window.location.href = '/api/twitter/auth';
           return;
         }
-        throw new Error(await response.text());
+        throw new Error(`Failed to fetch bookmarks: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
