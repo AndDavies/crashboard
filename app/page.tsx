@@ -50,7 +50,7 @@ export default async function Home() {
       </main>
       <footer className="border-t py-6">
         <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
-          <p className="text-sm text-muted-foreground">© 2025 Personal Dashboard. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2025 Personal Dashboard. All rights reserved for me and only me.</p>
         </div>
       </footer>
     </div>
