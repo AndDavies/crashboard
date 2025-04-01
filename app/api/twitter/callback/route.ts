@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.TWITTER_CLIENT_ID!;
   const clientSecret = process.env.TWITTER_CLIENT_SECRET!;
-  const redirectUri = process.env.TWITTER_REDIRECT_URI!; // Use env variable
+  const redirectUri = process.env.TWITTER_REDIRECT_URI!;
 
   try {
     const response = await fetch('https://api.twitter.com/2/oauth2/token', {
@@ -35,8 +36,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: data.error_description || 'Failed to get token' }, { status: 400 });
     }
 
-    const nextResponse = NextResponse.redirect('/dashboard/bookmarks');
-    nextResponse.cookies.set('twitter_access_token', data.access_token, { httpOnly: true, path: '/', maxAge: 3600 });
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+    }
+
+    await supabase
+      .from('user_tokens')
+      .upsert({ user_id: user.id, twitter_access_token: data.access_token }, { onConflict: 'user_id' });
+
+    // Use absolute URL based on request host
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const absoluteUrl = `${protocol}://${host}/dashboard/bookmarks`;
+
+    const nextResponse = NextResponse.redirect(absoluteUrl);
+    nextResponse.cookies.delete('twitter_code_verifier');
+    nextResponse.cookies.delete('twitter_state');
     return nextResponse;
   } catch (error) {
     console.error('Callback error:', error);

@@ -1,16 +1,16 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { createClient } from "@/utils/supabase/server"
-import { redirect } from "next/navigation"
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { createSupabaseServerClient } from "@/utils/supabase/server"; // Updated import
+import { redirect } from "next/navigation";
 
 export default async function Home() {
-  const supabase = await createClient() // Await here
+  const supabase = await createSupabaseServerClient(); // Correct function name
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
   if (user) {
-    redirect("/dashboard")
+    redirect("/dashboard");
   }
 
   return (
@@ -54,5 +54,5 @@ export default async function Home() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

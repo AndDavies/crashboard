@@ -2,10 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarIcon, FileTextIcon, BarChart3Icon, UserIcon } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/utils/supabase/server"; // Updated import
 
 export default async function DashboardPage() {
-  const supabase = await createClient() // Await here
+  const supabase = await createSupabaseServerClient() // Await here
   const {
     data: { user },
   } = await supabase.auth.getUser()

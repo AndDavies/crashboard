@@ -2,7 +2,7 @@ import type React from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { SidebarProvider } from "@/components/sidebar-provider"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/utils/supabase/server"; // Updated import
 import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({
@@ -10,7 +10,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient() // Await here
+  const supabase = await createSupabaseServerClient() // Await here
   const {
     data: { user },
   } = await supabase.auth.getUser()
