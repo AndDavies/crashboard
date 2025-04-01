@@ -1,10 +1,10 @@
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/utils/supabase/server';
 import PromptGenerator from '@/components/PromptGenerator';
 import { redirect } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 
 export default async function PromptsPage() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

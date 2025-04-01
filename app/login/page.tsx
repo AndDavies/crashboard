@@ -1,10 +1,10 @@
 import { LoginForm } from "@/components/auth/login-form"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from '@/utils/supabase/server';
 import { redirect } from "next/navigation"
 import Link from "next/link"
 
 export default async function LoginPage() {
-  const supabase = await createClient() // Await here
+  const supabase = await createSupabaseServerClient() // Await here
   const {
     data: { user },
   } = await supabase.auth.getUser()

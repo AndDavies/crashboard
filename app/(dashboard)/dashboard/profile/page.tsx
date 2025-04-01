@@ -2,14 +2,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from '@/utils/supabase/server'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export default async function ProfilePage() {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Get user email or fallback
   const userEmail = user?.email || ""
