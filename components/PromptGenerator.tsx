@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/client'; // Use your browser client
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
 
@@ -25,27 +25,44 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
   const [role, setRole] = useState<string>('');
   const [task, setTask] = useState<string>('');
   const [context, setContext] = useState<string>('');
+  const [articleDetails, setArticleDetails] = useState<string>('');
   const [tone, setTone] = useState<string>('');
   const [constraints, setConstraints] = useState<string>('');
   const [output, setOutput] = useState<string>('');
-  const [tags, setTags] = useState<string>('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState<string>('');
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   const [refinedPrompt, setRefinedPrompt] = useState<string>('');
   const [savedPrompts, setSavedPrompts] = useState<Prompt[]>([]);
   const [searchTag, setSearchTag] = useState<string>('');
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createClient(); // Single instance from your util
 
   useEffect(() => {
     fetchSavedPrompts();
   }, []);
 
+  const fetchSavedPrompts = async () => {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast.error('Failed to fetch prompts: ' + error.message);
+      console.error('Fetch error:', error);
+    } else {
+      setSavedPrompts(data as Prompt[]);
+      const allTags = new Set(data.flatMap(prompt => prompt.tags));
+      setAvailableTags(Array.from(allTags));
+    }
+  };
+
   const handleGenerate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const prompt = `${role ? `You are a ${role}. ` : ''}Your task is to ${task}. ${context ? `Context: ${context}. ` : ''}${tone ? `Use a ${tone} tone. ` : ''}${constraints ? `Constraints: ${constraints}. ` : ''}${output ? `Provide the output as ${output}.` : ''}`.trim();
+    const prompt = `${role ? `You are a ${role}. ` : ''}Your task is to ${task}. ${context ? `Context: ${context}. ` : ''}${articleDetails ? `Article Details: ${articleDetails}. ` : ''}${tone ? `Use a ${tone} tone. ` : ''}${constraints ? `Constraints: ${constraints}. ` : ''}${output ? `Provide the output as ${output}.` : ''}`.trim();
     setGeneratedPrompt(prompt);
     setRefinedPrompt('');
   };
@@ -65,6 +82,7 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
       toast.success('Prompt refined successfully!');
     } else {
       toast.error('Failed to refine prompt.');
+      console.error('Refine error:', await response.text());
     }
   };
 
@@ -72,33 +90,44 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
     const promptToSave = refinedPrompt || generatedPrompt;
     if (!promptToSave) return;
 
-    const tagArray = tags.split(',').map(tag => tag.trim()).filter(Boolean);
-    const { error } = await supabase.from('prompts').insert({
-      user_id: user.id,
-      prompt_text: promptToSave,
-      tags: tagArray,
-    });
+    const { data, error } = await supabase
+      .from('prompts')
+      .insert({
+        user_id: user.id,
+        prompt_text: promptToSave,
+        tags,
+      })
+      .select();
 
     if (error) {
       toast.error('Failed to save prompt: ' + error.message);
+      console.error('Save error:', error);
     } else {
       toast.success('Prompt saved successfully!');
-      fetchSavedPrompts();
+      setSavedPrompts(prev => [...data, ...prev]);
+      const newTags = new Set([...availableTags, ...tags]);
+      setAvailableTags(Array.from(newTags));
     }
   };
 
-  const fetchSavedPrompts = async () => {
-    const { data, error } = await supabase
-      .from('prompts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast.error('Failed to fetch prompts: ' + error.message);
-    } else {
-      setSavedPrompts(data as Prompt[]);
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && tagInput.trim()) {
+      e.preventDefault();
+      if (!tags.includes(tagInput.trim())) {
+        setTags(prev => [...prev, tagInput.trim()]);
+      }
+      setTagInput('');
     }
+  };
+
+  const handleTagSelect = (tag: string) => {
+    if (!tags.includes(tag)) {
+      setTags(prev => [...prev, tag]);
+    }
+  };
+
+  const handleTagRemove = (tagToRemove: string) => {
+    setTags(prev => prev.filter(tag => tag !== tagToRemove));
   };
 
   const handleSearch = () => {
@@ -113,39 +142,170 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
       <form onSubmit={handleGenerate} className="space-y-4">
         <div>
           <Label htmlFor="role">Role</Label>
-          <Input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g., Python expert" className="w-full" />
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger id="role" className="w-full">
+              <SelectValue placeholder="Select a role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Content Writer">Content Writer</SelectItem>
+              <SelectItem value="SEO Specialist">SEO Specialist</SelectItem>
+              <SelectItem value="Next.js Developer">Next.js Developer</SelectItem>
+              <SelectItem value="Digital Marketing Expert">Digital Marketing Expert</SelectItem>
+              <SelectItem value="Pet Travel Expert">Pet Travel Expert</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
         <div>
           <Label htmlFor="task">Task</Label>
-          <Input id="task" value={task} onChange={(e) => setTask(e.target.value)} placeholder="e.g., write a script" required className="w-full" />
+          <Select value={task} onValueChange={setTask}>
+            <SelectTrigger id="task" className="w-full">
+              <SelectValue placeholder="Select a task" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="generate an outline for an article">Generate an outline for an article</SelectItem>
+              <SelectItem value="write a section of an article">Write a section of an article</SelectItem>
+              <SelectItem value="write a full article to inform">Write a full article to inform</SelectItem>
+              <SelectItem value="write a full article to educate">Write a full article to educate</SelectItem>
+              <SelectItem value="write a full article to entertain">Write a full article to entertain</SelectItem>
+              <SelectItem value="create a list article">Create a list article</SelectItem>
+              <SelectItem value="design an infographic">Design an infographic</SelectItem>
+              <SelectItem value="write Next.js code">Write Next.js code</SelectItem>
+              <SelectItem value="optimize content for SEO">Optimize content for SEO</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
         <div>
           <Label htmlFor="context">Context</Label>
-          <Textarea id="context" value={context} onChange={(e) => setContext(e.target.value)} placeholder="e.g., for my dashboard" className="w-full" />
+          <Select value={context} onValueChange={setContext}>
+            <SelectTrigger id="context" className="w-full">
+              <SelectValue placeholder="Select a context" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Wags & Wanders: A site for seamless pet travel for digital nomads and families, offering pet-friendly hotels, airlines, vet networks, and travel planning tools. Keywords: pet travel, pet-friendly hotels, digital nomad pet travel.">
+                Wags & Wanders: Pet travel for digital nomads and families
+              </SelectItem>
+              <SelectItem value="Crashboard: My personal dashboard for managing projects, tasks, and scripts with Next.js and Supabase.">
+                Crashboard: Personal project dashboard
+              </SelectItem>
+              <SelectItem value="Personal Development: Content to improve skills, habits, and self-growth for a general audience.">
+                Personal Development: Self-growth content
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        <div>
+          <Label htmlFor="articleDetails">Article Details</Label>
+          <Textarea
+            id="articleDetails"
+            value={articleDetails}
+            onChange={(e) => setArticleDetails(e.target.value)}
+            placeholder="e.g., Topic: Best pet-friendly hotels in Europe, Audience: Digital nomads with dogs, Key points: Location, amenities, booking tips"
+            className="w-full min-h-[100px] dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+          />
+        </div>
+
         <div>
           <Label htmlFor="tone">Tone</Label>
-          <Input id="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="e.g., casual" className="w-full" />
+          <Select value={tone} onValueChange={setTone}>
+            <SelectTrigger id="tone" className="w-full">
+              <SelectValue placeholder="Select a tone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="informative">Informative</SelectItem>
+              <SelectItem value="educational">Educational</SelectItem>
+              <SelectItem value="entertaining">Entertaining</SelectItem>
+              <SelectItem value="casual">Casual</SelectItem>
+              <SelectItem value="professional">Professional</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
         <div>
           <Label htmlFor="constraints">Constraints</Label>
-          <Input id="constraints" value={constraints} onChange={(e) => setConstraints(e.target.value)} placeholder="e.g., under 500 words" className="w-full" />
+          <Select value={constraints} onValueChange={setConstraints}>
+            <SelectTrigger id="constraints" className="w-full">
+              <SelectValue placeholder="Select constraints" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="under 500 words">Under 500 words</SelectItem>
+              <SelectItem value="500-1000 words">500-1000 words</SelectItem>
+              <SelectItem value="over 1000 words">Over 1000 words</SelectItem>
+              <SelectItem value="use Next.js with TypeScript and Tailwind">Use Next.js with TypeScript and Tailwind</SelectItem>
+              <SelectItem value="include SEO keywords: pet travel, pet-friendly hotels">Include SEO keywords: pet travel, pet-friendly hotels</SelectItem>
+              <SelectItem value="limit to 3 sections">Limit to 3 sections</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
         <div>
           <Label htmlFor="output">Output Format</Label>
-          <Input id="output" value={output} onChange={(e) => setOutput(e.target.value)} placeholder="e.g., markdown" className="w-full" />
+          <Select value={output} onValueChange={setOutput}>
+            <SelectTrigger id="output" className="w-full">
+              <SelectValue placeholder="Select an output format" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="markdown">Markdown</SelectItem>
+              <SelectItem value="plain text">Plain text</SelectItem>
+              <SelectItem value="Next.js component (.tsx)">Next.js component (.tsx)</SelectItem>
+              <SelectItem value="HTML">HTML</SelectItem>
+              <SelectItem value="numbered list">Numbered list</SelectItem>
+              <SelectItem value="bullet list">Bullet list</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
         <div>
-          <Label htmlFor="tags">Tags (comma-separated)</Label>
-          <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g., coding, blog" className="w-full" />
+          <Label>Tags</Label>
+          <div className="space-y-2">
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagInputKeyDown}
+              placeholder="Type a tag and press Enter"
+              className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+            />
+            <div className="flex flex-wrap gap-2">
+              {tags.map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                >
+                  {tag}
+                  <button
+                    onClick={() => handleTagRemove(tag)}
+                    className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            {availableTags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {availableTags.filter(tag => !tags.includes(tag)).map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => handleTagSelect(tag)}
+                    className="px-2 py-1 rounded-full text-sm bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
         <Button type="submit" className="w-full sm:w-auto">Generate Prompt</Button>
       </form>
 
       {generatedPrompt && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold">Generated Prompt:</h3>
-          <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded whitespace-pre-wrap text-sm">{generatedPrompt}</pre>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Generated Prompt:</h3>
+          <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{generatedPrompt}</pre>
           <div className="mt-2 space-x-2">
             <Button onClick={handleRefine}>Refine with AI</Button>
             <Button onClick={handleSave} variant="secondary">Save Prompt</Button>
@@ -155,23 +315,28 @@ export default function PromptGenerator({ user }: PromptGeneratorProps) {
 
       {refinedPrompt && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold">Refined Prompt:</h3>
-          <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded whitespace-pre-wrap text-sm">{refinedPrompt}</pre>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Refined Prompt:</h3>
+          <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{refinedPrompt}</pre>
           <Button onClick={handleSave} className="mt-2" variant="secondary">Save Refined Prompt</Button>
         </div>
       )}
 
       <div className="mt-8">
-        <h3 className="text-lg font-semibold">Saved Prompts</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Saved Prompts</h3>
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
-          <Input value={searchTag} onChange={(e) => setSearchTag(e.target.value)} placeholder="Search by tag" className="w-full sm:w-64" />
+          <input
+            value={searchTag}
+            onChange={(e) => setSearchTag(e.target.value)}
+            placeholder="Search by tag"
+            className="w-full sm:w-64 p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+          />
           <Button onClick={handleSearch} className="w-full sm:w-auto">Search</Button>
           <Button onClick={fetchSavedPrompts} variant="outline" className="w-full sm:w-auto">Refresh</Button>
         </div>
         <div className="space-y-4">
           {savedPrompts.map(prompt => (
             <div key={prompt.id} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
-              <p className="whitespace-pre-wrap text-sm">{prompt.prompt_text}</p>
+              <p className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{prompt.prompt_text}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tags: {prompt.tags.join(', ')}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Saved: {new Date(prompt.created_at).toLocaleString()}</p>
             </div>
