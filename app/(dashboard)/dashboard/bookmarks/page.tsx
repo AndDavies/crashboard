@@ -61,13 +61,17 @@ export default function BookmarksPage() {
     if (!twitterId) {
       try {
         const meResponse = await fetch('https://api.twitter.com/2/users/me', {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          method: 'GET',
+          headers: { 
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
         });
-        const meText = await meResponse.text();
         if (!meResponse.ok) {
-          throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${meText}`);
+          const errorText = await meResponse.text();
+          throw new Error(`Failed to fetch Twitter ID: ${meResponse.status} - ${errorText}`);
         }
-        const meData = JSON.parse(meText);
+        const meData = await meResponse.json();
         setTwitterId(meData.data.id);
         console.log('Twitter ID:', meData.data.id);
       } catch (error) {
@@ -82,18 +86,22 @@ export default function BookmarksPage() {
     if (twitterId) {
       try {
         const response = await fetch(`https://api.twitter.com/2/users/${twitterId}/bookmarks`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          method: 'GET',
+          headers: { 
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
         });
-        const responseText = await response.text();
         if (!response.ok) {
+          const errorText = await response.text();
           if (response.status === 401) {
             console.log('Unauthorized - redirecting to re-authenticate');
             window.location.href = '/api/twitter/auth';
             return;
           }
-          throw new Error(`Failed to fetch bookmarks: ${response.status} - ${responseText}`);
+          throw new Error(`Failed to fetch bookmarks: ${response.status} - ${errorText}`);
         }
-        const data = JSON.parse(responseText);
+        const data = await response.json();
         setBookmarks(data.data || []);
         setFilteredBookmarks(data.data || []);
       } catch (error) {
