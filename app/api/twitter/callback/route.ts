@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.TWITTER_CLIENT_ID!;
   const clientSecret = process.env.TWITTER_CLIENT_SECRET!;
-  const redirectUri = 'https://findyourchimps.dev/api/twitter/callback';
+  const redirectUri = process.env.TWITTER_REDIRECT_URI || 'https://findyourchimps.dev/api/twitter/callback';
 
   const response = await fetch('https://api.twitter.com/2/oauth2/token', {
     method: 'POST',
@@ -34,7 +35,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: data.error_description || 'Failed to get token' }, { status: 400 });
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    await supabase.from('user_tokens').upsert({
+      user_id: user.id,
+      twitter_access_token: data.access_token,
+    });
+  }
+
   const nextResponse = NextResponse.redirect('/dashboard/bookmarks');
-  nextResponse.cookies.set('twitter_access_token', data.access_token, { httpOnly: true, path: '/', maxAge: 3600 }); // 1 hour expiry
+  nextResponse.cookies.set('twitter_access_token', data.access_token, { httpOnly: true, path: '/', maxAge: 3600 });
   return nextResponse;
 }

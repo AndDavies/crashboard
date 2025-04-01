@@ -23,14 +23,13 @@ export default function BookmarksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [segment, setSegment] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
-  const [twitterId, setTwitterId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    fetchTwitterIdAndBookmarks();
+    fetchBookmarks();
   }, []);
 
-  const fetchTwitterIdAndBookmarks = async () => {
+  const fetchBookmarks = async () => {
     setIsLoading(true);
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -39,61 +38,50 @@ export default function BookmarksPage() {
       return;
     }
 
-    const accessToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('twitter_access_token='))
-      ?.split('=')[1];
+    // Check Supabase for stored Twitter token
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('user_tokens')
+      .select('twitter_access_token')
+      .eq('user_id', user.id)
+      .single();
 
-    if (!accessToken) {
+    let accessToken = tokenData?.twitter_access_token;
+
+    if (!accessToken || tokenError) {
       window.location.href = '/api/twitter/auth';
       setIsLoading(false);
       return;
     }
 
-    // Fetch Twitter ID if not already set
-    if (!twitterId) {
-      try {
-        const meResponse = await fetch('https://api.twitter.com/2/users/me', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (!meResponse.ok) throw new Error(await meResponse.text());
-        const meData = await meResponse.json();
-        setTwitterId(meData.data.id);
-      } catch (error) {
-        toast.error('Failed to fetch Twitter ID: ' + (error as Error).message);
-        console.error('Twitter ID fetch error:', error);
-        setIsLoading(false);
-        return;
-      }
-    }
+    try {
+      const meResponse = await fetch('https://api.twitter.com/2/users/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!meResponse.ok) throw new Error(await meResponse.text());
+      const meData = await meResponse.json();
+      const twitterId = meData.data.id;
 
-    // Fetch bookmarks
-    if (twitterId) {
-      try {
-        const response = await fetch(`https://api.twitter.com/2/users/${twitterId}/bookmarks`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+      const response = await fetch(`https://api.twitter.com/2/users/${twitterId}/bookmarks`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
 
-        if (!response.ok) {
-          throw new Error(await response.text());
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/api/twitter/auth'; // Re-auth if token expired
+          return;
         }
-
-        const data = await response.json();
-        setBookmarks(data.data || []);
-        setFilteredBookmarks(data.data || []);
-      } catch (error) {
-        toast.error('Failed to fetch bookmarks: ' + (error as Error).message);
-        console.error('Bookmarks fetch error:', error);
-        if ((error as Error).message.includes('Unauthorized')) {
-          window.location.href = '/api/twitter/auth';
-        }
+        throw new Error(await response.text());
       }
+
+      const data = await response.json();
+      setBookmarks(data.data || []);
+      setFilteredBookmarks(data.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch bookmarks: ' + (error as Error).message);
+      console.error('Bookmarks fetch error:', error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const filterBookmarks = () => {
@@ -107,7 +95,7 @@ export default function BookmarksPage() {
     if (segment !== 'all') {
       result = result.filter(b =>
         segment === 'hashtags'
-          ? Array.isArray(b.entities?.hashtags) && b.entities.hashtags.length > 0 // Fixed with explicit array check
+          ? Array.isArray(b.entities?.hashtags) && b.entities.hashtags.length > 0
           : b.text.toLowerCase().includes(segment.toLowerCase())
       );
     }
@@ -142,7 +130,7 @@ export default function BookmarksPage() {
             <SelectItem value="travel">Travel-related</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={fetchTwitterIdAndBookmarks} disabled={isLoading}>
+        <Button onClick={fetchBookmarks} disabled={isLoading}>
           {isLoading ? 'Loading...' : 'Refresh'}
         </Button>
       </div>
@@ -160,8 +148,7 @@ export default function BookmarksPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   {new Date(bookmark.created_at).toLocaleString()}
                 </p>
-                {bookmark.entities?.
-hashtags && (
+                {bookmark.entities?.hashtags && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     Hashtags: {bookmark.entities.hashtags.map(h => `#${h.text}`).join(', ')}
                   </p>

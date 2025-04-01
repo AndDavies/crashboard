@@ -3,7 +3,7 @@ import { randomBytes, createHash } from 'crypto';
 
 export async function GET() {
   const clientId = process.env.TWITTER_CLIENT_ID!;
-  const redirectUri = process.env.TWITTER_REDIRECT_URI!; // Use env variable
+  const redirectUri = process.env.TWITTER_REDIRECT_URI || 'https://findyourchimps.dev/api/twitter/callback'; // Fallback to prod
   const state = randomBytes(16).toString('hex');
   const codeVerifier = randomBytes(32).toString('base64url');
   const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
@@ -13,6 +13,5 @@ export async function GET() {
   const response = NextResponse.redirect(authUrl);
   response.cookies.set('twitter_code_verifier', codeVerifier, { httpOnly: true, path: '/' });
   response.cookies.set('twitter_state', state, { httpOnly: true, path: '/' });
-
   return response;
 }
