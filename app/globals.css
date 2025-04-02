@@ -2,6 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Typography Overrides */
+.prose p {
+  margin-bottom: 1rem;
+}
+
+.prose blockquote {
+  border-left: 4px solid #ccc;
+  padding-left: 1rem;
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+.prose h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose h2 {
+  font-size: 1.75rem;
+  font-weight: bold;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Add this to globals.css after the h2 styles */
+.prose h3 {
+  font-size: 1.5rem; /* Between h2 (1.75rem) and default text, matches prose-lg */
+  font-weight: 600;  /* Slightly less bold than h1/h2 (bold) */
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Table Styling for Prose */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  border: 1px solid #e5e7eb; /* Tailwind gray-200 */
+}
+
+.prose th,
+.prose td {
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.prose th {
+  background-color: #f3f4f6; /* Tailwind gray-100 */
+  font-weight: 600;
+  color: #374151; /* Tailwind gray-700 */
+}
+
+.prose td {
+  vertical-align: top;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
