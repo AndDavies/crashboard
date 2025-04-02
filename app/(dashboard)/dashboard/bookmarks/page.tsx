@@ -92,7 +92,7 @@ export default async function BookmarksPage() {
     enrichedBookmarks = cachedBookmarks as StoredBookmark[];
   } else {
     console.log('Fetching Twitter ID...');
-    const meResponse = await fetch('https://api.twitter.com/2/users/meEE', {
+    const meResponse = await fetch('https://api.twitter.com/2/users/me', {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}` },
     });
