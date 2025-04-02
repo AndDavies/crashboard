@@ -85,7 +85,7 @@ const MenuBar: React.FC<{ editor: any; onSelectImage: (url: string) => void }> =
 
   if (!editor) return null;
   return (
-    <div className="fixed top-0 left-0 right-0 z-10 bg-white border-b border-muted p-2 overflow-x-auto whitespace-nowrap">
+    <div className="absolute top-2 left-2 right-2 z-10 bg-white border-b border-muted p-2 overflow-x-auto whitespace-nowrap shadow-md">
       <div className="flex gap-2">
         <Button variant={editor.isActive("bold") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBold().run()}>
           Bold
@@ -409,7 +409,7 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
   };
 
   return (
-    <div className="w-full p-8 pt-16 font-sans"> {/* Full width, padding-top for fixed MenuBar */}
+    <div className="w-full p-8 font-sans"> {/* Full width */}
       <div className="space-y-8">
         <h2 className="text-2xl font-bold mb-4">
           {initialData ? "Edit Blog Post" : "Create New Blog Post"}
@@ -565,9 +565,9 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
               <p className="text-gray-600 text-sm">{metaDescription}</p>
             </div>
           ) : (
-            <div className="border border-muted rounded-md p-4 mt-12">
+            <div className="border border-muted rounded-md p-4 relative">
               <MenuBar editor={editor} onSelectImage={handleSelectImage} />
-              <div className="min-h-[400px] prose prose-lg pt-2">
+              <div className="min-h-[400px] prose prose-lg pt-12"> {/* Padding-top for floating MenuBar */}
                 <EditorContent editor={editor} />
               </div>
             </div>
