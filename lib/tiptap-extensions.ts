@@ -1,4 +1,3 @@
-// lib/tiptap-extensions.ts
 import { Mark, Node } from "@tiptap/core";
 import { Editor } from "@tiptap/react";
 
@@ -66,14 +65,11 @@ export const CustomStyle = Mark.create({
   },
 });
 
-// KeyTakeaways Node (updated)
+// KeyTakeaways Node (updated to use prose styles)
 export const KeyTakeaways = Node.create({
   name: "keyTakeaways",
-
   group: "block",
-
   content: "block+",
-
   parseHTML() {
     return [
       {
@@ -85,44 +81,38 @@ export const KeyTakeaways = Node.create({
       },
     ];
   },
-
   renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, string> }) {
     return ["div", { class: "key-takeaways", ...HTMLAttributes }, 0];
   },
-
   addCommands() {
     return {
       insertKeyTakeaways:
         () =>
         ({ commands }: { commands: any }) => {
-          return commands.insertContent({
-            type: "keyTakeaways",
-            content: [
-              {
-                type: "heading",
-                attrs: { level: 3, class: "key-takeaways-title" }, // Apply class directly
-                content: [{ type: "text", text: "Key Takeaways" }],
-              },
-              {
-                type: "bulletList",
-                attrs: { class: "key-takeaways-list" },
-                content: [
-                  {
-                    type: "listItem",
-                    content: [
-                      { type: "paragraph", content: [{ type: "text", text: "First takeaway" }] },
-                    ],
-                  },
-                  {
-                    type: "listItem",
-                    content: [
-                      { type: "paragraph", content: [{ type: "text", text: "Second takeaway" }] },
-                    ],
-                  },
-                ],
-              },
-            ],
-          });
+          return commands.insertContent([
+            {
+              type: "heading",
+              attrs: { level: 3 }, // Uses .prose h3 from globals.css
+              content: [{ type: "text", text: "Key Takeaways" }],
+            },
+            {
+              type: "bulletList", // Uses .prose ul from globals.css
+              content: [
+                {
+                  type: "listItem",
+                  content: [
+                    { type: "paragraph", content: [{ type: "text", text: "First takeaway" }] },
+                  ],
+                },
+                {
+                  type: "listItem",
+                  content: [
+                    { type: "paragraph", content: [{ type: "text", text: "Second takeaway" }] },
+                  ],
+                },
+              ],
+            },
+          ]);
         },
     };
   },
