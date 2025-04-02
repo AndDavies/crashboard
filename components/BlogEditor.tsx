@@ -19,8 +19,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Table as UITable, TableBody as UITableBody, TableCell as UITableCell, TableHead as UITableHead, TableHeader as UITableHeader, TableRow as UITableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import Spinner from "./Spinner";
 import dynamic from "next/dynamic";
 import { toast } from "react-hot-toast";
@@ -85,44 +87,62 @@ const MenuBar: React.FC<{ editor: any; onSelectImage: (url: string) => void }> =
 
   if (!editor) return null;
   return (
-    <div className="absolute top-2 left-2 right-2 z-10 bg-white border-b border-muted p-2 overflow-x-auto whitespace-nowrap shadow-md">
+    <div className="fixed top-0 left-0 right-0 z-10 bg-white border-b border-muted p-2 flex justify-between items-center shadow-md">
       <div className="flex gap-2">
+        {/* Text Styles */}
         <Button variant={editor.isActive("bold") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBold().run()}>
-          Bold
+          B
         </Button>
         <Button variant={editor.isActive("italic") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleItalic().run()}>
-          Italic
+          I
         </Button>
         <Button variant={editor.isActive("underline") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleUnderline().run()}>
-          Underline
+          U
         </Button>
         <Button variant={editor.isActive("strike") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleStrike().run()}>
-          Strike
+          S
         </Button>
-        <Button variant="outline" size="sm" onClick={() => editor.chain().focus().setParagraph().run()}>
-          Paragraph
-        </Button>
-        <Button variant={editor.isActive("heading", { level: 1 }) ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-          H1
-        </Button>
-        <Button variant={editor.isActive("heading", { level: 2 }) ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-          H2
-        </Button>
-        <Button variant={editor.isActive("heading", { level: 3 }) ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-          H3
-        </Button>
+
+        {/* Headings Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              Heading <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-white border rounded-md shadow-md p-1">
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={editor.isActive("heading", { level: 1 }) ? "bg-gray-200" : ""}>
+              H1
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={editor.isActive("heading", { level: 2 }) ? "bg-gray-200" : ""}>
+              H2
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={editor.isActive("heading", { level: 3 }) ? "bg-gray-200" : ""}>
+              H3
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()} className={editor.isActive("paragraph") ? "bg-gray-200" : ""}>
+              Paragraph
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Lists */}
         <Button variant={editor.isActive("bulletList") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          Bullet List
+          • List
         </Button>
         <Button variant={editor.isActive("orderedList") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          Ordered List
+          1. List
         </Button>
+
+        {/* Block Elements */}
         <Button variant={editor.isActive("blockquote") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-          Blockquote
+          Quote
         </Button>
         <Button variant={editor.isActive("codeBlock") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
-          Code Block
+          Code
         </Button>
+
+        {/* Links */}
         <Button
           variant="outline"
           size="sm"
@@ -134,29 +154,34 @@ const MenuBar: React.FC<{ editor: any; onSelectImage: (url: string) => void }> =
         >
           Link
         </Button>
-        <Button variant="outline" size="sm" onClick={() => editor.chain().focus().unsetLink().run()}>
-          Unset Link
+        <Button variant="outline" size="sm" onClick={() => editor.chain().focus().unsetLink().run()} disabled={!editor.isActive("link")}>
+          Unlink
         </Button>
-        <Button
-          variant={editor.isActive("customStyle", { class: "bg-yellow-200" }) ? "default" : "outline"}
-          size="sm"
-          onClick={() => editor.chain().focus().toggleCustomStyle("bg-yellow-200").run()}
-        >
-          Yellow Highlight
-        </Button>
-        <Button
-          variant={editor.isActive("customStyle", { class: "key-takeaways-highlight" }) ? "default" : "outline"}
-          size="sm"
-          onClick={() => editor.chain().focus().toggleCustomStyle("key-takeaways-highlight").run()}
-        >
-          Takeaway Highlight
-        </Button>
+
+        {/* Custom Styles */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              Styles <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-white border rounded-md shadow-md p-1">
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCustomStyle("bg-yellow-200").run()} className={editor.isActive("customStyle", { class: "bg-yellow-200" }) ? "bg-gray-200" : ""}>
+              Yellow Highlight
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCustomStyle("key-takeaways-highlight").run()} className={editor.isActive("customStyle", { class: "key-takeaways-highlight" }) ? "bg-gray-200" : ""}>
+              Takeaway Highlight
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Inserts */}
         <Button variant="outline" size="sm" onClick={() => editor.chain().focus().insertKeyTakeaways().run()}>
-          Insert Key Takeaways
+          Key Takeaways
         </Button>
         <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm">Select Image</Button>
+            <Button variant="outline" size="sm">Image</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -250,7 +275,6 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
     fetchAuthors();
     fetchImages();
 
-    // Autosave to Supabase every 30 seconds
     const autosaveInterval = setInterval(() => {
       handleAutosave();
     }, 30000);
@@ -409,7 +433,7 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
   };
 
   return (
-    <div className="w-full p-8 font-sans"> {/* Full width */}
+    <div className="w-full p-8 pt-16 font-sans"> {/* Full width, padding-top for fixed MenuBar */}
       <div className="space-y-8">
         <h2 className="text-2xl font-bold mb-4">
           {initialData ? "Edit Blog Post" : "Create New Blog Post"}
@@ -565,9 +589,9 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
               <p className="text-gray-600 text-sm">{metaDescription}</p>
             </div>
           ) : (
-            <div className="border border-muted rounded-md p-4 relative">
+            <div className="border border-muted rounded-md p-4">
               <MenuBar editor={editor} onSelectImage={handleSelectImage} />
-              <div className="min-h-[400px] prose prose-lg pt-12"> {/* Padding-top for floating MenuBar */}
+              <div className="min-h-[400px] prose prose-lg pt-2">
                 <EditorContent editor={editor} />
               </div>
             </div>
