@@ -107,9 +107,8 @@ export function Sidebar({ user }: { user: SupabaseUser }) {
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Profile", href: "/dashboard/profile", icon: User },
-  { name: "Calendar", href: "/dashboard/calendar", icon: Calendar },
-  { name: "Documents", href: "/dashboard/documents", icon: FileText },
+  { name: "Blog CMS", href: "/dashboard/blog", icon: User },
   { name: "Prompts", href: "/dashboard/prompts", icon: FileText },
   { name: "Bookmarks", href: "/dashboard/bookmarks", icon: Bookmark }, // Changed to Bookmark
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  
 ];
