@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { TwitterBookmarkCard } from '@/components/twitter-bookmark-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
+import { Button } from '@/components/ui/button';
 
 interface Bookmark {
   id: string;
@@ -78,7 +78,6 @@ export default async function BookmarksPage() {
 
   console.log('Using access token:', accessToken);
 
-  let twitterId: string | null = null;
   let enrichedBookmarks: StoredBookmark[] = [];
   let errorMessage: string | null = null;
 
@@ -88,9 +87,15 @@ export default async function BookmarksPage() {
     .select('*')
     .eq('user_id', user.id);
 
-  if (cachedBookmarks?.length && !cacheError) {
+  if (cacheError) {
+    errorMessage = 'Error loading cached bookmarks: ' + cacheError.message;
+    console.error(errorMessage);
+  } else if (cachedBookmarks?.length) {
     enrichedBookmarks = cachedBookmarks as StoredBookmark[];
-  } else {
+  }
+
+  // Always fetch and upsert (for now, can add toggle later)
+  if (!errorMessage) {
     console.log('Fetching Twitter ID...');
     const meResponse = await fetch('https://api.twitter.com/2/users/me', {
       method: 'GET',
@@ -106,7 +111,7 @@ export default async function BookmarksPage() {
       console.error('Twitter ID fetch error:', errorMessage);
     } else {
       const meData = JSON.parse(meText);
-      twitterId = meData.data.id;
+      const twitterId = meData.data.id;
       console.log('Twitter ID:', twitterId);
 
       console.log('Fetching bookmarks for Twitter ID:', twitterId);
@@ -157,7 +162,13 @@ export default async function BookmarksPage() {
           };
         });
 
-        await supabase.from('twitter_bookmarks').upsert(enrichedBookmarks, { onConflict: 'id' });
+        const { error: upsertError } = await supabase.from('twitter_bookmarks').upsert(enrichedBookmarks, { onConflict: 'id' });
+        if (upsertError) {
+          console.error('Failed to upsert bookmarks:', upsertError.message);
+          errorMessage = 'Failed to save bookmarks to database: ' + upsertError.message;
+        } else {
+          console.log('Bookmarks successfully cached to Supabase');
+        }
       }
     }
   }
@@ -233,7 +244,12 @@ export default async function BookmarksPage() {
           )}
         </div>
       ) : enrichedBookmarks.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400 mt-4">No bookmarks found.</p>
+        <div className="text-gray-500 dark:text-gray-400 mt-4">
+          <p>No bookmarks found in cache.</p>
+          <Button asChild className="mt-2">
+            <Link href="/dashboard/bookmarks">Refresh Bookmarks</Link>
+          </Button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           {enrichedBookmarks.map(bookmark => (
