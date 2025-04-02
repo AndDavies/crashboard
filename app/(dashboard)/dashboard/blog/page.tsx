@@ -3,9 +3,8 @@ import { supabaseBlog } from '@/utils/supabase/supabaseBlogClient';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from 'lucide-react';
+import { Calendar, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import Image from 'next/image';
 
 interface BlogPost {
   id: string;
@@ -22,12 +21,17 @@ export default async function BlogPage() {
   const { data: posts, error } = await supabaseBlog
     .from('blog_posts')
     .select('id, title, slug, excerpt, published_at, featured_image, tags, is_featured')
-    .order('created_at', { ascending: false })
-    .limit(9); // Match your production limit
+    .order('created_at', { ascending: false });
 
   if (error) {
     return <div className="w-full p-8">Error loading posts: {error.message}</div>;
   }
+
+  const deletePost = async (postId: string) => {
+    'use server';
+    const { error } = await supabaseBlog.from('blog_posts').delete().eq('id', postId);
+    if (error) console.error('Delete error:', error.message);
+  };
 
   return (
     <div className="w-full p-8">
@@ -45,11 +49,10 @@ export default async function BlogPage() {
           >
             {post.featured_image && (
               <div className="relative h-48 overflow-hidden">
-                <Image
+                <img
                   src={post.featured_image || "/placeholder.svg"}
                   alt={post.title}
-                  fill
-                  className="object-cover transition-transform duration-500 hover:scale-105"
+                  className="object-cover w-full h-full transition-transform duration-500 hover:scale-105"
                 />
                 {post.tags && post.tags.length > 0 && (
                   <div className="absolute top-3 left-3">
@@ -68,14 +71,19 @@ export default async function BlogPage() {
               <h3 className="text-xl font-bold mb-3 text-[#249ab4] line-clamp-2">{post.title}</h3>
               <p className="text-[#493f40]/80 text-sm line-clamp-3 mb-4">{post.excerpt || "No excerpt available"}</p>
             </CardContent>
-            <CardFooter className="px-6 pb-6 pt-0">
+            <CardFooter className="px-6 pb-6 pt-0 flex gap-2">
               <Button
                 asChild
                 variant="outline"
-                className="text-[#249ab4] border-[#249ab4] hover:bg-[#FFA9DE]/10 hover:text-[#249ab4] w-full"
+                className="text-[#249ab4] border-[#249ab4] hover:bg-[#FFA9DE]/10 hover:text-[#249ab4] flex-1"
               >
                 <Link href={`/dashboard/blog/edit/${post.id}`}>Edit</Link>
               </Button>
+              <form action={deletePost.bind(null, post.id)}>
+                <Button type="submit" variant="destructive" className="flex-1">
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                </Button>
+              </form>
             </CardFooter>
           </Card>
         ))}

@@ -7,9 +7,9 @@ import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Table from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row"; // Correct import
-import TableHeader from "@tiptap/extension-table-header"; // Correct import
-import TableCell from "@tiptap/extension-table-cell"; // Correct import
+import TableRow from "@tiptap/extension-table-row";
+import TableHeader from "@tiptap/extension-table-header";
+import TableCell from "@tiptap/extension-table-cell";
 import { CustomStyle, KeyTakeaways } from "@/lib/tiptap-extensions";
 import { useRouter } from "next/navigation";
 import { supabaseBlog } from '@/utils/supabase/supabaseBlogClient';
@@ -362,7 +362,7 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
     } else {
       toast.success(`Post ${initialData?.id ? "updated" : "created"} successfully`);
       if (onSaveComplete) onSaveComplete();
-      else router.push("/");
+      else router.push("/dashboard/blog");
     }
     setSaving(false);
   };
