@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabaseBlog } from '@/utils/supabase/supabaseBlogClient';
+import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,23 +19,28 @@ type Reminder = {
 export default function ReminderCard({ reminder }: { reminder: Reminder }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
+  const supabase = createClient();
 
-  const handleDelete = async () => {
-    const { error } = await supabaseBlog.from("reminders").delete().eq("id", reminder.id);
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("reminders").delete().eq("id", reminder.id);
     if (error) {
-      toast({ title: "Error", description: "Failed to delete reminder", variant: "destructive" });
+      console.error("Delete error:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Deleted", description: "Reminder removed" });
     }
   };
 
-  const handlePin = async () => {
-    const { error } = await supabaseBlog
+  const handlePin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase
       .from("reminders")
       .update({ is_pinned: !reminder.is_pinned })
       .eq("id", reminder.id);
     if (error) {
-      toast({ title: "Error", description: "Failed to pin reminder", variant: "destructive" });
+      console.error("Pin error:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: reminder.is_pinned ? "Unpinned" : "Pinned", description: "Reminder updated" });
     }

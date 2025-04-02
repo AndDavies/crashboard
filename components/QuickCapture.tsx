@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabaseBlog } from '@/utils/supabase/supabaseBlogClient';
+import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ export default function QuickCapture() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const { toast } = useToast();
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -18,17 +19,25 @@ export default function QuickCapture() {
       return;
     }
 
-    const { error } = await supabaseBlog.from("reminders").insert({
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
+      console.error("Auth error:", userError);
+      return;
+    }
+
+    const { error } = await supabase.from("reminders").insert({
       title,
       content,
-      tags: extractTags(content), // Simple tag extraction
-      user_id: (await supabaseBlog.auth.getUser()).data.user?.id,
+      tags: extractTags(content),
+      user_id: user.id,
     });
 
     if (error) {
-      toast({ title: "Error", description: "Failed to save reminder", variant: "destructive" });
+      console.error("Save error:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Saved", description: "Reminder added successfully" });
+      toast({ title: "Saved", description: "Reminder added" });
       setTitle("");
       setContent("");
     }
@@ -42,7 +51,10 @@ export default function QuickCapture() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === "Enter") handleSave();
+      if (e.metaKey && e.key === "Enter") {
+        e.preventDefault();
+        handleSave();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
