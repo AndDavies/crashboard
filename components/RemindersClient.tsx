@@ -12,14 +12,23 @@ type Reminder = {
   tags: string[];
   created_at: string;
   is_pinned: boolean;
+  color: string; // Added color property
 };
 
 export default function RemindersClient({ initialReminders }: { initialReminders: Reminder[] }) {
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const supabase = createClient();
 
+  const fetchReminders = async () => {
+    const { data, error } = await supabase
+      .from("reminders")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) console.error("Fetch error:", error);
+    else setReminders(data || []);
+  };
+
   useEffect(() => {
-    // Real-time subscription
     const channel = supabase
       .channel("reminders")
       .on("postgres_changes", { event: "*", schema: "public", table: "reminders" }, (payload) => {
@@ -42,7 +51,7 @@ export default function RemindersClient({ initialReminders }: { initialReminders
 
   return (
     <>
-      <QuickCapture />
+      <QuickCapture onSave={fetchReminders} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reminders.length > 0 ? (
           reminders.map((reminder) => (
