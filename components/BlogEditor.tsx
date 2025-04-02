@@ -19,10 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Table as UITable, TableBody as UITableBody, TableCell as UITableCell, TableHead as UITableHead, TableHeader as UITableHeader, TableRow as UITableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import Spinner from "./Spinner";
 import dynamic from "next/dynamic";
 import { toast } from "react-hot-toast";
@@ -87,117 +85,92 @@ const MenuBar: React.FC<{ editor: any; onSelectImage: (url: string) => void }> =
 
   if (!editor) return null;
   return (
-    <div className="fixed top-0 left-0 right-0 z-10 bg-white border-b border-muted p-2 flex justify-between items-center shadow-md">
-      <div className="flex gap-2">
-        {/* Text Styles */}
-        <Button variant={editor.isActive("bold") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBold().run()}>
-          B
-        </Button>
-        <Button variant={editor.isActive("italic") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleItalic().run()}>
-          I
-        </Button>
-        <Button variant={editor.isActive("underline") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleUnderline().run()}>
-          U
-        </Button>
-        <Button variant={editor.isActive("strike") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleStrike().run()}>
-          S
-        </Button>
-
-        {/* Headings Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              Heading <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-white border rounded-md shadow-md p-1">
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={editor.isActive("heading", { level: 1 }) ? "bg-gray-200" : ""}>
-              H1
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={editor.isActive("heading", { level: 2 }) ? "bg-gray-200" : ""}>
-              H2
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={editor.isActive("heading", { level: 3 }) ? "bg-gray-200" : ""}>
-              H3
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()} className={editor.isActive("paragraph") ? "bg-gray-200" : ""}>
-              Paragraph
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Lists */}
-        <Button variant={editor.isActive("bulletList") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          • List
-        </Button>
-        <Button variant={editor.isActive("orderedList") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          1. List
-        </Button>
-
-        {/* Block Elements */}
-        <Button variant={editor.isActive("blockquote") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-          Quote
-        </Button>
-        <Button variant={editor.isActive("codeBlock") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
-          Code
-        </Button>
-
-        {/* Links */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            const url = window.prompt("Enter URL", editor.getAttributes("link").href || "");
-            if (url) editor.chain().focus().setLink({ href: url }).run();
-            else if (url === "") editor.chain().focus().unsetLink().run();
-          }}
-        >
-          Link
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => editor.chain().focus().unsetLink().run()} disabled={!editor.isActive("link")}>
-          Unlink
-        </Button>
-
-        {/* Custom Styles */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              Styles <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-white border rounded-md shadow-md p-1">
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCustomStyle("bg-yellow-200").run()} className={editor.isActive("customStyle", { class: "bg-yellow-200" }) ? "bg-gray-200" : ""}>
-              Yellow Highlight
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => editor.chain().focus().toggleCustomStyle("key-takeaways-highlight").run()} className={editor.isActive("customStyle", { class: "key-takeaways-highlight" }) ? "bg-gray-200" : ""}>
-              Takeaway Highlight
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Inserts */}
-        <Button variant="outline" size="sm" onClick={() => editor.chain().focus().insertKeyTakeaways().run()}>
-          Key Takeaways
-        </Button>
-        <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">Image</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Select an Image</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
-              {images.map((img) => (
-                <div key={img.name} className="cursor-pointer" onClick={() => { onSelectImage(img.url); setImageDialogOpen(false); }}>
-                  <img src={img.url} alt={img.name} className="w-full h-24 object-cover rounded" />
-                  <p className="text-sm truncate">{img.name}</p>
-                </div>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <div className="sticky top-0 z-10 bg-white border-b border-muted p-2 flex flex-wrap gap-2">
+      <Button variant={editor.isActive("bold") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBold().run()}>
+        Bold
+      </Button>
+      <Button variant={editor.isActive("italic") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleItalic().run()}>
+        Italic
+      </Button>
+      <Button variant={editor.isActive("underline") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleUnderline().run()}>
+        Underline
+      </Button>
+      <Button variant={editor.isActive("strike") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleStrike().run()}>
+        Strike
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => editor.chain().focus().setParagraph().run()}>
+        Paragraph
+      </Button>
+      <Button variant={editor.isActive("heading", { level: 1 }) ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+        H1
+      </Button>
+      <Button variant={editor.isActive("heading", { level: 2 }) ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+        H2
+      </Button>
+      <Button variant={editor.isActive("heading", { level: 3 }) ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+        H3
+      </Button>
+      <Button variant={editor.isActive("bulletList") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBulletList().run()}>
+        Bullet List
+      </Button>
+      <Button variant={editor.isActive("orderedList") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+        Ordered List
+      </Button>
+      <Button variant={editor.isActive("blockquote") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+        Blockquote
+      </Button>
+      <Button variant={editor.isActive("codeBlock") ? "default" : "outline"} size="sm" onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
+        Code Block
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          const url = window.prompt("Enter URL", editor.getAttributes("link").href || "");
+          if (url) editor.chain().focus().setLink({ href: url }).run();
+          else if (url === "") editor.chain().focus().unsetLink().run();
+        }}
+      >
+        Link
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => editor.chain().focus().unsetLink().run()}>
+        Unset Link
+      </Button>
+      <Button
+        variant={editor.isActive("customStyle", { class: "bg-yellow-200" }) ? "default" : "outline"}
+        size="sm"
+        onClick={() => editor.chain().focus().toggleCustomStyle("bg-yellow-200").run()}
+      >
+        Yellow Highlight
+      </Button>
+      <Button
+        variant={editor.isActive("customStyle", { class: "key-takeaways-highlight" }) ? "default" : "outline"}
+        size="sm"
+        onClick={() => editor.chain().focus().toggleCustomStyle("key-takeaways-highlight").run()}
+      >
+        Takeaway Highlight
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => editor.chain().focus().insertKeyTakeaways().run()}>
+        Insert Key Takeaways
+      </Button>
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">Select Image</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select an Image</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
+            {images.map((img) => (
+              <div key={img.name} className="cursor-pointer" onClick={() => { onSelectImage(img.url); setImageDialogOpen(false); }}>
+                <img src={img.url} alt={img.name} className="w-full h-24 object-cover rounded" />
+                <p className="text-sm truncate">{img.name}</p>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -225,7 +198,6 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [images, setImages] = useState<ImageOption[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -433,7 +405,7 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
   };
 
   return (
-    <div className="w-full p-8 pt-16 font-sans"> {/* Full width, padding-top for fixed MenuBar */}
+    <div className="w-full p-8 font-sans"> {/* Full width */}
       <div className="space-y-8">
         <h2 className="text-2xl font-bold mb-4">
           {initialData ? "Edit Blog Post" : "Create New Blog Post"}
@@ -577,32 +549,18 @@ const BlogEditor: React.FC<BlogEditorProps> = ({ initialData, onSaveComplete }) 
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-xl font-semibold">{showPreview ? "SEO Preview" : "Content"}</h3>
-          <div className="flex gap-2 mb-4">
-            <Button onClick={() => setShowPreview(false)} variant={!showPreview ? "default" : "outline"}>Editor</Button>
-            <Button onClick={() => setShowPreview(true)} variant={showPreview ? "default" : "outline"}>SEO Preview</Button>
+          <h3 className="text-xl font-semibold">Content</h3>
+          <div className="border border-muted rounded-md p-4 relative">
+            <MenuBar editor={editor} onSelectImage={handleSelectImage} />
+            <div className="min-h-[400px] prose prose-lg pt-14"> {/* Padding-top for sticky MenuBar */}
+              <EditorContent editor={editor} />
+            </div>
           </div>
-          {showPreview ? (
-            <div className="border border-muted rounded-md p-4">
-              <p className="text-blue-600 text-lg">{title}</p>
-              <p className="text-green-600 text-sm">https://findyourchimps.dev/blog/{slug}</p>
-              <p className="text-gray-600 text-sm">{metaDescription}</p>
-            </div>
-          ) : (
-            <div className="border border-muted rounded-md p-4">
-              <MenuBar editor={editor} onSelectImage={handleSelectImage} />
-              <div className="min-h-[400px] prose prose-lg pt-2">
-                <EditorContent editor={editor} />
-              </div>
-            </div>
-          )}
-          {!showPreview && (
-            <Button asChild disabled={saving}>
-              <label htmlFor="contentImage" className="cursor-pointer">
-                {saving ? "Uploading..." : "Upload Image to Content"}
-              </label>
-            </Button>
-          )}
+          <Button asChild disabled={saving}>
+            <label htmlFor="contentImage" className="cursor-pointer">
+              {saving ? "Uploading..." : "Upload Image to Content"}
+            </label>
+          </Button>
           <input id="contentImage" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
         </section>
 
