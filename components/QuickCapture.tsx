@@ -5,12 +5,17 @@ import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 export default function QuickCapture({ onSave }: { onSave?: () => void }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [needToDo, setNeedToDo] = useState(false);
+  const [wantToDo, setWantToDo] = useState(false);
+  const [energyScale, setEnergyScale] = useState<string | null>(null);
+  const [color, setColor] = useState("soft-gray"); // Default color
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -51,15 +56,15 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
       return;
     }
 
-    const colorOptions = ["soft-blue", "soft-green", "soft-yellow", "soft-purple", "soft-pink", "soft-gray"];
-    const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
-
     const { error } = await supabase.from("reminders").insert({
       title: finalTitle,
       content,
       tags: extractTags(content),
       user_id: user.id,
-      color: randomColor,
+      need_to_do: needToDo,
+      want_to_do: wantToDo,
+      energy_scale: energyScale ? Number.parseInt(energyScale) : null,
+      color,
     });
 
     setIsLoading(false);
@@ -70,6 +75,10 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
       toast({ title: "Saved", description: "Reminder added" });
       setTitle("");
       setContent("");
+      setNeedToDo(false);
+      setWantToDo(false);
+      setEnergyScale(null);
+      setColor("soft-gray");
       if (onSave) onSave();
     }
   };
@@ -89,7 +98,7 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [title, content]);
+  }, [title, content, needToDo, wantToDo, energyScale, color]);
 
   return (
     <div className="mb-6 sticky top-0 z-10 bg-white p-4 rounded-md shadow border border-gray-200">
@@ -97,17 +106,58 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
         placeholder="Jot something down..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="mb-2"
+        className="mb-2 rounded-sm"
         disabled={isLoading}
       />
       <Textarea
         placeholder="Details, links, or thoughts..."
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        className="mb-2"
+        className="mb-2 rounded-sm resize-none"
         disabled={isLoading}
       />
-      <Button onClick={handleSave} disabled={isLoading}>
+      <div className="flex gap-4 mb-2">
+        <Button
+          variant={needToDo ? "default" : "outline"}
+          onClick={() => setNeedToDo(!needToDo)}
+          disabled={isLoading}
+          className="rounded-sm"
+        >
+          Need To Do
+        </Button>
+        <Button
+          variant={wantToDo ? "default" : "outline"}
+          onClick={() => setWantToDo(!wantToDo)}
+          disabled={isLoading}
+          className="rounded-sm"
+        >
+          Want To Do
+        </Button>
+        <Select value={energyScale || ""} onValueChange={setEnergyScale} disabled={isLoading}>
+          <SelectTrigger className="w-24 rounded-sm">
+            <SelectValue placeholder="Energy" />
+          </SelectTrigger>
+          <SelectContent>
+            {[1, 2, 3, 4, 5].map((num) => (
+              <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={color} onValueChange={setColor} disabled={isLoading}>
+          <SelectTrigger className="w-32 rounded-sm">
+            <SelectValue placeholder="Color" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="soft-blue">Blue</SelectItem>
+            <SelectItem value="soft-green">Green</SelectItem>
+            <SelectItem value="soft-yellow">Yellow</SelectItem>
+            <SelectItem value="soft-purple">Purple</SelectItem>
+            <SelectItem value="soft-pink">Pink</SelectItem>
+            <SelectItem value="soft-gray">Gray</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button onClick={handleSave} disabled={isLoading} className="rounded-sm">
         {isLoading ? "Saving..." : "Save (⌘ + Enter)"}
       </Button>
     </div>

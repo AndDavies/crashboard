@@ -2,8 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import ReminderCard from "@/components/ReminderCard";
 import QuickCapture from "@/components/QuickCapture";
+import ReminderList from "@/components/ReminderList";
+import DailySynopsis from "@/components/DailySynopsis";
+import TrendInsights from "@/components/TrendInsights";
+import MotivationWidget from "@/components/MotivationWidget";
+import KeywordCloud from "@/components/KeywordCloud";
+import EnergyTrends from "@/components/EnergyTrends";
+import TagUsage from "@/components/TagUsage";
+import TimeOfDayActivity from "@/components/TimeOfDayActivity";
+import MoodCorrelation from "@/components/MoodCorrelation";
+import { Button } from "@/components/ui/button";
 
 type Reminder = {
   id: string;
@@ -12,11 +21,17 @@ type Reminder = {
   tags: string[];
   created_at: string;
   is_pinned: boolean;
-  color: string; // Added color property
+  color: string;
+  need_to_do: boolean;
+  want_to_do: boolean;
+  is_archived: boolean;
+  is_done: boolean;
+  energy_scale: number | null;
 };
 
 export default function RemindersClient({ initialReminders }: { initialReminders: Reminder[] }) {
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const [showArchived, setShowArchived] = useState(false);
   const supabase = createClient();
 
   const fetchReminders = async () => {
@@ -50,17 +65,27 @@ export default function RemindersClient({ initialReminders }: { initialReminders
   }, [supabase]);
 
   return (
-    <>
+    <div className="container mx-auto p-4">
       <QuickCapture onSave={fetchReminders} />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {reminders.length > 0 ? (
-          reminders.map((reminder) => (
-            <ReminderCard key={reminder.id} reminder={reminder} />
-          ))
-        ) : (
-          <p className="text-gray-500">No reminders yet. Add one above!</p>
-        )}
+      <div className="flex justify-end mt-4">
+        <Button variant="outline" onClick={() => setShowArchived(!showArchived)}>
+          {showArchived ? "Show Active" : "View Archived"}
+        </Button>
       </div>
-    </>
+      {!showArchived && (
+        <>
+          <DailySynopsis reminders={reminders} />
+          <MotivationWidget reminders={reminders} />
+          <ReminderList reminders={reminders} showArchived={showArchived} />
+          <EnergyTrends reminders={reminders} />
+          <TagUsage reminders={reminders} />
+          <TimeOfDayActivity reminders={reminders} />
+          <MoodCorrelation reminders={reminders} />
+          <TrendInsights reminders={reminders} />
+          <KeywordCloud reminders={reminders} />
+        </>
+      )}
+      {showArchived && <ReminderList reminders={reminders} showArchived={showArchived} />}
+    </div>
   );
 }

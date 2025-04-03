@@ -14,12 +14,24 @@ type Reminder = {
   tags: string[];
   created_at: string;
   is_pinned: boolean;
+  color: string;
+};
+
+const colors = {
+  "soft-blue": "bg-blue-100",
+  "soft-green": "bg-green-100",
+  "soft-yellow": "bg-yellow-100",
+  "soft-purple": "bg-purple-100",
+  "soft-pink": "bg-pink-100",
+  "soft-gray": "bg-gray-100",
 };
 
 export default function ReminderCard({ reminder }: { reminder: Reminder }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
+
+  console.log("Reminder color:", reminder.color); // Debug
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -36,7 +48,7 @@ export default function ReminderCard({ reminder }: { reminder: Reminder }) {
     e.stopPropagation();
     const { error } = await supabase
       .from("reminders")
-      .update({ is_pinned: !reminder.is_pinned })
+      .update({txtis_pinned: !reminder.is_pinned })
       .eq("id", reminder.id);
     if (error) {
       console.error("Pin error:", error);
@@ -46,9 +58,11 @@ export default function ReminderCard({ reminder }: { reminder: Reminder }) {
     }
   };
 
+  const colorClass = colors[reminder.color as keyof typeof colors] || colors["soft-gray"];
+
   return (
     <Card
-      className={`cursor-pointer ${reminder.is_pinned ? "border-yellow-400" : ""}`}
+      className={`cursor-pointer ${colorClass} ${reminder.is_pinned ? "border-yellow-400 border-2" : ""}`}
       onClick={() => setIsExpanded(!isExpanded)}
     >
       <CardHeader>

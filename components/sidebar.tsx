@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-provider";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar, Bookmark } from 'lucide-react'; // Updated import
+import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar, Bookmark, Rss } from 'lucide-react'; // Updated import
 import { Button } from "@/components/ui/button";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -106,7 +106,7 @@ export function Sidebar({ user }: { user: SupabaseUser }) {
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Profile", href: "/dashboard/profile", icon: User },
+  { name: "Reminders", href: "/dashboard/reminders", icon: Rss },
   { name: "Blog CMS", href: "/dashboard/blog", icon: User },
   { name: "Prompts", href: "/dashboard/prompts", icon: FileText },
   { name: "Bookmarks", href: "/dashboard/bookmarks", icon: Bookmark }, // Changed to Bookmark
