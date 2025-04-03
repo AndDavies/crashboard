@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 type Reminder = {
   id: string;
@@ -30,19 +30,19 @@ export default function MoodCorrelation({ reminders }: { reminders: Reminder[] }
   if (data.length === 0) return null;
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Mood vs. Energy</CardTitle>
+    <Card className="mt-6 rounded-md">
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-base font-medium">Mood vs. Energy</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-            <XAxis dataKey="energy" />
-            <YAxis />
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={data}>
+            <XAxis dataKey="energy" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
             <Tooltip />
-            <Bar dataKey="positive" fill="#82ca9d" name="Positive" />
-            <Bar dataKey="negative" fill="#ff5722" name="Negative" />
-          </BarChart>
+            <Line type="monotone" dataKey="positive" stroke="#82ca9d" activeDot={{ r: 8 }} name="Positive" />
+            <Line type="monotone" dataKey="negative" stroke="#ff5722" activeDot={{ r: 8 }} name="Negative" />
+          </LineChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

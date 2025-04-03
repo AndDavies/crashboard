@@ -19,6 +19,15 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
   const { toast } = useToast();
   const supabase = createClient();
 
+  const colors = [
+    { name: "soft-blue", bg: "bg-blue-500" },
+    { name: "soft-green", bg: "bg-green-500" },
+    { name: "soft-yellow", bg: "bg-yellow-500" },
+    { name: "soft-purple", bg: "bg-purple-500" },
+    { name: "soft-pink", bg: "bg-pink-500" },
+    { name: "soft-gray", bg: "bg-gray-500" },
+  ];
+
   const handleSave = async () => {
     let finalTitle = title.trim();
     setIsLoading(true);
@@ -116,7 +125,7 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
         className="mb-2 rounded-sm resize-none"
         disabled={isLoading}
       />
-      <div className="flex gap-4 mb-2">
+      <div className="flex flex-wrap gap-4 mb-2">
         <Button
           variant={needToDo ? "default" : "outline"}
           onClick={() => setNeedToDo(!needToDo)}
@@ -143,19 +152,18 @@ export default function QuickCapture({ onSave }: { onSave?: () => void }) {
             ))}
           </SelectContent>
         </Select>
-        <Select value={color} onValueChange={setColor} disabled={isLoading}>
-          <SelectTrigger className="w-32 rounded-sm">
-            <SelectValue placeholder="Color" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="soft-blue">Blue</SelectItem>
-            <SelectItem value="soft-green">Green</SelectItem>
-            <SelectItem value="soft-yellow">Yellow</SelectItem>
-            <SelectItem value="soft-purple">Purple</SelectItem>
-            <SelectItem value="soft-pink">Pink</SelectItem>
-            <SelectItem value="soft-gray">Gray</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          {colors.map((c) => (
+            <Button
+              key={c.name}
+              variant={color === c.name ? "default" : "outline"}
+              size="icon"
+              className={`${c.bg} rounded-full h-6 w-6`}
+              onClick={() => setColor(c.name)}
+              disabled={isLoading}
+            />
+          ))}
+        </div>
       </div>
       <Button onClick={handleSave} disabled={isLoading} className="rounded-sm">
         {isLoading ? "Saving..." : "Save (⌘ + Enter)"}

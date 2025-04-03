@@ -1,11 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 
 type Reminder = {
   id: string;
@@ -31,31 +28,18 @@ const colors = {
   "soft-gray": "bg-gray-50 border-gray-200",
 };
 
-export default function ReminderList({ reminders, showArchived }: { reminders: Reminder[]; showArchived: boolean }) {
-  const [visibleReminders] = useState(reminders.slice(0, 10));
-  const { toast } = useToast();
-  const supabase = createClient();
-
-  const handleArchive = async (id: string) => {
-    const { error } = await supabase.from("reminders").update({ is_archived: true }).eq("id", id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Archived", description: "Reminder archived" });
-    }
-  };
-
-  const handleDone = async (id: string, currentDone: boolean) => {
-    const { error } = await supabase.from("reminders").update({ is_done: !currentDone }).eq("id", id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: currentDone ? "Undone" : "Done", description: "Reminder updated" });
-    }
-  };
-
-  const groupedByDate = visibleReminders.reduce((acc, reminder) => {
-    if (reminder.is_archived !== showArchived) return acc;
+export default function ReminderList({
+  reminders,
+  showArchived,
+  onDone,
+  onArchive,
+}: {
+  reminders: Reminder[];
+  showArchived: boolean;
+  onDone: (id: string, currentDone: boolean) => void;
+  onArchive: (id: string) => void;
+}) {
+  const groupedByDate = reminders.reduce((acc, reminder) => {
     const date = new Date(reminder.created_at).toDateString();
     acc[date] = acc[date] || [];
     acc[date].push(reminder);
@@ -88,19 +72,21 @@ export default function ReminderList({ reminders, showArchived }: { reminders: R
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDone(reminder.id, reminder.is_done)}
+                      onClick={() => onDone(reminder.id, reminder.is_done)}
                       className="rounded-sm"
                     >
                       {reminder.is_done ? "Undo" : "Done"}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleArchive(reminder.id)}
-                      className="rounded-sm"
-                    >
-                      Archive
-                    </Button>
+                    {!showArchived && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onArchive(reminder.id)}
+                        className="rounded-sm"
+                      >
+                        Archive
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

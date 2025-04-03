@@ -20,7 +20,7 @@ export default async function RemindersPage() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-0">
       <h1 className="text-2xl font-bold mb-4">Reminders</h1>
       <RemindersClient initialReminders={reminders || []} />
     </div>

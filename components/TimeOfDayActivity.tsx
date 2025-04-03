@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 type Reminder = {
   id: string;
@@ -18,23 +18,23 @@ export default function TimeOfDayActivity({ reminders }: { reminders: Reminder[]
   }, {} as Record<number, number>);
 
   const data = Array.from({ length: 24 }, (_, i) => ({
-    hour: `${i}:00`,
+    name: `${i}:00`,
     count: hourCounts[i] || 0,
   }));
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Time of Day Activity</CardTitle>
+    <Card className="mt-6 rounded-md">
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-base font-medium">Time of Day Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-            <XAxis dataKey="hour" />
-            <YAxis />
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={data}>
+            <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
             <Tooltip />
-            <Bar dataKey="count" fill="#8884d8" />
-          </BarChart>
+            <Line type="monotone" dataKey="count" stroke="#82ca9d" activeDot={{ r: 8 }} />
+          </LineChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

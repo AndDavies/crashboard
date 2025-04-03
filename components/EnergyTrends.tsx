@@ -26,24 +26,31 @@ export default function EnergyTrends({ reminders }: { reminders: Reminder[] }) {
     }, {} as Record<string, { date: string; total: number; count: number }>);
 
   const chartData = Object.values(energyData).map((d) => ({
-    date: d.date,
+    name: d.date.split(" ")[2] + " " + d.date.split(" ")[1], // e.g., "03 Apr"
     average: d.total / d.count,
   }));
 
   if (chartData.length === 0) return null;
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Energy Trends (Last Week)</CardTitle>
+    <Card className="mt-6 rounded-md">
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-base font-medium">Energy Trends (Last Week)</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData}>
-            <XAxis dataKey="date" />
-            <YAxis domain={[1, 5]} />
+            <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis
+              stroke="#888888"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) => `${value}`}
+              domain={[1, 5]}
+            />
             <Tooltip />
-            <Line type="monotone" dataKey="average" stroke="#8884d8" />
+            <Line type="monotone" dataKey="average" stroke="#82ca9d" activeDot={{ r: 8 }} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

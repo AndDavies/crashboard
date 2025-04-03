@@ -13,6 +13,7 @@ import TagUsage from "@/components/TagUsage";
 import TimeOfDayActivity from "@/components/TimeOfDayActivity";
 import MoodCorrelation from "@/components/MoodCorrelation";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 type Reminder = {
   id: string;
@@ -33,6 +34,7 @@ export default function RemindersClient({ initialReminders }: { initialReminders
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [showArchived, setShowArchived] = useState(false);
   const supabase = createClient();
+  const { toast } = useToast();
 
   const fetchReminders = async () => {
     const { data, error } = await supabase
@@ -41,6 +43,34 @@ export default function RemindersClient({ initialReminders }: { initialReminders
       .order("created_at", { ascending: false });
     if (error) console.error("Fetch error:", error);
     else setReminders(data || []);
+  };
+
+  const handleArchive = async (id: string) => {
+    // Optimistic update
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, is_archived: true } : r)));
+    
+    const { error } = await supabase.from("reminders").update({ is_archived: true }).eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      // Rollback on error
+      await fetchReminders();
+    } else {
+      toast({ title: "Archived", description: "Reminder archived" });
+    }
+  };
+
+  const handleDone = async (id: string, currentDone: boolean) => {
+    // Optimistic update
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, is_done: !currentDone } : r)));
+    
+    const { error } = await supabase.from("reminders").update({ is_done: !currentDone }).eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      // Rollback on error
+      await fetchReminders();
+    } else {
+      toast({ title: currentDone ? "Undone" : "Done", description: "Reminder updated" });
+    }
   };
 
   useEffect(() => {
@@ -64,28 +94,35 @@ export default function RemindersClient({ initialReminders }: { initialReminders
     };
   }, [supabase]);
 
+  const activeReminders = reminders.filter((r) => !r.is_archived);
+  const archivedReminders = reminders.filter((r) => r.is_archived);
+
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 bg-gray-50 min-h-screen">
       <QuickCapture onSave={fetchReminders} />
       <div className="flex justify-end mt-4">
-        <Button variant="outline" onClick={() => setShowArchived(!showArchived)}>
+        <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className="rounded-md">
           {showArchived ? "Show Active" : "View Archived"}
         </Button>
       </div>
       {!showArchived && (
         <>
-          <DailySynopsis reminders={reminders} />
-          <MotivationWidget reminders={reminders} />
-          <ReminderList reminders={reminders} showArchived={showArchived} />
-          <EnergyTrends reminders={reminders} />
-          <TagUsage reminders={reminders} />
-          <TimeOfDayActivity reminders={reminders} />
-          <MoodCorrelation reminders={reminders} />
-          <TrendInsights reminders={reminders} />
-          <KeywordCloud reminders={reminders} />
+          <DailySynopsis reminders={activeReminders} onDone={handleDone} onArchive={handleArchive} />
+          <MotivationWidget reminders={activeReminders} />
+          <ReminderList reminders={activeReminders} showArchived={false} onDone={handleDone} onArchive={handleArchive} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <EnergyTrends reminders={activeReminders} />
+            <TagUsage reminders={activeReminders} />
+            <TimeOfDayActivity reminders={activeReminders} />
+            <MoodCorrelation reminders={activeReminders} />
+            <TrendInsights reminders={activeReminders} />
+            <KeywordCloud reminders={activeReminders} />
+          </div>
         </>
       )}
-      {showArchived && <ReminderList reminders={reminders} showArchived={showArchived} />}
+      {showArchived && (
+        <ReminderList reminders={archivedReminders} showArchived={true} onDone={handleDone} onArchive={handleArchive} />
+      )}
     </div>
   );
 }

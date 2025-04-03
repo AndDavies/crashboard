@@ -1,10 +1,8 @@
 "use client";
 
-import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 
 type Reminder = {
   id: string;
@@ -30,28 +28,15 @@ const colors = {
   "soft-gray": "bg-gray-50 border-gray-200",
 };
 
-export default function DailySynopsis({ reminders }: { reminders: Reminder[] }) {
-  const { toast } = useToast();
-  const supabase = createClient();
-
-  const handleDone = async (id: string, currentDone: boolean) => {
-    const { error } = await supabase.from("reminders").update({ is_done: !currentDone }).eq("id", id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: currentDone ? "Undone" : "Done", description: "Reminder updated" });
-    }
-  };
-
-  const handleArchive = async (id: string) => {
-    const { error } = await supabase.from("reminders").update({ is_archived: true }).eq("id", id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Archived", description: "Reminder archived" });
-    }
-  };
-
+export default function DailySynopsis({
+  reminders,
+  onDone,
+  onArchive,
+}: {
+  reminders: Reminder[];
+  onDone: (id: string, currentDone: boolean) => void;
+  onArchive: (id: string) => void;
+}) {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const start = yesterday.toISOString().split("T")[0] + "T00:00:00Z";
@@ -89,7 +74,7 @@ export default function DailySynopsis({ reminders }: { reminders: Reminder[] }) 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleDone(reminder.id, reminder.is_done)}
+                  onClick={() => onDone(reminder.id, reminder.is_done)}
                   className="rounded-sm"
                 >
                   {reminder.is_done ? "Undo" : "Done"}
@@ -97,7 +82,7 @@ export default function DailySynopsis({ reminders }: { reminders: Reminder[] }) 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleArchive(reminder.id)}
+                  onClick={() => onArchive(reminder.id)}
                   className="rounded-sm"
                 >
                   Archive
