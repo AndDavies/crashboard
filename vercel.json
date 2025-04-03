@@ -1,9 +1,15 @@
 {
-    "builds": [
-      {
-        "src": "package.json",
-        "use": "@vercel/next"
-      }
-    ],
-    "installCommand": "pnpm install --no-frozen-lockfile"
-  }
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "crons": [
+    {
+      "path": "/api/gmail-poll",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
