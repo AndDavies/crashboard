@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome back, {userEmail}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">hihihih Welcome back, {userEmail}</h1>
         <p className="text-muted-foreground">Here's an overview of your personal dashboard.</p>
       </div>
 
