@@ -1,15 +1,20 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { NextRequest, NextResponse } from "next/server";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { code } = req.query;
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const code = searchParams.get("code");
 
   if (!code) {
-    return res.status(400).send("No code provided in the callback.");
+    return new NextResponse("No code provided in the callback.", { status: 400 });
   }
 
-  res.status(200).send(`
+  const html = `
     <h1>Authorization Code</h1>
     <p>Please copy this code and paste it into your terminal:</p>
     <pre>${code}</pre>
-  `);
+  `;
+  return new NextResponse(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html" },
+  });
 }

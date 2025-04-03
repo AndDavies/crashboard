@@ -6,7 +6,7 @@ const credentials = {
   web: {
     client_id: "1037339505580-8cveo6nbjo7mfmi9ahgqbhlti7atqc62.apps.googleusercontent.com",
     client_secret: "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",
-    redirect_uris: ["https://findyourchimps.dev/api/auth/callback"], // Production URI
+    redirect_uris: ["https://findyourchimps.dev/api/auth/callback"],
   },
 };
 const { client_id, client_secret, redirect_uris } = credentials.web;
