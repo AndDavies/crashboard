@@ -1,7 +1,1 @@
-{
-  "/(dashboard)/dashboard/blog/page": "app/(dashboard)/dashboard/blog/page.js",
-  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
-  "/(dashboard)/dashboard/reminders/page": "app/(dashboard)/dashboard/reminders/page.js",
-  "/(dashboard)/dashboard/blog/edit/[id]/page": "app/(dashboard)/dashboard/blog/edit/[id]/page.js",
-  "/(dashboard)/dashboard/blog/create/page": "app/(dashboard)/dashboard/blog/create/page.js"
-}
+{}

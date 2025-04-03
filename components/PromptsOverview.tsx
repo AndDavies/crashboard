@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/utils/supabase/server';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 
@@ -14,7 +14,7 @@ interface PromptsOverviewProps {
 }
 
 export async function PromptsOverview({ userId }: PromptsOverviewProps) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: prompts, error } = await supabase
     .from('prompts')
     .select('id, prompt_text, tags, created_at')
