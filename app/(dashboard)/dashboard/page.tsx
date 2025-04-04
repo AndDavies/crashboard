@@ -2,16 +2,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarIcon, FileTextIcon, BarChart3Icon, UserIcon } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
-import { createSupabaseServerClient } from "@/utils/supabase/server"; // Updated import
+import { createSupabaseServerClient } from "@/utils/supabase/server"
+import DashboardRemindersWidget from "@/components/dashboard/DashboardRemindersWidget"
+import DashboardEnergyTrends from "@/components/dashboard/DashboardEnergyTrends"
+import DashboardActivitySummary from "@/components/dashboard/DashboardActivitySummary"
 
 export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient() // Await here
+  const supabase = await createSupabaseServerClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   // Get user email or fallback
   const userEmail = user?.email || "User"
+  
+  // Get reminders data
+  const { data: reminders } = await supabase
+    .from("reminders")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .eq("user_id", user?.id)
+  
+  // Filter reminders for today
+  const today = new Date()
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
+  
+  const todayReminders = reminders?.filter(
+    (r) => new Date(r.created_at) >= new Date(startOfDay) && !r.is_archived && !r.is_done
+  ) || []
+  
+  // Filter need-to-do reminders
+  const needToDoReminders = reminders?.filter(
+    (r) => r.need_to_do && !r.is_archived && !r.is_done
+  ) || []
 
   return (
     <div className="flex flex-col gap-4">
@@ -33,45 +56,75 @@ export default async function DashboardPage() {
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tasks</CardTitle>
+                <CardTitle className="text-sm font-medium">Today's Reminders</CardTitle>
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground">4 tasks due today</p>
+                <div className="text-2xl font-bold">{todayReminders.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {todayReminders.length ? `${todayReminders.length} tasks for today` : "No tasks for today"}
+                </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Documents</CardTitle>
+                <CardTitle className="text-sm font-medium">Need To Do</CardTitle>
                 <FileTextIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">24</div>
-                <p className="text-xs text-muted-foreground">3 new this week</p>
+                <div className="text-2xl font-bold">{needToDoReminders.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {needToDoReminders.length ? `${needToDoReminders.length} important tasks` : "No critical tasks"}
+                </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Analytics</CardTitle>
+                <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
                 <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+12%</div>
-                <p className="text-xs text-muted-foreground">Increase from last month</p>
+                {reminders && reminders.length > 0 ? (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {Math.round((reminders.filter(r => r.is_done).length / reminders.length) * 100)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">Task completion rate</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">--</div>
+                    <p className="text-xs text-muted-foreground">No tasks yet</p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Profile</CardTitle>
+                <CardTitle className="text-sm font-medium">Energy Balance</CardTitle>
                 <UserIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">85%</div>
-                <p className="text-xs text-muted-foreground">Profile completion</p>
+                {reminders && reminders.some(r => r.energy_scale !== null) ? (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {Math.round(reminders
+                        .filter(r => r.energy_scale !== null)
+                        .reduce((acc, r) => acc + (r.energy_scale || 0), 0) / 
+                        reminders.filter(r => r.energy_scale !== null).length
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Average energy required</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">--</div>
+                    <p className="text-xs text-muted-foreground">No energy data yet</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -96,148 +149,20 @@ export default async function DashboardPage() {
               <CardDescription>Your recent actions and updates</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-8">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-center">
-                    <div className="mr-4 rounded-full p-2 bg-muted">
-                      <activity.icon className="h-4 w-4" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">{activity.title}</p>
-                      <p className="text-sm text-muted-foreground">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <DashboardActivitySummary reminders={reminders || []} />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Tasks</CardTitle>
-            <CardDescription>Your scheduled tasks for the week</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {upcomingTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{task.title}</p>
-                    <p className="text-sm text-muted-foreground">{task.dueDate}</p>
-                  </div>
-                  <div
-                    className={`text-xs px-2 py-1 rounded-full ${task.priority === "High" ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300" : task.priority === "Medium" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300" : "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300"}`}
-                  >
-                    {task.priority}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardRemindersWidget 
+          todayReminders={todayReminders} 
+          needToDoReminders={needToDoReminders}
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Documents</CardTitle>
-            <CardDescription>Your recently accessed documents</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentDocuments.map((doc) => (
-                <div key={doc.id} className="flex items-center">
-                  <div className="mr-4 rounded-full p-2 bg-muted">
-                    <FileTextIcon className="h-4 w-4" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{doc.title}</p>
-                    <p className="text-sm text-muted-foreground">Last edited: {doc.lastEdited}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardEnergyTrends reminders={reminders || []} />
       </div>
     </div>
   )
 }
-
-const recentActivities = [
-  {
-    id: 1,
-    title: "Updated profile information",
-    time: "2 hours ago",
-    icon: UserIcon,
-  },
-  {
-    id: 2,
-    title: "Added new document",
-    time: "Yesterday at 4:30 PM",
-    icon: FileTextIcon,
-  },
-  {
-    id: 3,
-    title: "Completed 3 tasks",
-    time: "Yesterday at 2:15 PM",
-    icon: CalendarIcon,
-  },
-  {
-    id: 4,
-    title: "Viewed analytics dashboard",
-    time: "2 days ago",
-    icon: BarChart3Icon,
-  },
-]
-
-const upcomingTasks = [
-  {
-    id: 1,
-    title: "Complete project proposal",
-    dueDate: "Today, 5:00 PM",
-    priority: "High",
-  },
-  {
-    id: 2,
-    title: "Review quarterly report",
-    dueDate: "Tomorrow, 10:00 AM",
-    priority: "Medium",
-  },
-  {
-    id: 3,
-    title: "Schedule team meeting",
-    dueDate: "Apr 3, 2:00 PM",
-    priority: "Low",
-  },
-  {
-    id: 4,
-    title: "Update documentation",
-    dueDate: "Apr 5, 12:00 PM",
-    priority: "Medium",
-  },
-]
-
-const recentDocuments = [
-  {
-    id: 1,
-    title: "Project Proposal.docx",
-    lastEdited: "Today at 10:30 AM",
-  },
-  {
-    id: 2,
-    title: "Budget Spreadsheet.xlsx",
-    lastEdited: "Yesterday at 2:45 PM",
-  },
-  {
-    id: 3,
-    title: "Meeting Notes.pdf",
-    lastEdited: "Mar 30, 2025",
-  },
-  {
-    id: 4,
-    title: "Research Findings.pptx",
-    lastEdited: "Mar 28, 2025",
-  },
-]
