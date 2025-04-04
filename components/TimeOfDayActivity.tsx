@@ -7,7 +7,16 @@ type Reminder = {
   id: string;
   title: string;
   content: string | null;
+  tags: string[];
   created_at: string;
+  is_pinned: boolean;
+  color: string;
+  need_to_do: boolean;
+  want_to_do: boolean;
+  reading_list: boolean;
+  is_archived: boolean;
+  is_done: boolean;
+  energy_scale: number | null;
 };
 
 export default function TimeOfDayActivity({ reminders }: { reminders: Reminder[] }) {

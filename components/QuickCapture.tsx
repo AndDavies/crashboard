@@ -13,7 +13,8 @@ import {
   AccordionItem,
   AccordionTrigger 
 } from "@/components/ui/accordion";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 type Reminder = {
   id: string;
@@ -25,6 +26,7 @@ type Reminder = {
   color: string;
   need_to_do: boolean;
   want_to_do: boolean;
+  reading_list: boolean;
   is_archived: boolean;
   is_done: boolean;
   energy_scale: number | null;
@@ -39,21 +41,24 @@ export default function QuickCapture({
   const [content, setContent] = useState("");
   const [needToDo, setNeedToDo] = useState(false);
   const [wantToDo, setWantToDo] = useState(false);
+  const [readingList, setReadingList] = useState(false);
   const [energy, setEnergy] = useState<number | null>(null);
   const [color, setColor] = useState("soft-blue");
   const [accordionValue, setAccordionValue] = useState<string>("");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   
   const handleAddReminder = () => {
-    if (!title.trim()) return;
-    
+    // Allow empty title as it can be generated via OpenAI API
     onAddReminder({
       title,
       content: content || null,
       color,
-      tags: [],
+      tags,
       is_pinned: false,
       need_to_do: needToDo,
       want_to_do: wantToDo,
+      reading_list: readingList,
       energy_scale: energy,
     });
     
@@ -62,11 +67,37 @@ export default function QuickCapture({
     setContent("");
     setNeedToDo(false);
     setWantToDo(false);
+    setReadingList(false);
     setEnergy(null);
     setColor("soft-blue");
+    setTags([]);
+    setTagInput("");
     
     // Close the accordion after adding
     setAccordionValue("");
+  };
+  
+  const handleAddTag = () => {
+    if (tagInput.trim() === "") return;
+    
+    // Add the tag if it's not already in the list
+    if (!tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
+    }
+    
+    // Clear the input
+    setTagInput("");
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+  
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
   };
   
   const colors = [
@@ -108,20 +139,63 @@ export default function QuickCapture({
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter a title for your reminder"
+                  placeholder="Enter a title for your reminder (or leave empty for AI generation)"
                   className="border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Leave empty to generate a title from URL or content automatically.
+                </p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="content">Details (optional)</Label>
-                <Textarea
-                  id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Add any additional details or notes"
-                  className="border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500 min-h-[100px]"
-                />
+                <Label htmlFor="content">Details & Tags</Label>
+                <div className="flex flex-col gap-2">
+                  <Textarea
+                    id="content"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Add any additional details or notes"
+                    className="border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500 min-h-[100px]"
+                  />
+                  
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Input 
+                        placeholder="Add tags..."
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="flex-grow"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleAddTag}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {tags.map(tag => (
+                          <Badge 
+                            key={tag} 
+                            variant="secondary"
+                            className="flex items-center gap-1 px-2 py-1"
+                          >
+                            {tag}
+                            <X 
+                              className="h-3 w-3 cursor-pointer" 
+                              onClick={() => removeTag(tag)}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-3">
@@ -156,6 +230,21 @@ export default function QuickCapture({
                     >
                       <span className="mr-2">💜</span> Want to do
                       <div className="text-xs font-normal mt-1 opacity-80">Things you'd enjoy doing</div>
+                    </Button>
+                    
+                    <Button
+                      type="button"
+                      variant={readingList ? "default" : "outline"}
+                      size="lg"
+                      onClick={() => setReadingList(!readingList)}
+                      className={`flex-1 relative font-medium ${
+                        readingList 
+                          ? "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800 dark:hover:bg-blue-800" 
+                          : "hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-950 dark:hover:text-blue-200 dark:hover:border-blue-800"
+                      } transition-colors duration-200`}
+                    >
+                      <span className="mr-2">📚</span> Reading List
+                      <div className="text-xs font-normal mt-1 opacity-80">Articles and content to read</div>
                     </Button>
                   </div>
                 </div>
@@ -219,7 +308,6 @@ export default function QuickCapture({
             <CardFooter className="pb-4">
               <Button
                 onClick={handleAddReminder}
-                disabled={!title.trim()}
                 className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-2 shadow-md hover:shadow-lg transition-all dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-500 dark:hover:to-blue-600"
               >
                 Add Reminder

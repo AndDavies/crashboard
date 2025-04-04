@@ -16,6 +16,7 @@ type Reminder = {
   color: string;
   need_to_do: boolean;
   want_to_do: boolean;
+  reading_list: boolean;
   is_archived: boolean;
   is_done: boolean;
   energy_scale: number | null;
@@ -103,6 +104,11 @@ export default function ReminderList({
                   <div className="flex ml-auto gap-1">
                     {reminder.need_to_do && <Badge variant="destructive">Need</Badge>}
                     {reminder.want_to_do && <Badge variant="secondary">Want</Badge>}
+                    {reminder.reading_list && (
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800">
+                        📚
+                      </Badge>
+                    )}
                   </div>
                 </CardTitle>
               </CardHeader>

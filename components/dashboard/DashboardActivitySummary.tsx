@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { CheckCircle2Icon, ArchiveIcon, TagIcon, ZapIcon, CalendarIcon } from "lucide-react";
+import { CheckCircle2Icon, ArchiveIcon, TagIcon, ZapIcon, CalendarIcon, BookIcon } from "lucide-react";
 
 type Reminder = {
   id: string;
@@ -14,6 +14,7 @@ type Reminder = {
   color: string;
   need_to_do: boolean;
   want_to_do: boolean;
+  reading_list: boolean;
   is_archived: boolean;
   is_done: boolean;
   energy_scale: number | null;
@@ -81,6 +82,17 @@ export default function DashboardActivitySummary({ reminders }: DashboardActivit
             icon: ArchiveIcon
           });
         }
+      }
+      
+      // For reading list items
+      if (reminder.reading_list) {
+        activities.push({
+          id: `reading-${reminder.id}`,
+          title: `Added "${reminder.title}" to reading list`,
+          time: formatDistanceToNow(createdDate, { addSuffix: true }),
+          timestamp: createdDate,
+          icon: BookIcon
+        });
       }
       
       // For high energy reminders

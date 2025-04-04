@@ -24,6 +24,7 @@ type Reminder = {
   color: string;
   need_to_do: boolean;
   want_to_do: boolean;
+  reading_list: boolean;
   is_archived: boolean;
   is_done: boolean;
   energy_scale: number | null;
@@ -127,6 +128,11 @@ export default function ReminderDetailPanel({
             {reminder.want_to_do && (
               <Badge variant="secondary" className="text-sm flex items-center gap-1">
                 <span>🎯</span> Want To Do
+              </Badge>
+            )}
+            {reminder.reading_list && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-sm flex items-center gap-1 dark:bg-blue-950 dark:text-blue-100 dark:border-blue-800">
+                <span>📚</span> Reading List
               </Badge>
             )}
             <Badge 

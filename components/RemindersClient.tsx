@@ -26,6 +26,7 @@ type Reminder = {
   color: string;
   need_to_do: boolean;
   want_to_do: boolean;
+  reading_list: boolean;
   is_archived: boolean;
   is_done: boolean;
   energy_scale: number | null;
@@ -72,14 +73,71 @@ export default function RemindersClient({ initialReminders }: { initialReminders
         return;
       }
       
-      // Extract tags from content if any
-      const tags = reminderData.content 
-        ? extractTags(reminderData.content) 
-        : [];
+      // Extract additional tags from content if any
+      let additionalTags: string[] = [];
+      if (reminderData.content) {
+        additionalTags = extractTags(reminderData.content);
+      }
+      
+      // Combine form-provided tags with content-extracted tags, removing duplicates
+      const allTags = [...new Set([...reminderData.tags, ...additionalTags])];
+      
+      // If title is empty but there's a URL in the content, try to generate a title
+      let reminderTitle = reminderData.title;
+      if (!reminderTitle && reminderData.content) {
+        const urlMatch = reminderData.content.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+          try {
+            const response = await fetch('/api/generate-title', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                url: urlMatch[0],
+                content: reminderData.content 
+              }),
+            });
+            
+            if (response.ok) {
+              const { title } = await response.json();
+              if (title) reminderTitle = title;
+            }
+          } catch (error) {
+            console.error("Title generation error:", error);
+            // Continue with empty title if generation fails
+          }
+        } else if (reminderData.content.trim()) {
+          // If there's no URL but there is content, try to generate a title from the content
+          try {
+            const response = await fetch('/api/generate-title', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ content: reminderData.content }),
+            });
+            
+            if (response.ok) {
+              const { title } = await response.json();
+              if (title) reminderTitle = title;
+            }
+          } catch (error) {
+            console.error("Title generation error:", error);
+            // Continue with empty title if generation fails
+          }
+        }
+      }
+      
+      // Use an untitled placeholder if we still don't have a title
+      if (!reminderTitle) {
+        reminderTitle = "Untitled Reminder";
+      }
       
       const { error } = await supabase.from("reminders").insert({
         ...reminderData,
-        tags,
+        title: reminderTitle,
+        tags: allTags,
         user_id: user.id,
       });
       
