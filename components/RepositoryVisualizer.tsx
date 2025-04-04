@@ -1,26 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ReloadIcon, LightningBoltIcon, CheckCircledIcon } from "@radix-ui/react-icons";
+import { ReloadIcon, LightningBoltIcon, CheckCircledIcon, GitHubLogoIcon } from "@radix-ui/react-icons";
 import RepositoryFlowchart from "@/components/RepositoryFlowchart";
-import { parseGitHubUrl, fetchRepositoryStructure, analyzeRepository } from "@/lib/repository-parser";
+import { parseGitHubUrl, fetchRepositoryStructure, analyzeRepository, setGitHubToken } from "@/lib/repository-parser";
+import { Node, Edge } from "reactflow";
 
 type RepositoryData = {
-  nodes: Array<{
-    id: string;
-    type: string;
-    data: { label: string; type: string };
-    position: { x: number; y: number };
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-  }>;
+  nodes: Node[];
+  edges: Edge[];
 };
 
 // Example repositories with Next.js App Router
@@ -44,10 +35,29 @@ const EXAMPLE_REPOS = [
 
 export default function RepositoryVisualizer() {
   const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
+  const [showTokenInput, setShowTokenInput] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [repositoryData, setRepositoryData] = useState<RepositoryData | null>(null);
   const [analyzedRepo, setAnalyzedRepo] = useState<string | null>(null);
+
+  // Check for existing token on component mount
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem('github_token');
+    if (savedToken) {
+      setHasToken(true);
+    }
+  }, []);
+
+  const saveToken = () => {
+    if (token.trim()) {
+      setGitHubToken(token.trim());
+      setHasToken(true);
+      setShowTokenInput(false);
+    }
+  };
 
   const analyzeRepo = async (repoUrl: string) => {
     setLoading(true);
@@ -81,7 +91,14 @@ export default function RepositoryVisualizer() {
       setRepositoryData(flowchartData);
     } catch (err) {
       console.error("Analysis error:", err);
-      setError((err as Error).message || "Failed to analyze repository");
+      const errorMessage = (err as Error).message || "Failed to analyze repository";
+      
+      // Special handling for rate limit errors
+      if (errorMessage.includes('rate limit exceeded')) {
+        setShowTokenInput(true);
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -94,6 +111,12 @@ export default function RepositoryVisualizer() {
 
   const handleExampleClick = async (exampleUrl: string) => {
     await analyzeRepo(exampleUrl);
+  };
+
+  const handleRemoveToken = () => {
+    sessionStorage.removeItem('github_token');
+    setHasToken(false);
+    setToken("");
   };
 
   return (
@@ -114,10 +137,62 @@ export default function RepositoryVisualizer() {
               </Button>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
-              <CheckCircledIcon className="h-4 w-4" />
-              <span>GitHub API authentication enabled</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                {hasToken ? (
+                  <>
+                    <CheckCircledIcon className="h-4 w-4 text-green-600 dark:text-green-500" />
+                    <span className="text-green-600 dark:text-green-500">GitHub token configured</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-2 text-xs"
+                      onClick={handleRemoveToken}
+                    >
+                      Remove
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs flex items-center gap-1.5"
+                    onClick={() => setShowTokenInput(!showTokenInput)}
+                  >
+                    <GitHubLogoIcon className="h-3.5 w-3.5" />
+                    {showTokenInput ? 'Hide token input' : 'Configure GitHub token'}
+                  </Button>
+                )}
+              </div>
             </div>
+            
+            {showTokenInput && !hasToken && (
+              <div className="p-4 border rounded-md bg-muted/30 space-y-3">
+                <div className="text-sm space-y-1">
+                  <p className="font-medium">GitHub Personal Access Token</p>
+                  <p className="text-muted-foreground text-xs">
+                    A token helps avoid GitHub API rate limits. Create a token with 'public_repo' scope.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Input 
+                    type="password"
+                    placeholder="GitHub token" 
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    className="flex-grow"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="secondary"
+                    onClick={saveToken}
+                    disabled={!token.trim()}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            )}
             
             {error && (
               <Alert variant="destructive" className="mt-4">

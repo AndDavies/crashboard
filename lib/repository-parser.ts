@@ -30,17 +30,41 @@ type ApiCall = {
   sourceRoute: string;
 };
 
-// GitHub token for authentication
-const GITHUB_TOKEN = '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';
+// GitHub token handling - safely get from environment or session storage
+function getGitHubToken(): string | null {
+  // For client-side environment variables in Next.js
+  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GITHUB_TOKEN) {
+    return process.env.NEXT_PUBLIC_GITHUB_TOKEN;
+  }
+  
+  // For server-side
+  if (typeof process !== 'undefined' && process.env.GITHUB_TOKEN) {
+    return process.env.GITHUB_TOKEN;
+  }
+  
+  // For client-side, check session storage
+  if (typeof window !== 'undefined') {
+    return sessionStorage.getItem('github_token');
+  }
+  
+  return null;
+}
 
 /**
  * Create headers for GitHub API requests with authorization
  */
 function getGitHubHeaders() {
-  return {
+  const token = getGitHubToken();
+  
+  const headers: Record<string, string> = {
     'Accept': 'application/vnd.github.v3+json',
-    'Authorization': `token ${GITHUB_TOKEN}`,
   };
+  
+  if (token) {
+    headers['Authorization'] = `token ${token}`;
+  }
+  
+  return headers;
 }
 
 /**
@@ -70,6 +94,15 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string } {
 }
 
 /**
+ * Set GitHub token in session storage (client-side only)
+ */
+export function setGitHubToken(token: string): void {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('github_token', token);
+  }
+}
+
+/**
  * Fetch repository structure from GitHub API
  */
 export async function fetchRepositoryStructure(owner: string, repo: string): Promise<RepoStructure> {
@@ -84,7 +117,7 @@ export async function fetchRepositoryStructure(owner: string, repo: string): Pro
         throw new Error('Repository or app directory not found');
       }
       if (response.status === 403) {
-        throw new Error('GitHub API rate limit exceeded. Please try again later');
+        throw new Error('GitHub API rate limit exceeded. Please try again later or provide a GitHub token');
       }
       throw new Error(`GitHub API error: ${response.statusText}`);
     }
