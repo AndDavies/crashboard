@@ -15,6 +15,12 @@ type Reminder = {
   created_at: string;
   is_pinned: boolean;
   color: string;
+  need_to_do: boolean;
+  want_to_do: boolean;
+  reading_list?: boolean;
+  is_archived: boolean;
+  is_done: boolean;
+  energy_scale: number | null;
 };
 
 const colors = {

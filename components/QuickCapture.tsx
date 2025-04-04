@@ -26,7 +26,7 @@ type Reminder = {
   color: string;
   need_to_do: boolean;
   want_to_do: boolean;
-  reading_list: boolean;
+  reading_list?: boolean;
   is_archived: boolean;
   is_done: boolean;
   energy_scale: number | null;
@@ -108,6 +108,18 @@ export default function QuickCapture({
     { name: "soft-pink", bg: "bg-pink-100 dark:bg-pink-900", border: "border-pink-300 dark:border-pink-800" },
     { name: "soft-gray", bg: "bg-gray-100 dark:bg-gray-800", border: "border-gray-300 dark:border-gray-700" },
   ];
+
+  const initialFormState = {
+    title: "",
+    content: "",
+    tags: [] as string[],
+    is_pinned: false,
+    color: "soft-blue",
+    need_to_do: false,
+    want_to_do: false,
+    reading_list: false,
+    energy_scale: 3,
+  };
 
   return (
     <Accordion 

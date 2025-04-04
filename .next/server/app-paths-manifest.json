@@ -1,1 +1,6 @@
-{}
+{
+  "/api/generate-title/route": "app/api/generate-title/route.js",
+  "/page": "app/page.js",
+  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
+  "/(dashboard)/dashboard/reminders/page": "app/(dashboard)/dashboard/reminders/page.js"
+}
