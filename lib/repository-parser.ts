@@ -30,43 +30,6 @@ type ApiCall = {
   sourceRoute: string;
 };
 
-// GitHub token handling - safely get from environment or session storage
-function getGitHubToken(): string | null {
-  // For client-side environment variables in Next.js
-  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GITHUB_TOKEN) {
-    return process.env.NEXT_PUBLIC_GITHUB_TOKEN;
-  }
-  
-  // For server-side
-  if (typeof process !== 'undefined' && process.env.GITHUB_TOKEN) {
-    return process.env.GITHUB_TOKEN;
-  }
-  
-  // For client-side, check session storage
-  if (typeof window !== 'undefined') {
-    return sessionStorage.getItem('github_token');
-  }
-  
-  return null;
-}
-
-/**
- * Create headers for GitHub API requests with authorization
- */
-function getGitHubHeaders() {
-  const token = getGitHubToken();
-  
-  const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github.v3+json',
-  };
-  
-  if (token) {
-    headers['Authorization'] = `token ${token}`;
-  }
-  
-  return headers;
-}
-
 /**
  * Parse a GitHub repository URL to extract owner and repo name
  */
@@ -95,6 +58,7 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string } {
 
 /**
  * Set GitHub token in session storage (client-side only)
+ * This is only used for UI state management now
  */
 export function setGitHubToken(token: string): void {
   if (typeof window !== 'undefined') {
@@ -103,215 +67,61 @@ export function setGitHubToken(token: string): void {
 }
 
 /**
- * Fetch repository structure from GitHub API
+ * Fetch repository structure using server API
  */
 export async function fetchRepositoryStructure(owner: string, repo: string): Promise<RepoStructure> {
   try {
-    // First, fetch the app directory contents
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/app`, {
-      headers: getGitHubHeaders()
+    const repoUrl = `https://github.com/${owner}/${repo}`;
+
+    // Call our secure server API route instead of direct GitHub API
+    const response = await fetch('/api/github', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ repoUrl }),
     });
     
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Repository or app directory not found');
-      }
-      if (response.status === 403) {
-        throw new Error('GitHub API rate limit exceeded. Please try again later or provide a GitHub token');
-      }
-      throw new Error(`GitHub API error: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Error: ${response.statusText}`);
     }
     
-    const contents = await response.json();
+    const { data } = await response.json();
     
-    // Process the contents recursively
-    const files: FileData[] = [];
+    // Process the response data
+    // Note: Map doesn't serialize in JSON, so server sends the data as objects
+    // We need to reconstruct the Maps from the plain objects
     const routes = new Map<string, RouteInfo>();
     const apis = new Map<string, ApiInfo>();
     
-    // Process directories and files
-    await processDirectoryContents(owner, repo, contents, files, '', routes, apis);
+    // Convert routes from plain object to Map
+    if (data.routes) {
+      Object.entries(data.routes).forEach(([key, value]) => {
+        const routeInfo = value as RouteInfo;
+        routes.set(key, routeInfo);
+      });
+    }
     
-    // Build relationships between routes and API calls by analyzing code
-    await analyzeCodeForApiCalls(files, routes, apis);
+    // Convert apis from plain object to Map
+    if (data.apis) {
+      Object.entries(data.apis).forEach(([key, value]) => {
+        const apiInfo = value as ApiInfo;
+        apis.set(key, apiInfo);
+      });
+    }
     
-    return { files, routes, apis };
+    // Construct the final structure
+    const repoStructure: RepoStructure = {
+      files: data.files || [],
+      routes,
+      apis
+    };
+    
+    return repoStructure;
   } catch (error) {
     console.error('Error fetching repository structure:', error);
     throw new Error((error as Error).message || 'Failed to fetch repository structure');
-  }
-}
-
-/**
- * Recursively process directory contents
- */
-async function processDirectoryContents(
-  owner: string, 
-  repo: string, 
-  contents: any[], 
-  files: FileData[],
-  currentPath: string,
-  routes: Map<string, RouteInfo>,
-  apis: Map<string, ApiInfo>
-): Promise<void> {
-  for (const item of contents) {
-    if (item.type === 'dir') {
-      // Check if this is a route directory
-      const routePath = currentPath ? `${currentPath}/${item.name}` : item.name;
-      
-      // Skip node_modules, .git, etc.
-      if (item.name.startsWith('.') || item.name === 'node_modules') {
-        continue;
-      }
-      
-      // Add to files collection
-      files.push({
-        name: item.name,
-        path: item.path,
-        type: 'dir'
-      });
-      
-      // For app router, check if this is a route directory
-      if (item.path.startsWith('app/') && !item.path.includes('api/')) {
-        // This could be a route directory
-        const routeInfo: RouteInfo = {
-          path: routePath,
-          apiCalls: []
-        };
-        routes.set(routePath, routeInfo);
-      }
-      
-      // For API routes
-      if (item.path.includes('api/')) {
-        // This is likely an API directory
-        const apiPath = `/${item.path.replace('app/', '')}`;
-        const apiInfo: ApiInfo = {
-          path: apiPath,
-          method: 'GET', // Default, will be updated when we analyze code
-        };
-        apis.set(apiPath, apiInfo);
-      }
-      
-      // Fetch contents of this directory
-      const dirResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${item.path}`, {
-        headers: getGitHubHeaders()
-      });
-      
-      if (dirResponse.ok) {
-        const dirContents = await dirResponse.json();
-        await processDirectoryContents(owner, repo, dirContents, files, routePath, routes, apis);
-      }
-    } else if (item.type === 'file') {
-      // Check if this is a page file (page.tsx, route.ts, etc.)
-      const isPageFile = item.name === 'page.tsx' || item.name === 'page.jsx' || item.name === 'page.ts' || item.name === 'page.js';
-      const isRouteFile = item.name === 'route.tsx' || item.name === 'route.jsx' || item.name === 'route.ts' || item.name === 'route.js';
-      const isApiFile = item.path.includes('api/') && (isRouteFile || isPageFile);
-      
-      // Get file content if it's a page or route file
-      let content = '';
-      if (isPageFile || isRouteFile) {
-        const fileResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${item.path}`, {
-          headers: getGitHubHeaders()
-        });
-        if (fileResponse.ok) {
-          const fileData = await fileResponse.json();
-          if (fileData.content) {
-            content = atob(fileData.content);
-          }
-        }
-      }
-      
-      // Add to files collection
-      files.push({
-        name: item.name,
-        path: item.path,
-        type: 'file',
-        content: isPageFile || isRouteFile ? content : undefined
-      });
-      
-      // If this is an API file, extract API info
-      if (isApiFile) {
-        const apiPath = `/${item.path.replace('app/', '').replace(/\/(page|route)\.(tsx|jsx|ts|js)$/, '')}`;
-        
-        // Try to determine HTTP method from code
-        let method = 'GET';
-        if (content) {
-          if (content.includes('export async function GET') || content.includes('export function GET')) {
-            method = 'GET';
-          } else if (content.includes('export async function POST') || content.includes('export function POST')) {
-            method = 'POST';
-          } else if (content.includes('export async function PUT') || content.includes('export function PUT')) {
-            method = 'PUT';
-          } else if (content.includes('export async function DELETE') || content.includes('export function DELETE')) {
-            method = 'DELETE';
-          }
-        }
-        
-        const apiInfo: ApiInfo = {
-          path: apiPath,
-          method,
-        };
-        apis.set(apiPath, apiInfo);
-      }
-    }
-  }
-}
-
-/**
- * Analyze code files for API calls
- */
-async function analyzeCodeForApiCalls(
-  files: FileData[],
-  routes: Map<string, RouteInfo>,
-  apis: Map<string, ApiInfo>
-): Promise<void> {
-  // For each route with a page file
-  for (const file of files) {
-    if (!file.content) continue;
-    
-    // Check if this file belongs to a route
-    const routePath = file.path.replace(/\/(page|route)\.(tsx|jsx|ts|js)$/, '').replace('app/', '');
-    const route = routes.get(routePath);
-    
-    if (route) {
-      // Look for fetch calls
-      const fetchMatches = file.content.matchAll(/fetch\(['"]([^'"]+)['"](,\s*\{[^}]*method:\s*['"]([A-Z]+)['"][^}]*\})?\)/g);
-      
-      for (const match of Array.from(fetchMatches)) {
-        const url = match[1];
-        const method = match[3] || 'GET';
-        
-        // Check if this is an API call to our own API
-        if (url.startsWith('/api/')) {
-          const apiCall: ApiCall = {
-            method,
-            url,
-            sourceRoute: routePath,
-          };
-          
-          route.apiCalls.push(apiCall);
-        }
-      }
-      
-      // Look for axios calls
-      const axiosMatches = file.content.matchAll(/axios\.(get|post|put|delete)\(['"]([^'"]+)['"].*\)/g);
-      
-      for (const match of Array.from(axiosMatches)) {
-        const method = match[1].toUpperCase();
-        const url = match[2];
-        
-        // Check if this is an API call to our own API
-        if (url.startsWith('/api/')) {
-          const apiCall: ApiCall = {
-            method,
-            url,
-            sourceRoute: routePath,
-          };
-          
-          route.apiCalls.push(apiCall);
-        }
-      }
-    }
   }
 }
 
