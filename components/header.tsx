@@ -15,6 +15,7 @@ import {
 import type { User } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function Header({ user }: { user: User }) {
   const { toggle } = useSidebar()
@@ -60,6 +61,8 @@ export function Header({ user }: { user: User }) {
             </div>
           </form>
         </div>
+
+        <ThemeToggle />
 
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <Bell className="h-4 w-4" />

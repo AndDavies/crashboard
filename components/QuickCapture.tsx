@@ -1,173 +1,233 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger 
+} from "@/components/ui/accordion";
+import { Plus } from "lucide-react";
 
-export default function QuickCapture({ onSave }: { onSave?: () => void }) {
+type Reminder = {
+  id: string;
+  title: string;
+  content: string | null;
+  tags: string[];
+  created_at: string;
+  is_pinned: boolean;
+  color: string;
+  need_to_do: boolean;
+  want_to_do: boolean;
+  is_archived: boolean;
+  is_done: boolean;
+  energy_scale: number | null;
+};
+
+export default function QuickCapture({
+  onAddReminder,
+}: {
+  onAddReminder: (reminder: Omit<Reminder, "id" | "created_at" | "is_archived" | "is_done">) => void;
+}) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [needToDo, setNeedToDo] = useState(false);
   const [wantToDo, setWantToDo] = useState(false);
-  const [energyScale, setEnergyScale] = useState<string | null>(null);
-  const [color, setColor] = useState("soft-gray"); // Default color
-  const { toast } = useToast();
-  const supabase = createClient();
-
-  const colors = [
-    { name: "soft-blue", bg: "bg-blue-500" },
-    { name: "soft-green", bg: "bg-green-500" },
-    { name: "soft-yellow", bg: "bg-yellow-500" },
-    { name: "soft-purple", bg: "bg-purple-500" },
-    { name: "soft-pink", bg: "bg-pink-500" },
-    { name: "soft-gray", bg: "bg-gray-500" },
-  ];
-
-  const handleSave = async () => {
-    let finalTitle = title.trim();
-    setIsLoading(true);
-
-    if (!finalTitle && content.trim()) {
-      if (/^https?:\/\//.test(content.trim())) {
-        try {
-          const res = await fetch("/api/fetch-title", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: content.trim() }),
-          });
-          const { title: fetchedTitle } = await res.json();
-          finalTitle = fetchedTitle;
-        } catch (error) {
-          console.error("Title fetch error:", error);
-          finalTitle = "Untitled";
-          toast({ title: "Warning", description: "Couldn’t fetch title from URL", variant: "default" });
-        }
-      } else {
-        finalTitle = "Untitled";
-      }
-    }
-    if (!finalTitle) {
-      toast({ title: "Error", description: "Title is required", variant: "destructive" });
-      setIsLoading(false);
-      return;
-    }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
-      console.error("Auth error:", userError);
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.from("reminders").insert({
-      title: finalTitle,
-      content,
-      tags: extractTags(content),
-      user_id: user.id,
+  const [energy, setEnergy] = useState<number | null>(null);
+  const [color, setColor] = useState("soft-blue");
+  const [accordionValue, setAccordionValue] = useState<string>("");
+  
+  const handleAddReminder = () => {
+    if (!title.trim()) return;
+    
+    onAddReminder({
+      title,
+      content: content || null,
+      color,
+      tags: [],
+      is_pinned: false,
       need_to_do: needToDo,
       want_to_do: wantToDo,
-      energy_scale: energyScale ? Number.parseInt(energyScale) : null,
-      color,
+      energy_scale: energy,
     });
-
-    setIsLoading(false);
-    if (error) {
-      console.error("Save error:", error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Saved", description: "Reminder added" });
-      setTitle("");
-      setContent("");
-      setNeedToDo(false);
-      setWantToDo(false);
-      setEnergyScale(null);
-      setColor("soft-gray");
-      if (onSave) onSave();
-    }
+    
+    // Reset form
+    setTitle("");
+    setContent("");
+    setNeedToDo(false);
+    setWantToDo(false);
+    setEnergy(null);
+    setColor("soft-blue");
+    
+    // Close the accordion after adding
+    setAccordionValue("");
   };
-
-  const extractTags = (text: string) => {
-    const tagRegex = /#(\w+)/g;
-    const matches = [...text.matchAll(tagRegex)];
-    return matches.map((match) => match[1]);
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [title, content, needToDo, wantToDo, energyScale, color]);
+  
+  const colors = [
+    { name: "soft-blue", bg: "bg-blue-100 dark:bg-blue-900", border: "border-blue-300 dark:border-blue-800" },
+    { name: "soft-green", bg: "bg-green-100 dark:bg-green-900", border: "border-green-300 dark:border-green-800" },
+    { name: "soft-yellow", bg: "bg-yellow-100 dark:bg-yellow-900", border: "border-yellow-300 dark:border-yellow-800" },
+    { name: "soft-purple", bg: "bg-purple-100 dark:bg-purple-900", border: "border-purple-300 dark:border-purple-800" },
+    { name: "soft-pink", bg: "bg-pink-100 dark:bg-pink-900", border: "border-pink-300 dark:border-pink-800" },
+    { name: "soft-gray", bg: "bg-gray-100 dark:bg-gray-800", border: "border-gray-300 dark:border-gray-700" },
+  ];
 
   return (
-    <div className="mb-6 sticky top-0 z-10 bg-white p-4 rounded-md shadow border border-gray-200">
-      <Input
-        placeholder="Jot something down..."
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="mb-2 rounded-sm"
-        disabled={isLoading}
-      />
-      <Textarea
-        placeholder="Details, links, or thoughts..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="mb-2 rounded-sm resize-none"
-        disabled={isLoading}
-      />
-      <div className="flex flex-wrap gap-4 mb-2">
-        <Button
-          variant={needToDo ? "default" : "outline"}
-          onClick={() => setNeedToDo(!needToDo)}
-          disabled={isLoading}
-          className="rounded-sm"
-        >
-          Need To Do
-        </Button>
-        <Button
-          variant={wantToDo ? "default" : "outline"}
-          onClick={() => setWantToDo(!wantToDo)}
-          disabled={isLoading}
-          className="rounded-sm"
-        >
-          Want To Do
-        </Button>
-        <Select value={energyScale || ""} onValueChange={setEnergyScale} disabled={isLoading}>
-          <SelectTrigger className="w-24 rounded-sm">
-            <SelectValue placeholder="Energy" />
-          </SelectTrigger>
-          <SelectContent>
-            {[1, 2, 3, 4, 5].map((num) => (
-              <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex gap-2">
-          {colors.map((c) => (
-            <Button
-              key={c.name}
-              variant={color === c.name ? "default" : "outline"}
-              size="icon"
-              className={`${c.bg} rounded-full h-6 w-6`}
-              onClick={() => setColor(c.name)}
-              disabled={isLoading}
-            />
-          ))}
-        </div>
-      </div>
-      <Button onClick={handleSave} disabled={isLoading} className="rounded-sm">
-        {isLoading ? "Saving..." : "Save (⌘ + Enter)"}
-      </Button>
-    </div>
+    <Accordion 
+      type="single" 
+      collapsible 
+      className="mb-4"
+      value={accordionValue}
+      onValueChange={setAccordionValue}
+    >
+      <AccordionItem value="add-reminder" className="border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+        <AccordionTrigger className="px-4 py-3 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-950 dark:hover:to-blue-900 hover:no-underline rounded-t-lg font-medium">
+          <div className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <span>Add a new reminder</span>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="px-0 pb-0">
+          <Card className="w-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-0 shadow-none rounded-t-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl">Add a Reminder</CardTitle>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Capture thoughts, tasks, or ideas you want to remember. Classify them by importance and energy level.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter a title for your reminder"
+                  className="border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="content">Details (optional)</Label>
+                <Textarea
+                  id="content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Add any additional details or notes"
+                  className="border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500 min-h-[100px]"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label className="mb-2 block">Classification</Label>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      type="button"
+                      variant={needToDo ? "default" : "outline"}
+                      size="lg"
+                      onClick={() => setNeedToDo(!needToDo)}
+                      className={`flex-1 relative font-medium ${
+                        needToDo 
+                          ? "bg-red-100 text-red-800 border-red-300 hover:bg-red-200 dark:bg-red-900 dark:text-red-100 dark:border-red-800 dark:hover:bg-red-800" 
+                          : "hover:bg-red-50 hover:text-red-700 hover:border-red-200 dark:hover:bg-red-950 dark:hover:text-red-200 dark:hover:border-red-800"
+                      } transition-colors duration-200`}
+                    >
+                      <span className="mr-2">🔴</span> Need to do
+                      <div className="text-xs font-normal mt-1 opacity-80">Tasks you must complete</div>
+                    </Button>
+                    
+                    <Button
+                      type="button"
+                      variant={wantToDo ? "default" : "outline"}
+                      size="lg"
+                      onClick={() => setWantToDo(!wantToDo)}
+                      className={`flex-1 relative font-medium ${
+                        wantToDo 
+                          ? "bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-100 dark:border-purple-800 dark:hover:bg-purple-800" 
+                          : "hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 dark:hover:bg-purple-950 dark:hover:text-purple-200 dark:hover:border-purple-800"
+                      } transition-colors duration-200`}
+                    >
+                      <span className="mr-2">💜</span> Want to do
+                      <div className="text-xs font-normal mt-1 opacity-80">Things you'd enjoy doing</div>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label className="flex items-center justify-between mb-2">
+                    <span>Energy Required {energy !== null && <span className="text-sm text-gray-500 dark:text-gray-400">({energy}/10)</span>}</span>
+                    {energy !== null && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-xs" 
+                        onClick={() => setEnergy(null)}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </Label>
+                  <div className="px-1 pt-2 pb-6">
+                    <Slider
+                      defaultValue={[5]}
+                      max={10}
+                      step={1}
+                      value={energy !== null ? [energy] : [5]}
+                      onValueChange={(values) => setEnergy(values[0])}
+                      className={energy !== null ? "opacity-100" : "opacity-70"}
+                      onClick={() => {
+                        if (energy === null) setEnergy(5);
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <span>Low energy</span>
+                      <span>High energy</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                      Slide to indicate how much energy this task requires. This helps you choose tasks based on your current energy level.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <div className="flex flex-wrap gap-2">
+                  {colors.map((c) => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      className={`w-8 h-8 rounded-full ${c.bg} ${c.border} border-2 transition-all ${
+                        color === c.name ? "ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-gray-900" : ""
+                      }`}
+                      onClick={() => setColor(c.name)}
+                      aria-label={`Select ${c.name} color`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="pb-4">
+              <Button
+                onClick={handleAddReminder}
+                disabled={!title.trim()}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-2 shadow-md hover:shadow-lg transition-all dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-500 dark:hover:to-blue-600"
+              >
+                Add Reminder
+              </Button>
+            </CardFooter>
+          </Card>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
