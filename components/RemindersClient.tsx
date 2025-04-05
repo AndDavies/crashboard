@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import QuickCapture from "@/components/QuickCapture";
 import ReminderTaskList from "@/components/ReminderTaskList";
-import DailySynopsis from "@/components/DailySynopsis";
 import TodayReminders from "@/components/TodayReminders";
 import TrendInsights from "@/components/TrendInsights";
 import MotivationWidget from "@/components/MotivationWidget";
@@ -687,7 +686,6 @@ export default function RemindersClient({ initialReminders }: { initialReminders
       
       {!showArchived && (
         <>
-          <DailySynopsis reminders={ensureReadingList(activeReminders)} onDone={handleDone} onArchive={handleArchive} />
           <ReminderTaskList 
             reminders={ensureReadingList(previousReminders)} 
             onDone={handleDone} 

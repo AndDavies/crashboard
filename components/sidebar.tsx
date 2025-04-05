@@ -4,10 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-provider";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar, Bookmark, Rss } from 'lucide-react'; // Updated import
+import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar, Bookmark, Rss, Sparkles } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function Sidebar({ user }: { user: SupabaseUser }) {
   const pathname = usePathname();
@@ -53,17 +60,33 @@ export function Sidebar({ user }: { user: SupabaseUser }) {
           <div className="flex-1 overflow-auto py-2">
             <nav className="grid gap-1 px-2">
               {navItems.map((item, index) => (
-                <Link
-                  key={index}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                    pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.name}</span>
-                </Link>
+                <TooltipProvider key={index}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground relative",
+                          pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span>{item.name}</span>
+                        {item.isNew && (
+                          <Badge variant="secondary" className="ml-auto bg-purple-500/10 text-purple-500 hover:bg-purple-500/20">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            New
+                          </Badge>
+                        )}
+                      </Link>
+                    </TooltipTrigger>
+                    {item.tooltip && (
+                      <TooltipContent side="right" align="center">
+                        <p className="text-sm">{item.tooltip}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               ))}
             </nav>
           </div>
@@ -108,7 +131,12 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Reminders", href: "/dashboard/reminders", icon: Rss },
   { name: "Blog CMS", href: "/dashboard/blog", icon: User },
-  { name: "Prompts", href: "/dashboard/prompts", icon: FileText },
-  { name: "Bookmarks", href: "/dashboard/bookmarks", icon: Bookmark }, // Changed to Bookmark
-  
+  { 
+    name: "Prompts", 
+    href: "/dashboard/prompts", 
+    icon: FileText,
+    isNew: true,
+    tooltip: "New! Now with number and word seeds for better prompt generation"
+  },
+  { name: "Bookmarks", href: "/dashboard/bookmarks", icon: Bookmark },
 ];
