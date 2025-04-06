@@ -6,30 +6,20 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
-    ],
     "/(dashboard)/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/layout.js"
     ],
-    "/(dashboard)/dashboard/page": [
+    "/(dashboard)/dashboard/cursor/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/dashboard/page.js"
+      "static/chunks/app/(dashboard)/dashboard/cursor/page.js"
     ],
-    "/(dashboard)/dashboard/prompts/page": [
+    "/(dashboard)/dashboard/reminders/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/dashboard/prompts/page.js"
-    ],
-    "/api/prompts/generate/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/prompts/generate/route.js"
+      "static/chunks/app/(dashboard)/dashboard/reminders/page.js"
     ]
   }
 }

@@ -226,69 +226,58 @@ export default function RemindersClient({ initialReminders }: { initialReminders
       console.log("Sending payload to Supabase:", JSON.stringify(payload, null, 2));
       
       // Attempt to insert the reminder with more detailed error handling
-      try {
-        const { data, error } = await supabase
-          .from("reminders")
-          .insert(payload)
-          .select();
+      const { data, error } = await supabase
+        .from("reminders")
+        .insert(payload)
+        .select();
+      
+      if (error) {
+        console.error("Save error:", error);
+        console.error("Error details:", JSON.stringify(error, null, 2));
         
-        if (error) {
-          console.error("Save error:", error);
-          console.error("Error details:", JSON.stringify(error, null, 2));
-          
-          // Show more specific error messages based on error code
-          let errorMessage = error.message || "Failed to save reminder";
-          
-          if (error.code === "PGRST204" && error.message?.includes("reading_list")) {
-            errorMessage = "The reading_list feature is not yet available in your database. Update your schema.";
-          } else if (error.code) {
-            switch (error.code) {
-              case "23502": // not_null_violation
-                errorMessage = "A required field is missing";
-                break;
-              case "23503": // foreign_key_violation
-                errorMessage = "Invalid user reference";
-                break;
-              case "42P01": // undefined_table
-                errorMessage = "Reminders table does not exist";
-                break;
-              default:
-                errorMessage += ` (Code: ${error.code})`;
-            }
-          } else if (Object.keys(error).length === 0) {
-            // Handle empty error object
-            errorMessage = "Unknown database error occurred";
-            console.error("Empty error object received from Supabase");
+        // Show more specific error messages based on error code
+        let errorMessage = error.message || "Failed to save reminder";
+        
+        if (error.code === "PGRST204" && error.message?.includes("reading_list")) {
+          errorMessage = "The reading_list feature is not yet available in your database. Update your schema.";
+        } else if (error.code) {
+          switch (error.code) {
+            case "23502": // not_null_violation
+              errorMessage = "A required field is missing";
+              break;
+            case "23503": // foreign_key_violation
+              errorMessage = "Invalid user reference";
+              break;
+            case "42P01": // undefined_table
+              errorMessage = "Reminders table does not exist";
+              break;
+            default:
+              errorMessage += ` (Code: ${error.code})`;
           }
-          
-          toast({ title: "Error", description: errorMessage, variant: "destructive" });
-          
-          // Remove the optimistic reminder if there's an error
-          setReminders(prev => prev.filter(r => r.id !== optimisticReminder.id));
-          
-          // Fetch the latest data to ensure UI is in sync
-          fetchReminders();
-        } else {
-          console.log("Reminder saved successfully:", data);
-          toast({ title: "Saved", description: "Reminder added" });
-          
-          // If the realtime subscription isn't working properly, replace the optimistic reminder with the real one
-          if (data && data.length > 0) {
-            setReminders(prev => prev.map(r => 
-              r.id === optimisticReminder.id ? data[0] : r
-            ));
-          }
+        } else if (Object.keys(error).length === 0) {
+          errorMessage = "Unknown database error occurred";
+          console.error("Empty error object received from Supabase");
         }
-      } catch (insertErr) {
-        console.error("Error during Supabase insert operation:", insertErr);
-        toast({ 
-          title: "Database Error", 
-          description: "There was a problem saving your reminder. Please try again.", 
-          variant: "destructive" 
-        });
+        
+        toast({ title: "Error", description: errorMessage, variant: "destructive" });
         
         // Remove the optimistic reminder if there's an error
         setReminders(prev => prev.filter(r => r.id !== optimisticReminder.id));
+        
+        // Fetch the latest data to ensure UI is in sync
+        fetchReminders();
+        return; // Add early return here
+      }
+      
+      // Move success case outside of error block
+      console.log("Reminder saved successfully:", data);
+      toast({ title: "Saved", description: "Reminder added" });
+      
+      // If the realtime subscription isn't working properly, replace the optimistic reminder with the real one
+      if (data && data.length > 0) {
+        setReminders(prev => prev.map(r => 
+          r.id === optimisticReminder.id ? data[0] : r
+        ));
       }
       
       // Set a safety timeout to remove optimistic reminder if no server confirmation happens

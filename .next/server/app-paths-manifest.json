@@ -1,4 +1,4 @@
 {
-  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
-  "/(dashboard)/dashboard/prompts/page": "app/(dashboard)/dashboard/prompts/page.js"
+  "/(dashboard)/dashboard/reminders/page": "app/(dashboard)/dashboard/reminders/page.js",
+  "/(dashboard)/dashboard/cursor/page": "app/(dashboard)/dashboard/cursor/page.js"
 }
