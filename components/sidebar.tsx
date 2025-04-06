@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-provider";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, BarChart3, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar, Bookmark, Rss, Sparkles } from 'lucide-react';
+import { LayoutDashboard, BarChart3, ChevronsLeftRightEllipsis, Settings, HelpCircle, LogOut, Menu, User, FileText, Calendar, Bookmark, Rss, Sparkles } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -131,6 +131,13 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Reminders", href: "/dashboard/reminders", icon: Rss },
   { name: "Blog CMS", href: "/dashboard/blog", icon: User },
+  { 
+    name: "Cursor Aid", 
+    href: "/dashboard/cursor", 
+    icon: ChevronsLeftRightEllipsis,
+    isNew: true,
+    tooltip: "Cursor Prompt Refiner"
+  },
   { 
     name: "Prompts", 
     href: "/dashboard/prompts", 
