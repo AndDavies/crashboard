@@ -131,6 +131,13 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Blog CMS", href: "/dashboard/blog", icon: User },
   { 
+    name: "Reminders", 
+    href: "/dashboard/reminders", 
+    icon: ChevronsLeftRightEllipsis,
+    isNew: true,
+    tooltip: "Reminders"
+  },
+  { 
     name: "Cursor Aid", 
     href: "/dashboard/cursor", 
     icon: ChevronsLeftRightEllipsis,
