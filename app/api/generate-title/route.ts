@@ -1,64 +1,34 @@
+// app/api/generate-title/route.ts
+import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
-import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
-  const { content, url }: { content?: string; url?: string } = await req.json();
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Initialize OpenAI client on the server side
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // No NEXT_PUBLIC_ prefix, as this is server-side
+});
 
-  // Handle case where neither content nor URL is provided
-  if (!content && !url) {
-    return NextResponse.json({ error: "Either content or URL is required" }, { status: 400 });
-  }
-
+export async function POST(request: Request) {
   try {
-    let titleSource = content;
-    let metadata = "";
+    const { content } = await request.json();
 
-    // If a URL is provided, fetch its content
-    if (url && /^https?:\/\//.test(url)) {
-      try {
-        const response = await fetch(url);
-        const html = await response.text();
-        
-        // Extract metadata from the page
-        const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-        const ogTitleMatch = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"[^>]*>/i);
-        const descriptionMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i);
-        const ogDescriptionMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"[^>]*>/i);
-        
-        const extractedTitle = ogTitleMatch?.[1] || titleMatch?.[1] || "";
-        const extractedDescription = ogDescriptionMatch?.[1] || descriptionMatch?.[1] || "";
-        
-        // Use the extracted data as a source for title generation
-        metadata = `URL Title: ${extractedTitle}\nURL Description: ${extractedDescription}\n`;
-        titleSource = `${metadata}${content || ""}`;
-      } catch (error) {
-        console.error("URL fetch error:", error);
-        // Continue with just the content if URL fetch fails
-      }
+    if (!content || typeof content !== 'string') {
+      return NextResponse.json({ error: 'Content is required and must be a string' }, { status: 400 });
     }
 
-    // Generate title using OpenAI
+    const prompt = content.startsWith('http')
+      ? `Fetch the title of the webpage at this URL: ${content}`
+      : `Summarize the following content into a short reminder title (max 5 words): ${content}`;
+
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert at creating concise, descriptive titles. Generate a short, clear title that captures the essence of the content provided. The title should be 2-7 words long and accurately reflect the main point or purpose of the content.',
-        },
-        { 
-          role: 'user', 
-          content: `Create a concise title for the following content:\n\n${titleSource}` 
-        },
-      ],
-      max_tokens: 50,
-      temperature: 0.7,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 10,
     });
 
-    const generatedTitle = response.choices[0].message.content?.trim() || "Untitled";
-    return NextResponse.json({ title: generatedTitle });
+    const title = response.choices[0]?.message.content?.trim() || 'Generated Title';
+    return NextResponse.json({ title });
   } catch (error) {
-    console.error("Title generation error:", error);
-    return NextResponse.json({ title: "Untitled", error: (error as Error).message }, { status: 500 });
+    console.error('Error generating title with OpenAI:', error);
+    return NextResponse.json({ error: 'Failed to generate title' }, { status: 500 });
   }
-} 
+}

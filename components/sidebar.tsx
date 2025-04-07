@@ -129,7 +129,6 @@ export function Sidebar({ user }: { user: SupabaseUser }) {
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Reminders", href: "/dashboard/reminders", icon: Rss },
   { name: "Blog CMS", href: "/dashboard/blog", icon: User },
   { 
     name: "Cursor Aid", 

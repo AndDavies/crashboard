@@ -1,710 +1,704 @@
-"use client";
+// components/RemindersClient.tsx
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { createClient } from "@/utils/supabase/client";
-import QuickCapture from "@/components/QuickCapture";
-import ReminderTaskList from "@/components/ReminderTaskList";
-import TodayReminders from "@/components/TodayReminders";
-import TrendInsights from "@/components/TrendInsights";
-import MotivationWidget from "@/components/MotivationWidget";
-import KeywordCloud from "@/components/KeywordCloud";
-import EnergyTrends from "@/components/EnergyTrends";
-import TagUsage from "@/components/TagUsage";
-import TimeOfDayActivity from "@/components/TimeOfDayActivity";
-import MoodCorrelation from "@/components/MoodCorrelation";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { createClient } from '@/utils/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar"; // Use Shadcn Calendar
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { CalendarIcon, Tag, ChevronDown, Check, Plus, Edit2, Pin, PinOff, Star } from 'lucide-react'; // Added Pin icons
+import { TagsInput } from '@/components/TagsInput'; // Assuming this is a Shadcn-styled component or can be styled
+import { cn } from "@/lib/utils";
 
-type Reminder = {
+// Define the colors with a type (new soft, primary colors)
+type ColorKey = 'soft-blue' | 'soft-green' | 'soft-red' | 'soft-yellow' | 'soft-purple' | 'soft-gray';
+const COLORS: Record<ColorKey, { hex: string; tailwindBg: string }> = {
+  'soft-blue': { hex: '#A3BFFA', tailwindBg: 'bg-blue-200' },
+  'soft-green': { hex: '#B5EAD7', tailwindBg: 'bg-green-200' },
+  'soft-red': { hex: '#FF9AA2', tailwindBg: 'bg-red-200' },
+  'soft-yellow': { hex: '#FFECB3', tailwindBg: 'bg-yellow-200' },
+  'soft-purple': { hex: '#D6BCFA', tailwindBg: 'bg-purple-200' },
+  'soft-gray': { hex: '#E2E8F0', tailwindBg: 'bg-gray-200' },
+};
+
+// Form schema (make title optional)
+const reminderSchema = z.object({
+  title: z.string().optional(), // Title is now optional
+  due_date: z.date().optional().nullable(), // Allow null
+  content: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  category: z.enum(['need_to_do', 'want_to_do', 'reading_list']).optional().nullable(), // Allow null
+  energy_scale: z.number().min(1).max(10),
+  color: z.enum(['soft-blue', 'soft-green', 'soft-red', 'soft-yellow', 'soft-purple', 'soft-gray']),
+  is_open: z.boolean(),
+  is_done: z.boolean(),
+  is_pinned: z.boolean(),
+});
+
+type ReminderForm = z.infer<typeof reminderSchema>;
+
+export type Reminder = {
   id: string;
+  user_id: string;
   title: string;
   content: string | null;
   tags: string[];
   created_at: string;
   is_pinned: boolean;
-  color: string;
-  need_to_do: boolean;
-  want_to_do: boolean;
-  reading_list?: boolean;
-  is_archived: boolean;
+  color: ColorKey;
+  energy_scale: number;
   is_done: boolean;
-  energy_scale: number | null;
+  due_date: string | null;
+  is_open: boolean;
+  category: 'need_to_do' | 'want_to_do' | 'reading_list' | undefined | null; // Allow null from DB
 };
 
-// Make sure reading_list is always defined when sending to child components
-type StrictReminder = Omit<Reminder, 'reading_list'> & { reading_list: boolean };
-
-// Helper function to ensure reading_list is defined in arrays
-const ensureReadingList = (reminders: Reminder[]): StrictReminder[] => {
-  return reminders.map(reminder => ({
-    ...reminder,
-    reading_list: reminder.reading_list ?? false
-  }));
-};
-
-export default function RemindersClient({ initialReminders }: { initialReminders: Reminder[] }) {
-  const [reminders, setReminders] = useState<Reminder[]>(initialReminders || []);
-  const [showArchived, setShowArchived] = useState(false);
+export function RemindersClient({ initialReminders, userId }: { initialReminders: Reminder[]; userId: string }) {
+  const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isRealtimeWorking, setIsRealtimeWorking] = useState<boolean | null>(null); // null = unknown, true/false = status
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const supabase = createClient();
-  const { toast } = useToast();
+  const [isAddFormVisible, setIsAddFormVisible] = useState(false); // Control visibility
 
-  const fetchReminders = async () => {
+  const supabase = createClient();
+
+  // Real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('reminders')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reminders',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newReminder = payload.new as Reminder;
+          // Ensure category is handled correctly (null -> undefined)
+          const processedReminder = { ...newReminder, category: newReminder.category ?? undefined };
+          setReminders((prev) => [processedReminder, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'reminders',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updatedReminder = payload.new as Reminder;
+          // Ensure category is handled correctly (null -> undefined)
+          const processedReminder = { ...updatedReminder, category: updatedReminder.category ?? undefined };
+          setReminders((prev) =>
+            prev.map((reminder) =>
+              reminder.id === updatedReminder.id
+                ? processedReminder
+                : reminder
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'reminders',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+           setReminders((prev) => prev.filter(reminder => reminder.id !== payload.old.id));
+        }
+       )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, userId]);
+
+  // Filter reminders based on showCompleted toggle
+  const filteredReminders = reminders.filter((r) =>
+    showCompleted ? r.is_done : r.is_open && !r.is_done
+  ).sort((a, b) => {
+    // Pinned reminders first, then by creation date
+    if (a.is_pinned !== b.is_pinned) {
+      return a.is_pinned ? -1 : 1;
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  // Form setup for adding reminders
+  const addForm = useForm<ReminderForm>({
+    resolver: zodResolver(reminderSchema),
+    defaultValues: {
+      title: '',
+      due_date: undefined,
+      content: '',
+      tags: [],
+      category: undefined,
+      energy_scale: 5,
+      color: 'soft-blue',
+      is_open: true,
+      is_done: false,
+      is_pinned: false,
+    },
+  });
+
+  // Form setup for editing reminders
+  const editForm = useForm<ReminderForm>({
+    resolver: zodResolver(reminderSchema),
+    defaultValues: { /* Default values set via useEffect */ },
+  });
+
+  // Update edit form when selectedReminder changes
+  useEffect(() => {
+    if (selectedReminder) {
+      editForm.reset({
+        title: selectedReminder.title,
+        due_date: selectedReminder.due_date ? new Date(selectedReminder.due_date) : null, // Handle null
+        content: selectedReminder.content || '',
+        tags: selectedReminder.tags || [],
+        category: selectedReminder.category ?? undefined, // Handle null
+        energy_scale: selectedReminder.energy_scale,
+        color: selectedReminder.color,
+        is_open: selectedReminder.is_open,
+        is_done: selectedReminder.is_done,
+        is_pinned: selectedReminder.is_pinned,
+      });
+    }
+  }, [selectedReminder, editForm]);
+
+  // Call the server-side API route to generate a title
+  const generateTitle = async (content: string): Promise<string> => {
     try {
-      setIsLoading(true);
-      setError(null);
-      const { data, error } = await supabase
-        .from("reminders")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) {
-        console.error("Fetch error:", error);
-        setError(error.message);
-        toast({ title: "Error", description: "Failed to load reminders", variant: "destructive" });
-      } else {
-        setReminders(data || []);
+      const response = await fetch('/api/generate-title', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate title');
       }
-    } catch (err) {
-      console.error("Unexpected error:", err);
-      setError("An unexpected error occurred");
+
+      const data = await response.json();
+      return data.title || 'Generated Title';
+    } catch (error) {
+      console.error('Error generating title:', error);
+      return 'Generated Title'; // Fallback
+    }
+  };
+
+  const onAddSubmit: SubmitHandler<ReminderForm> = async (data) => {
+    setIsLoading(true);
+    try {
+      let finalTitle = data.title || '';
+      if (!finalTitle && data.content) {
+        finalTitle = await generateTitle(data.content);
+      }
+      if (!finalTitle) {
+        throw new Error('A title is required or content to generate one.');
+      }
+
+      const { error } = await supabase.from('reminders').insert({
+        user_id: userId,
+        title: finalTitle,
+        due_date: data.due_date?.toISOString(),
+        content: data.content,
+        tags: data.tags,
+        category: data.category,
+        energy_scale: data.energy_scale,
+        color: data.color,
+        is_open: true,
+        is_done: false,
+        is_pinned: data.is_pinned,
+      });
+
+      if (error) throw new Error(error.message || 'Failed to add reminder');
+
+      toast.success('Reminder added!');
+      addForm.reset(); // Reset form to defaults
+      setIsAddFormVisible(false); // Close form on success
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add reminder';
+      console.error('Error adding reminder:', error);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddReminder = async (reminderData: Omit<Reminder, "id" | "created_at" | "is_archived" | "is_done">) => {
+   const onEditSubmit: SubmitHandler<ReminderForm> = async (data) => {
+    if (!selectedReminder) return;
+    setIsLoading(true);
     try {
-      console.log("Adding reminder with data:", reminderData);
-      
-      // Get the authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error("Auth error:", userError);
-        toast({ title: "Authentication Error", description: "Please log in again to add reminders", variant: "destructive" });
-        return;
+      // Check if title is empty and content exists to generate title
+      let finalTitle = data.title || '';
+      if (!finalTitle && data.content) {
+        finalTitle = await generateTitle(data.content);
       }
-      
-      if (!user || !user.id) {
-        console.error("No user ID available - user:", user);
-        toast({ title: "Error", description: "Cannot add reminder: User ID not available", variant: "destructive" });
-        return;
+      if (!finalTitle) {
+          finalTitle = selectedReminder.title; // Fallback to original if still no title
       }
-      
-      console.log("User authenticated with ID:", user.id);
-      
-      // Extract additional tags from content if any
-      let additionalTags: string[] = [];
-      if (reminderData.content) {
-        additionalTags = extractTags(reminderData.content);
-      }
-      
-      // Combine form-provided tags with content-extracted tags, removing duplicates
-      const allTags = [...new Set([...reminderData.tags, ...additionalTags])];
-      
-      // If title is empty but there's a URL in the content, try to generate a title
-      let reminderTitle = reminderData.title;
-      if (!reminderTitle && reminderData.content) {
-        const urlMatch = reminderData.content.match(/https?:\/\/[^\s]+/);
-        if (urlMatch) {
-          try {
-            const response = await fetch('/api/generate-title', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ 
-                url: urlMatch[0],
-                content: reminderData.content 
-              }),
-            });
-            
-            if (response.ok) {
-              const { title } = await response.json();
-              if (title) reminderTitle = title;
-            }
-          } catch (error) {
-            console.error("Title generation error:", error);
-            // Continue with empty title if generation fails
-          }
-        } else if (reminderData.content.trim()) {
-          // If there's no URL but there is content, try to generate a title from the content
-          try {
-            const response = await fetch('/api/generate-title', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ content: reminderData.content }),
-            });
-            
-            if (response.ok) {
-              const { title } = await response.json();
-              if (title) reminderTitle = title;
-            }
-          } catch (error) {
-            console.error("Title generation error:", error);
-            // Continue with empty title if generation fails
-          }
-        }
-      }
-      
-      // Use an untitled placeholder if we still don't have a title
-      if (!reminderTitle) {
-        reminderTitle = "Untitled Reminder";
-      }
-      
-      // Create an optimistic reminder to show immediately
-      const optimisticReminder: Reminder = {
-        id: `temp-${Date.now()}`, // Temporary ID
-        title: reminderTitle,
-        content: reminderData.content,
-        tags: allTags,
-        created_at: new Date().toISOString(),
-        is_pinned: reminderData.is_pinned,
-        color: reminderData.color,
-        need_to_do: reminderData.need_to_do,
-        want_to_do: reminderData.want_to_do,
-        reading_list: reminderData.reading_list,
-        is_archived: false,
-        is_done: false,
-        energy_scale: reminderData.energy_scale,
-      };
-      
-      // Update the UI optimistically
-      setReminders(prev => [optimisticReminder, ...prev]);
-      
-      // Prepare the payload for Supabase
-      const payload: Record<string, any> = {
-        title: reminderTitle,
-        content: reminderData.content,
-        tags: allTags,
-        is_pinned: reminderData.is_pinned || false,
-        color: reminderData.color || 'soft-blue',
-        need_to_do: reminderData.need_to_do || false,
-        want_to_do: reminderData.want_to_do || false,
-        energy_scale: reminderData.energy_scale,
-        user_id: user.id,
-      };
-      
-      // First check if we can access the database schema to determine column existence
-      try {
-        // Attempt a small query first to check if the schema includes reading_list
-        const schemaCheck = await supabase
-          .from("reminders")
-          .select("reading_list")
-          .limit(1);
-          
-        // If there's no error, the column exists and we can include it
-        if (!schemaCheck.error) {
-          console.log("reading_list column exists, including it in payload");
-          payload.reading_list = reminderData.reading_list || false;
-        } else {
-          console.log("reading_list column doesn't exist in schema, excluding it from payload");
-          // Since column doesn't exist, we'll store the value in the UI but not send to database
-          // This way UI works but database operations don't fail
-        }
-      } catch (schemaError) {
-        console.error("Error checking schema:", schemaError);
-        // If we can't determine schema, play it safe and exclude reading_list
-      }
-      
-      // Verify user_id is included
-      if (!payload.user_id) {
-        console.error("USER ID MISSING IN PAYLOAD!");
-        toast({ 
-          title: "Error", 
-          description: "Cannot save reminder: User ID is missing", 
-          variant: "destructive" 
-        });
-        return;
-      }
-      
-      console.log("Sending payload to Supabase:", JSON.stringify(payload, null, 2));
-      
-      // Attempt to insert the reminder with more detailed error handling
-      const { data, error } = await supabase
-        .from("reminders")
-        .insert(payload)
-        .select();
-      
-      if (error) {
-        console.error("Save error:", error);
-        console.error("Error details:", JSON.stringify(error, null, 2));
-        
-        // Show more specific error messages based on error code
-        let errorMessage = error.message || "Failed to save reminder";
-        
-        if (error.code === "PGRST204" && error.message?.includes("reading_list")) {
-          errorMessage = "The reading_list feature is not yet available in your database. Update your schema.";
-        } else if (error.code) {
-          switch (error.code) {
-            case "23502": // not_null_violation
-              errorMessage = "A required field is missing";
-              break;
-            case "23503": // foreign_key_violation
-              errorMessage = "Invalid user reference";
-              break;
-            case "42P01": // undefined_table
-              errorMessage = "Reminders table does not exist";
-              break;
-            default:
-              errorMessage += ` (Code: ${error.code})`;
-          }
-        } else if (Object.keys(error).length === 0) {
-          errorMessage = "Unknown database error occurred";
-          console.error("Empty error object received from Supabase");
-        }
-        
-        toast({ title: "Error", description: errorMessage, variant: "destructive" });
-        
-        // Remove the optimistic reminder if there's an error
-        setReminders(prev => prev.filter(r => r.id !== optimisticReminder.id));
-        
-        // Fetch the latest data to ensure UI is in sync
-        fetchReminders();
-        return; // Add early return here
-      }
-      
-      // Move success case outside of error block
-      console.log("Reminder saved successfully:", data);
-      toast({ title: "Saved", description: "Reminder added" });
-      
-      // If the realtime subscription isn't working properly, replace the optimistic reminder with the real one
-      if (data && data.length > 0) {
-        setReminders(prev => prev.map(r => 
-          r.id === optimisticReminder.id ? data[0] : r
-        ));
-      }
-      
-      // Set a safety timeout to remove optimistic reminder if no server confirmation happens
-      const optimisticTimeout = setTimeout(() => {
-        // Check if the optimistic reminder is still in the list after 10 seconds
-        setReminders(prev => {
-          if (prev.some(r => r.id === optimisticReminder.id)) {
-            console.warn("No server confirmation received for optimistic reminder, removing it");
-            return prev.filter(r => r.id !== optimisticReminder.id);
-          }
-          return prev;
-        });
-      }, 10000); // 10 second timeout
-      
-      // Clean up timeout if component unmounts
-      return () => clearTimeout(optimisticTimeout);
-      
-    } catch (err) {
-      console.error("Add reminder error:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
-      toast({ title: "Error", description: `Failed to add reminder: ${errorMessage}`, variant: "destructive" });
-      // Fetch the latest data on error
-      fetchReminders();
-    }
-  };
-  
-  const extractTags = (text: string) => {
-    const tagRegex = /#(\w+)/g;
-    const matches = [...text.matchAll(tagRegex)];
-    return matches.map((match) => match[1]);
-  };
 
-  const handleArchive = async (id: string) => {
-    try {
-      // Optimistic update
-      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, is_archived: true } : r)));
-      
-      const { error } = await supabase.from("reminders").update({ is_archived: true }).eq("id", id);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        // Rollback on error
-        await fetchReminders();
-      } else {
-        toast({ title: "Archived", description: "Reminder archived" });
-      }
-    } catch (err) {
-      console.error("Archive error:", err);
-      toast({ title: "Error", description: "Failed to archive reminder", variant: "destructive" });
-      await fetchReminders();
-    }
-  };
 
-  const handleDone = async (id: string, currentDone: boolean) => {
-    try {
-      // Optimistic update
-      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, is_done: !currentDone } : r)));
-      
-      const { error } = await supabase.from("reminders").update({ is_done: !currentDone }).eq("id", id);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        // Rollback on error
-        await fetchReminders();
-      } else {
-        toast({ title: currentDone ? "Undone" : "Done", description: "Reminder updated" });
-      }
-    } catch (err) {
-      console.error("Done status error:", err);
-      toast({ title: "Error", description: "Failed to update reminder status", variant: "destructive" });
-      await fetchReminders();
-    }
-  };
+      const { error } = await supabase
+        .from('reminders')
+        .update({
+          title: finalTitle, // Use potentially generated title
+          due_date: data.due_date?.toISOString(),
+          content: data.content,
+          tags: data.tags,
+          category: data.category,
+          energy_scale: data.energy_scale,
+          color: data.color,
+          is_open: data.is_open,
+          is_done: data.is_done,
+          is_pinned: data.is_pinned,
+        })
+        .eq('id', selectedReminder.id);
 
-  // Setup polling as fallback for realtime
-  const setupPolling = () => {
-    console.log("Setting up polling mechanism as fallback...");
-    
-    // Clear any existing intervals
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-    
-    // Set up new interval for polling
-    pollingIntervalRef.current = setInterval(() => {
-      console.log("Polling for updates...");
-      fetchReminders();
-    }, 15000); // Poll every 15 seconds
-  };
-  
-  // Stop polling when not needed
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      console.log("Stopping polling mechanism...");
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  };
+      if (error) throw new Error(error.message || 'Failed to update reminder');
 
-  useEffect(() => {
-    // Fetch reminders when component mounts to ensure we have the latest data
-    fetchReminders();
-    
-    // Check the Supabase API structure
-    checkSupabaseStructure();
-    
-    console.log("Setting up realtime subscription to Supabase...");
-    
-    // Setup realtime subscription
-    let channelSubscription: ReturnType<typeof supabase.channel> | null = null;
-    let realtimeEnabled = false;
-    
-    // Set up polling as a fallback by default
-    const defaultPollingId = setTimeout(() => {
-      // If realtime hasn't been confirmed working by this point, start polling
-      if (!realtimeEnabled) {
-        console.log("No confirmation of realtime within timeout, starting polling as precaution");
-        setIsRealtimeWorking(false);
-        setupPolling();
-      }
-    }, 5000); // Give a shorter window to ensure we don't miss updates
-    
-    try {
-      // Create channel with error handler
-      let channel;
-      try {
-        channel = supabase.channel("reminders-changes", {
-          config: {
-            broadcast: { self: true }
-          }
-        });
-      } catch (channelError) {
-        console.error("Failed to create channel:", channelError);
-        setIsRealtimeWorking(false);
-        setupPolling();
-        return () => {
-          clearTimeout(defaultPollingId);
-          stopPolling();
-        };
-      }
-      
-      if (!channel) {
-        console.error("Channel creation returned undefined/null");
-        setIsRealtimeWorking(false);
-        setupPolling();
-        return () => {
-          clearTimeout(defaultPollingId);
-          stopPolling();
-        };
-      }
-      
-      // Try to set up event listeners
-      try {
-        channel.on("postgres_changes", 
-          { event: "*", schema: "public", table: "reminders" }, 
-          (payload) => {
-            console.log("Realtime event received:", payload.eventType, payload);
-            // Mark realtime as working when we receive an event
-            setIsRealtimeWorking(true);
-            realtimeEnabled = true;
-            
-            // Stop polling if realtime is working
-            stopPolling();
-            
-            if (payload.eventType === "INSERT") {
-              setReminders((prev) => {
-                // Check if we already have an optimistic version of this reminder
-                const tempId = `temp-${Date.now()}`.substring(0, 10); // Match just the prefix
-                const hasOptimisticVersion = prev.some(r => 
-                  r.id.toString().startsWith('temp-') && 
-                  r.title === (payload.new as Reminder).title
-                );
-                
-                if (hasOptimisticVersion) {
-                  // Replace the optimistic version with the real one
-                  return prev.map(r => 
-                    r.id.toString().startsWith('temp-') && r.title === (payload.new as Reminder).title 
-                      ? (payload.new as Reminder) 
-                      : r
-                  );
-                } else {
-                  // It's a new reminder, add it to the list
-                  return [payload.new as Reminder, ...prev];
-                }
-              });
-            } else if (payload.eventType === "UPDATE") {
-              setReminders((prev) =>
-                prev.map((r) => (r.id === payload.new.id ? (payload.new as Reminder) : r))
-              );
-            } else if (payload.eventType === "DELETE") {
-              setReminders((prev) => prev.filter((r) => r.id !== payload.old.id));
-            }
-          }
-        );
-      } catch (listenerError) {
-        console.error("Failed to add event listener to channel:", listenerError);
-        setIsRealtimeWorking(false);
-        setupPolling();
-        return () => {
-          clearTimeout(defaultPollingId);
-          stopPolling();
-        };
-      }
-        
-      // Subscribe to the channel and store the reference
-      channelSubscription = channel;
-      
-      // Try to subscribe
-      try {
-        channel.subscribe((status) => {
-          console.log("Subscription status:", status);
-          if (status === "SUBSCRIBED") {
-            console.log("Successfully subscribed to realtime updates!");
-            realtimeEnabled = true;
-            setIsRealtimeWorking(true);
-            clearTimeout(defaultPollingId);
-            
-            // Realtime is working, stop polling
-            stopPolling();
-          } else if (status === "CHANNEL_ERROR") {
-            console.error("Failed to subscribe to realtime updates");
-            realtimeEnabled = false;
-            setIsRealtimeWorking(false);
-            
-            // Realtime failed, start polling
-            setupPolling();
-          } else if (status === "TIMED_OUT") {
-            console.error("Subscription timed out");
-            realtimeEnabled = false;
-            setIsRealtimeWorking(false);
-            setupPolling();
-          }
-        });
-      } catch (subscribeError) {
-        console.error("Failed to subscribe to channel:", subscribeError);
-        realtimeEnabled = false;
-        setIsRealtimeWorking(false);
-        setupPolling();
-      }
+      toast.success('Reminder updated!');
+      setSelectedReminder(null); // Close the dialog
     } catch (error) {
-      console.error("Error setting up realtime subscription:", error);
-      realtimeEnabled = false;
-      setIsRealtimeWorking(false);
-      
-      // Realtime setup failed, start polling
-      setupPolling();
-    }
-
-    // Clean up subscription when component unmounts
-    return () => {
-      clearTimeout(defaultPollingId);
-      
-      try {
-        console.log("Cleaning up realtime subscription...");
-        if (channelSubscription) {
-          supabase.removeChannel(channelSubscription);
-        }
-        
-        // Clear polling interval
-        stopPolling();
-      } catch (error) {
-        console.error("Error removing channel:", error);
-      }
-    };
-  }, [supabase]);
-
-  // Function to check Supabase structure and verify everything is set up correctly
-  const checkSupabaseStructure = async () => {
-    try {
-      console.log("Checking Supabase structure...");
-      
-      // Test if we can connect to Supabase
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error("Supabase auth check failed:", userError);
-        return;
-      }
-      
-      console.log("Supabase authentication working correctly, user:", user?.id);
-      
-      // Check if the reminders table exists by trying a small query
-      // We'll do this silently (no toast on error) since it's just a diagnostic
-      try {
-        const { data, error } = await supabase
-          .from("reminders")
-          .select("id")
-          .limit(1);
-          
-        if (error) {
-          console.error("Error accessing reminders table:", error);
-          // Silent failure - we'll attempt operations anyway
-        } else {
-          console.log("Successfully connected to reminders table");
-        }
-      } catch (tableError) {
-        console.error("Exception when checking reminders table:", tableError);
-        // Silent failure - we'll attempt operations anyway
-      }
-      
-      // Check if we can enable realtime subscriptions
-      try {
-        const channel = supabase.channel('test-channel');
-        if (channel) {
-          console.log("Realtime subscription is available");
-          // No need to actually subscribe, just checking if we can create a channel
-          try {
-            supabase.removeChannel(channel);
-          } catch (e) {
-            // Ignore errors when removing test channel
-          }
-        }
-      } catch (realtimeErr) {
-        console.error("Realtime might not be available:", realtimeErr);
-        // Don't show a toast here, we'll fallback to polling
-      }
-    } catch (err) {
-      console.error("Error checking Supabase structure:", err);
-      // Don't show any error toast here, just log the error
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update reminder';
+      console.error('Error updating reminder:', error);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Calculate active and archived reminders safely
-  const activeReminders = Array.isArray(reminders) 
-    ? reminders.filter((r) => !r.is_archived)
-    : [];
-  
-  const archivedReminders = Array.isArray(reminders)
-    ? reminders.filter((r) => r.is_archived)
-    : [];
-    
-  // Filter out today's reminders for the previous reminders list
-  const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-  
-  const previousReminders = activeReminders.filter(
-    (r) => new Date(r.created_at) < new Date(startOfDay)
-  );
-
-  // If there's an error, display it
-  if (error) {
-    return (
-      <div className="container mx-auto p-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-center">
-          <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Reminders</h2>
-          <p className="text-red-600">{error}</p>
-          <Button onClick={fetchReminders} className="mt-4">Retry</Button>
-        </div>
-      </div>
-    );
+  const toggleDone = async (reminder: Reminder) => {
+    try {
+      const { error } = await supabase
+        .from('reminders')
+        .update({ is_done: !reminder.is_done, is_open: reminder.is_done }) // Toggle is_open based on new is_done state
+        .eq('id', reminder.id);
+      if (error) throw error;
+      toast.success(reminder.is_done ? 'Marked as open.' : 'Marked as done.');
+    } catch (error) {
+       const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
+       toast.error(errorMessage);
+    }
   }
 
+  const togglePin = async (reminder: Reminder) => {
+    try {
+      const { error } = await supabase
+        .from('reminders')
+        .update({ is_pinned: !reminder.is_pinned })
+        .eq('id', reminder.id);
+      if (error) throw error;
+      toast.success(reminder.is_pinned ? 'Unpinned.' : 'Pinned.');
+    } catch (error) {
+       const errorMessage = error instanceof Error ? error.message : 'Failed to update pin status';
+       toast.error(errorMessage);
+    }
+  }
+
+
+  // Keyboard shortcut for form submission (Cmd/Ctrl + Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isAddFormVisible && (e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+         e.preventDefault(); // Prevent default form submission if any
+         addForm.handleSubmit(onAddSubmit)();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [addForm, onAddSubmit, isAddFormVisible]); // Depend on isAddFormVisible
+
   return (
-    <div className="container mx-auto p-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 min-h-screen">
-      <QuickCapture onAddReminder={handleAddReminder} />
-      
-      {/* Loading indicator */}
-      {isLoading && (
-        <div className="text-center py-4">
-          <p className="text-gray-500 dark:text-gray-400">Loading reminders...</p>
+    // Removed max-w-4xl for full width
+    <div className="p-4 md:p-6 space-y-6 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Reminders</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+             <Switch
+                id="show-completed"
+                checked={showCompleted}
+                onCheckedChange={setShowCompleted}
+             />
+             <Label htmlFor="show-completed" className="text-sm font-medium text-muted-foreground">
+                Show Completed
+             </Label>
+          </div>
+          <Button onClick={() => setIsAddFormVisible(!isAddFormVisible)} variant="default">
+             <Plus className="w-4 h-4 mr-2" /> {isAddFormVisible ? 'Cancel' : 'Add Reminder'}
+          </Button>
         </div>
-      )}
-      
-      {/* Show Today's Reminders directly after the form */}
-      {!showArchived && <TodayReminders 
-        reminders={ensureReadingList(activeReminders)} 
-        onDone={handleDone} 
-        onArchive={handleArchive} 
-      />}
-      
-      <div className="flex justify-end gap-2 items-center">
-        {isRealtimeWorking !== null && (
-          <div className="flex items-center mr-2">
-            <div 
-              className={`w-2 h-2 rounded-full mr-1 ${isRealtimeWorking ? 'bg-green-500' : 'bg-amber-500'}`}
-              title={isRealtimeWorking ? 'Real-time updates active' : 'Using fallback polling'}
-            />
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {isRealtimeWorking ? 'Real-time' : 'Polling'}
-            </span>
-          </div>
-        )}
-        <Button 
-          variant="outline" 
-          onClick={fetchReminders} 
-          className="rounded-md shadow hover:shadow-md transition-all"
-        >
-          Refresh Reminders
-        </Button>
-        <Button 
-          variant="outline" 
-          onClick={() => setShowArchived(!showArchived)} 
-          className="rounded-md shadow hover:shadow-md transition-all"
-        >
-          {showArchived ? "Show Active" : "View Archived"}
-        </Button>
       </div>
-      
-      {!showArchived && (
-        <>
-          <ReminderTaskList 
-            reminders={ensureReadingList(previousReminders)} 
-            onDone={handleDone} 
-            onArchive={handleArchive}
-            title="Previous Reminders"
-            emptyMessage="No previous reminders found."
-          />
-          
-          <h2 className="text-xl font-semibold mt-12 mb-6">Insights & Analytics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-            <MotivationWidget reminders={ensureReadingList(activeReminders)} />
-            <EnergyTrends reminders={ensureReadingList(activeReminders)} />
-            <TagUsage reminders={ensureReadingList(activeReminders)} />
-            <TimeOfDayActivity reminders={ensureReadingList(activeReminders)} />
-            <MoodCorrelation reminders={ensureReadingList(activeReminders)} />
-            <TrendInsights reminders={ensureReadingList(activeReminders)} />
-            <KeywordCloud reminders={ensureReadingList(activeReminders)} />
-          </div>
-        </>
+
+      {/* Add Reminder Form - Using Card */}
+      {isAddFormVisible && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+           <Card className="mb-6 shadow-sm">
+             <CardHeader>
+               <CardTitle className="text-xl">Add New Reminder</CardTitle>
+               <CardDescription>Quickly capture tasks or ideas.</CardDescription>
+             </CardHeader>
+             <CardContent>
+               <form onSubmit={addForm.handleSubmit(onAddSubmit)} className="space-y-4">
+                 {/* Title Input */}
+                 <Input
+                   {...addForm.register('title')}
+                   placeholder="Reminder title (optional, can be generated)"
+                   className="text-base"
+                 />
+                 {/* More Options Collapsible */}
+                 <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-[240px] justify-start text-left font-normal",
+                            !addForm.watch("due_date") && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {addForm.watch("due_date") ? (
+                            format(addForm.watch("due_date")!, "PPP")
+                          ) : (
+                            <span>Pick a due date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={addForm.watch("due_date") || undefined} // Pass Date | undefined
+                          onSelect={(date) => addForm.setValue('due_date', date || null)} // Set null if undefined
+                          initialFocus
+                        />
+                      </PopoverContent>
+                  </Popover>
+
+                 <Textarea
+                   {...addForm.register('content')}
+                   placeholder="Details, links, etc."
+                   className="text-base"
+                   rows={3}
+                 />
+                 <div>
+                   <Label className="text-sm font-medium">Tags</Label>
+                   <TagsInput
+                     value={addForm.watch('tags') || []}
+                     onChange={(tags) => addForm.setValue('tags', tags)}
+                     className="mt-1" // Style as needed
+                   />
+                 </div>
+                 <div>
+                    <Label className="text-sm font-medium mb-2 block">Category</Label>
+                    <div className="flex flex-wrap gap-2">
+                       {['need_to_do', 'want_to_do', 'reading_list'].map((cat) => (
+                          <Button
+                             key={cat}
+                             type="button"
+                             size="sm"
+                             variant={addForm.watch('category') === cat ? 'secondary' : 'outline'}
+                             onClick={() => addForm.setValue('category', cat as any)}
+                          >
+                             {cat.replace('_', ' ')}
+                          </Button>
+                       ))}
+                       {addForm.watch('category') && (
+                          <Button
+                             type="button"
+                             size="sm"
+                             variant="ghost"
+                             onClick={() => addForm.setValue('category', undefined)}
+                             className="text-muted-foreground hover:text-foreground"
+                          >
+                             Clear
+                          </Button>
+                       )}
+                    </div>
+                 </div>
+                 <div>
+                   <Label className="text-sm font-medium">Energy Level ({addForm.watch('energy_scale')})</Label>
+                   <Slider
+                     min={1} max={10} step={1}
+                     value={[addForm.watch('energy_scale')]}
+                     onValueChange={(value) => addForm.setValue('energy_scale', value[0])}
+                     className="mt-2"
+                   />
+                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                     <span>Low</span>
+                     <span>Medium</span>
+                     <span>High</span>
+                   </div>
+                 </div>
+                 <div>
+                   <Label className="text-sm font-medium mb-2 block">Color Tag</Label>
+                   <div className="flex flex-wrap gap-2">
+                     {Object.entries(COLORS).map(([name, { hex }]) => (
+                       <button
+                         key={name}
+                         type="button"
+                         style={{ backgroundColor: hex }}
+                         className={cn(
+                           'w-6 h-6 rounded-full border-2 transition-all duration-150',
+                           addForm.watch('color') === name ? 'border-foreground ring-2 ring-offset-2 ring-foreground' : 'border-muted'
+                         )}
+                         onClick={() => addForm.setValue('color', name as ColorKey)}
+                         aria-label={`Select color ${name}`}
+                       />
+                     ))}
+                   </div>
+                 </div>
+                  <div className="flex items-center space-x-2 pt-2">
+                      <Checkbox
+                          id="add-pinned"
+                          checked={addForm.watch('is_pinned')}
+                          onCheckedChange={(checked) => addForm.setValue('is_pinned', Boolean(checked))}
+                      />
+                      <Label htmlFor="add-pinned" className="text-sm font-medium">Pin this reminder</Label>
+                  </div>
+
+               </form>
+             </CardContent>
+             <CardFooter className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={() => setIsAddFormVisible(false)}>Cancel</Button>
+                 <Button type="submit" disabled={isLoading} onClick={addForm.handleSubmit(onAddSubmit)}>
+                   {isLoading ? 'Adding...' : 'Add Reminder'}
+                 </Button>
+             </CardFooter>
+           </Card>
+        </motion.div>
       )}
-      
-      {showArchived && (
-        <ReminderTaskList 
-          reminders={ensureReadingList(archivedReminders)} 
-          onDone={handleDone} 
-          onArchive={handleArchive}
-          title="Archived Reminders"
-          emptyMessage="No archived reminders found."
-        />
-      )}
+
+
+      {/* Reminders List - Using Card and Table */}
+      <Card>
+         <CardHeader>
+            <CardTitle className="text-xl">Your Reminders</CardTitle>
+            <CardDescription>
+               {showCompleted ? 'Showing completed reminders.' : 'Showing open reminders.'}
+            </CardDescription>
+         </CardHeader>
+         <CardContent>
+            <Table>
+               <TableHeader>
+                  <TableRow>
+                     <TableHead className="w-[50px]"></TableHead> {/* Pinned */}
+                     <TableHead className="w-[50px]">Done</TableHead>
+                     <TableHead>Title</TableHead>
+                     <TableHead className="hidden md:table-cell">Due Date</TableHead>
+                     <TableHead className="hidden lg:table-cell">Category</TableHead>
+                     <TableHead className="hidden sm:table-cell w-[100px]">Energy</TableHead>
+                     <TableHead className="text-right w-[80px]">Actions</TableHead>
+                  </TableRow>
+               </TableHeader>
+               <TableBody>
+                  {filteredReminders.length === 0 ? (
+                     <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                           No reminders found. {showCompleted ? '' : 'Add one above!'}
+                        </TableCell>
+                     </TableRow>
+                  ) : (
+                     filteredReminders.map((reminder) => (
+                       <TableRow key={reminder.id} className={cn(reminder.is_done && 'opacity-60')}>
+                          <TableCell className="w-[50px] text-center">
+                             <Button variant="ghost" size="icon" className="w-6 h-6" onClick={(e) => { e.stopPropagation(); togglePin(reminder); }}>
+                                {reminder.is_pinned ? <PinOff className="w-4 h-4 text-yellow-500" /> : <Pin className="w-4 h-4 text-muted-foreground hover:text-yellow-500" />}
+                             </Button>
+                          </TableCell>
+                          <TableCell className="w-[50px]">
+                             <Checkbox
+                                checked={reminder.is_done}
+                                onCheckedChange={() => toggleDone(reminder)}
+                                aria-label="Mark as done"
+                             />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: COLORS[reminder.color]?.hex || COLORS['soft-gray'].hex }} />
+                              <span>{reminder.title}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-muted-foreground">
+                             {reminder.due_date ? format(new Date(reminder.due_date), 'PP') : '--'}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-muted-foreground capitalize">
+                             {reminder.category?.replace('_', ' ') || '--'}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground w-[100px]">
+                              <div className="flex items-center gap-1">
+                                 <Slider value={[reminder.energy_scale]} max={10} step={1} className="w-16 h-2 [&>span:first-child]:h-2" disabled />
+                                 <span className="text-xs w-4 text-right">{reminder.energy_scale}</span>
+                              </div>
+                          </TableCell>
+                          <TableCell className="text-right w-[80px]">
+                             <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setSelectedReminder(reminder)}>
+                                <Edit2 className="w-4 h-4" />
+                                <span className="sr-only">Edit</span>
+                             </Button>
+                          </TableCell>
+                       </TableRow>
+                     ))
+                  )}
+               </TableBody>
+            </Table>
+         </CardContent>
+      </Card>
+
+
+      {/* Edit Reminder Dialog */}
+      <Dialog open={!!selectedReminder} onOpenChange={(isOpen) => !isOpen && setSelectedReminder(null)}>
+         <DialogContent className="sm:max-w-lg bg-background">
+           {selectedReminder && (
+             <>
+               <DialogHeader>
+                 <DialogTitle className="text-xl">Edit Reminder</DialogTitle>
+               </DialogHeader>
+               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 pt-4">
+                 <Input
+                   {...editForm.register('title')}
+                   placeholder="Reminder title"
+                   className="text-base"
+                 />
+                 <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !editForm.watch("due_date") && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {editForm.watch("due_date") ? (
+                            format(editForm.watch("due_date")!, "PPP") // Non-null assertion okay here due to watch
+                          ) : (
+                            <span>Pick a due date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={editForm.watch("due_date") || undefined}
+                          onSelect={(date) => editForm.setValue('due_date', date || null)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                  </Popover>
+                 <Textarea
+                   {...editForm.register('content')}
+                   placeholder="Details..."
+                   rows={4}
+                 />
+                 <div>
+                   <Label className="text-sm font-medium">Tags</Label>
+                   <TagsInput
+                     value={editForm.watch('tags') || []}
+                     onChange={(tags) => editForm.setValue('tags', tags)}
+                      placeholder="Add tags..."
+                     className="mt-1"
+                   />
+                 </div>
+                 <div>
+                    <Label className="text-sm font-medium mb-2 block">Category</Label>
+                    <div className="flex flex-wrap gap-2">
+                       {['need_to_do', 'want_to_do', 'reading_list'].map((cat) => (
+                          <Button key={cat} type="button" size="sm" variant={editForm.watch('category') === cat ? 'secondary' : 'outline'} onClick={() => editForm.setValue('category', cat as any)}>
+                             {cat.replace('_', ' ')}
+                          </Button>
+                       ))}
+                       {editForm.watch('category') && (
+                          <Button type="button" size="sm" variant="ghost" onClick={() => editForm.setValue('category', undefined)} className="text-muted-foreground hover:text-foreground">Clear</Button>
+                       )}
+                    </div>
+                 </div>
+                 <div>
+                   <Label className="text-sm font-medium">Energy Level ({editForm.watch('energy_scale')})</Label>
+                   <Slider
+                     min={1} max={10} step={1}
+                     value={[editForm.watch('energy_scale')]}
+                     onValueChange={(value) => editForm.setValue('energy_scale', value[0])}
+                     className="mt-2"
+                   />
+                 </div>
+                 <div>
+                   <Label className="text-sm font-medium mb-2 block">Color Tag</Label>
+                   <div className="flex flex-wrap gap-2">
+                     {Object.entries(COLORS).map(([name, { hex }]) => (
+                       <button key={name} type="button" style={{ backgroundColor: hex }} className={cn('w-6 h-6 rounded-full border-2 transition-all duration-150', editForm.watch('color') === name ? 'border-foreground ring-2 ring-offset-2 ring-foreground' : 'border-muted')} onClick={() => editForm.setValue('color', name as ColorKey)} aria-label={`Select color ${name}`} />
+                     ))}
+                   </div>
+                 </div>
+                 <div className="grid grid-cols-3 gap-4 pt-2">
+                    <div className="flex items-center space-x-2">
+                       <Checkbox id="edit-open" checked={editForm.watch('is_open')} onCheckedChange={(checked) => editForm.setValue('is_open', Boolean(checked))} />
+                       <Label htmlFor="edit-open" className="text-sm">Open</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Checkbox id="edit-done" checked={editForm.watch('is_done')} onCheckedChange={(checked) => editForm.setValue('is_done', Boolean(checked))} />
+                       <Label htmlFor="edit-done" className="text-sm">Done</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <Checkbox id="edit-pinned" checked={editForm.watch('is_pinned')} onCheckedChange={(checked) => editForm.setValue('is_pinned', Boolean(checked))} />
+                        <Label htmlFor="edit-pinned" className="text-sm">Pinned</Label>
+                     </div>
+                 </div>
+                 <DialogFooter className="pt-4">
+                   <Button type="button" variant="outline" onClick={() => setSelectedReminder(null)}>Cancel</Button>
+                   <Button type="submit" disabled={isLoading}>
+                     {isLoading ? 'Saving...' : 'Save Changes'}
+                   </Button>
+                 </DialogFooter>
+               </form>
+             </>
+           )}
+         </DialogContent>
+       </Dialog>
     </div>
   );
 }

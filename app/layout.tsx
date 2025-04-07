@@ -9,7 +9,9 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Personal Dashboard",
   description: "Your personal dashboard with Supabase authentication",
-  generator: "v0.dev"
+  icons: {
+    icon: '/favicon.ico', // or .png if you prefer
+  },
 }
 
 export default function RootLayout({
