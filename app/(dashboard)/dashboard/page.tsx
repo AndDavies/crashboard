@@ -12,6 +12,7 @@ type ColorKey = 'soft-blue' | 'soft-green' | 'soft-red' | 'soft-yellow' | 'soft-
 export type Reminder = {
   id: string;
   title: string;
+  content: string | null;
   due_date: string | null;
   is_pinned: boolean;
   category?: 'need_to_do' | 'want_to_do' | 'reading_list' | null | undefined;
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
   // Fetch reminders for existing widgets
   const { data: remindersData, error: remindersError } = await supabase
     .from("reminders")
-    .select("id, title, due_date, is_pinned, category, color, energy_scale, tags, is_open, is_done")
+    .select("id, title, content, due_date, is_pinned, category, color, energy_scale, tags, is_open, is_done")
     .eq("user_id", user.id)
     .order("is_pinned", { ascending: false })
     .order("due_date", { ascending: true, nullsFirst: false });
@@ -65,11 +66,34 @@ export default async function DashboardPage() {
   // Fetch the first quote for the Quote of the Day widget
   let quote: Quote | null = null;
   try {
-    const { data: quoteData, error: quoteError } = await supabase
+    // Get today's date in ISO format (YYYY-MM-DD)
+    const today = new Date().toISOString().split('T')[0];
+    
+    // First try to get a quote scheduled for today
+    let { data: quoteData, error: quoteError } = await supabase
       .from("quote_of_the_day")
       .select("id, quote_text, author, theme, context, application, scheduled_date, created_at, updated_at")
-      .order("id", { ascending: true })
+      .eq("scheduled_date", today)
       .limit(1);
+      
+    // If no quote is scheduled for today, get a random quote
+    if ((!quoteData || quoteData.length === 0) && !quoteError) {
+      // Get a random quote using proper Supabase random ordering
+      ({ data: quoteData, error: quoteError } = await supabase
+        .from("quote_of_the_day")
+        .select("id, quote_text, author, theme, context, application, scheduled_date, created_at, updated_at")
+        .order('id', { ascending: false }) // Order by ID as a simple approximation
+        .limit(1));
+        
+      // If that fails, try another approach without using random
+      if (quoteError || !quoteData || quoteData.length === 0) {
+        // Try to get any quote as fallback
+        ({ data: quoteData, error: quoteError } = await supabase
+          .from("quote_of_the_day")
+          .select("id, quote_text, author, theme, context, application, scheduled_date, created_at, updated_at")
+          .limit(1));
+      }
+    }
 
     if (quoteError) {
       throw new Error(`Failed to fetch quote: ${quoteError.message} (Code: ${quoteError.code}, Details: ${quoteError.details}, Hint: ${quoteError.hint})`);
@@ -92,32 +116,31 @@ export default async function DashboardPage() {
 
       {/* Bento-box grid layout */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {/* Widget 1: Quote of the Day (Cosmic Latte) - Moved to the top, spans full width */}
-        <div className="md:col-span-2 lg:col-span-3">
-          <QuoteOfTheDayWidget quote={quote} />
-        </div>
+  {/* Widget 4: Reading List (Antique White) - Top row, spans 3 columns */}
+  <div className="md:col-span-2 lg:col-span-3">
+    <ReadingListWidget reminders={readingListReminders} />
+  </div>
 
-        {/* Widget 2: To-Do Snapshot (Emerald Green) */}
-        <div className="md:col-span-1 lg:col-span-1">
-          <ToDoSnapshotWidget reminders={toDoReminders} />
-        </div>
+  {/* Widget 5: Upcoming Reminders (Dark Pastel Red) - Second row, spans 2 columns */}
+  <div className="md:col-span-1 lg:col-span-2">
+    <UpcomingRemindersWidget reminders={reminders.slice(0, 5)} />
+  </div>
 
-        {/* Widget 3: Needs vs Wants (Maximum Yellow) */}
-        <div className="md:col-span-1 lg:col-span-1">
-          <NeedsVsWantsWidget reminders={needsVsWantsReminders} />
-        </div>
+  {/* Widget 1: Quote of the Day (Cosmic Latte) - Second row, 1 column */}
+  <div className="md:col-span-1 lg:col-span-1">
+    <QuoteOfTheDayWidget quote={quote} />
+  </div>
 
-        {/* Widget 4: Reading List (Antique White) */}
-        <div className="md:col-span-2 lg:col-span-1">
-          <ReadingListWidget reminders={readingListReminders} />
-        </div>
+  {/* Widget 2: To-Do Snapshot (Emerald Green) - Third row, 1 column */}
+  <div className="md:col-span-1 lg:col-span-1">
+    <ToDoSnapshotWidget reminders={toDoReminders} />
+  </div>
 
-        {/* Widget 5: Upcoming Reminders (Dark Pastel Red) */}
-        <div className="md:col-span-1 lg:col-span-3">
-          <UpcomingRemindersWidget reminders={reminders.slice(0, 5)} />
-        </div>
-
-      </div>
+  {/* Widget 3: Needs vs Wants (Maximum Yellow) - Third row, 1 column */}
+  <div className="md:col-span-1 lg:col-span-1">
+    <NeedsVsWantsWidget reminders={needsVsWantsReminders} />
+  </div>
+</div>
     </div>
   );
 }

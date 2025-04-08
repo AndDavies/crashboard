@@ -7,11 +7,19 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { format, formatDistanceToNowStrict } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { Pin, CalendarClock } from 'lucide-react';
+import { Pin, CalendarClock, Check } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type ColorKey = 'soft-blue' | 'soft-green' | 'soft-red' | 'soft-yellow' | 'soft-purple' | 'soft-gray';
 export type Reminder = {
@@ -21,6 +29,7 @@ export type Reminder = {
   is_pinned: boolean;
   category?: 'need_to_do' | 'want_to_do' | 'reading_list' | null | undefined;
   color: ColorKey;
+  is_done?: boolean;
 };
 
 const COLORS: Record<ColorKey, { hex: string; tailwindBg: string }> = {
@@ -37,66 +46,73 @@ interface UpcomingRemindersWidgetProps {
 }
 
 export function UpcomingRemindersWidget({ reminders }: UpcomingRemindersWidgetProps) {
-  const getDueDateText = (dueDate: string | null): string => {
-    if (!dueDate) return 'No due date';
-    try {
-      const date = new Date(dueDate);
-      if (isNaN(date.getTime())) {
-        return 'Invalid date';
-      }
-      return `Due ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
-    } catch (e) {
-      console.error("Error parsing due date:", dueDate, e);
-      return 'Invalid date';
-    }
-  };
-
   return (
     <Card style={{ backgroundColor: '#CC4824', color: '#FFF' }}>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-white">Upcoming Reminders</CardTitle>
         <CardDescription className="text-gray-200">Your pinned or soon-due tasks.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="p-2">
         {reminders.length === 0 ? (
           <p className="text-sm text-gray-300 text-center py-4">
             No upcoming or pinned reminders!
           </p>
         ) : (
-          reminders.map((reminder) => (
-            <div
-              key={reminder.id}
-              className={cn(
-                "flex items-start gap-3 p-3 rounded-md border",
-                COLORS[reminder.color]?.tailwindBg || COLORS['soft-gray'].tailwindBg
-              )}
-            >
-              {reminder.is_pinned ? (
-                <Pin className="h-4 w-4 mt-1 text-yellow-400 flex-shrink-0" />
-              ) : (
-                <div className="w-4 h-4 flex-shrink-0"></div>
-              )}
-              <div className="flex-grow overflow-hidden">
-                <p className="text-sm font-medium leading-none mb-1 truncate">{reminder.title}</p>
-                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                  {reminder.due_date && (
-                    <span className="flex items-center gap-1">
-                      <CalendarClock className="h-3 w-3" />
-                      <span>{getDueDateText(reminder.due_date)}</span>
-                    </span>
-                  )}
-                  {reminder.category && (
-                    <Badge variant="secondary" className="capitalize text-xs">
-                      {reminder.category.replace('_', ' ')}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
+          <div className="rounded-md overflow-hidden bg-gray-800/50">
+            <Table className="border-collapse">
+              <TableHeader className="bg-gray-800/70">
+                <TableRow className="border-b-0">
+                  <TableHead className="text-white w-[40px] py-2">Pin</TableHead>
+                  <TableHead className="text-white w-[40px] py-2">Done</TableHead>
+                  <TableHead className="text-white py-2">Title</TableHead>
+                  <TableHead className="text-white hidden md:table-cell py-2">Due Date</TableHead>
+                  <TableHead className="text-white hidden lg:table-cell py-2">Category</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reminders.map((reminder) => (
+                  <TableRow 
+                    key={reminder.id} 
+                    className={cn(
+                      "border-b border-gray-700 hover:bg-gray-700/70",
+                      reminder.is_done && "opacity-60"
+                    )}
+                  >
+                    <TableCell className="py-1">
+                      {reminder.is_pinned && (
+                        <Pin className="h-4 w-4 text-yellow-400" />
+                      )}
+                    </TableCell>
+                    <TableCell className="py-1">
+                      <Checkbox
+                        checked={reminder.is_done}
+                        className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[#CC4824]"
+                      />
+                    </TableCell>
+                    <TableCell className="py-1 font-medium text-white">
+                      {reminder.title}
+                    </TableCell>
+                    <TableCell className="py-1 hidden md:table-cell text-gray-200">
+                      {reminder.due_date ? (
+                        <span className="flex items-center gap-1">
+                          <CalendarClock className="h-3 w-3" />
+                          {format(new Date(reminder.due_date), 'PP')}
+                        </span>
+                      ) : (
+                        '--'
+                      )}
+                    </TableCell>
+                    <TableCell className="py-1 hidden lg:table-cell text-gray-200 capitalize">
+                      {reminder.category?.replace('_', ' ') || '--'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="pt-2">
         <Button asChild variant="outline" size="sm" className="w-full text-white border-white hover:bg-white/20">
           <Link href="/dashboard/reminders">View All Reminders</Link>
         </Button>

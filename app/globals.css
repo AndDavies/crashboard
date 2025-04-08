@@ -164,3 +164,82 @@
   }
 }
 
+/* Calendar Styles */
+.event-sky {
+  background-color: #C1B2D3 !important; /* Dusty Lilac */
+  border-color: #C1B2D3 !important;
+  color: #374151 !important; /* Tailwind gray-700 for contrast */
+}
+
+.event-amber {
+  background-color: #F1BE49 !important; /* Maximum Yellow */
+  border-color: #F1BE49 !important;
+  color: #374151 !important; /* Tailwind gray-700 for contrast */
+}
+
+.event-orange {
+  background-color: #D77A61 !important; /* Clay Orange */
+  border-color: #D77A61 !important;
+  color: #FFFFFF !important; /* White for contrast */
+}
+
+.event-violet {
+  background-color: #5B8C82 !important; /* Muted Teal */
+  border-color: #5B8C82 !important;
+  color: #FFFFFF !important; /* White for contrast */
+}
+
+.event-emerald {
+  background-color: #317039 !important; /* Emerald Green */
+  border-color: #317039 !important;
+  color: #FFFFFF !important; /* White for contrast */
+}
+
+.event-rose {
+  background-color: #CC4B24 !important; /* Dark Pastel Red */
+  border-color: #CC4B24 !important;
+  color: #FFFFFF !important; /* White for contrast */
+}
+
+/* Calendar Container and Day Cells */
+.event-calendar-container {
+  background-color: hsl(var(--card)); /* Use card background for consistency */
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+.event-calendar-day {
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding: 0.5rem;
+  border-radius: var(--radius);
+}
+
+/* Event Dialog (Modal) */
+.event-dialog {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+/* Ensure inputs and selects in the dialog are styled */
+.event-dialog input,
+.event-dialog select,
+.event-dialog textarea {
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+/* Buttons in the dialog */
+.event-dialog .dialog-button {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: var(--radius);
+}
+
+.event-dialog .dialog-button:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
