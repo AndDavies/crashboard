@@ -548,6 +548,19 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
         throw new Error('Update operation failed: No data returned');
       }
 
+      // Immediately update the local state with the new data
+      const processedReminder: Reminder = {
+        ...updatedData,
+        tags: updatedData.tags || [],
+        category: updatedData.category ?? undefined,
+      };
+      
+      setReminders((prev) =>
+        prev.map((reminder) =>
+          reminder.id === selectedReminder.id ? processedReminder : reminder
+        )
+      );
+
       console.log('Successfully updated reminder:', updatedData);
       toast.success('Reminder updated!');
       setSelectedReminder(null);
@@ -976,7 +989,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
                 <Input
                   {...editForm.register('title')}
                   placeholder="Reminder title"
-                  className="text-base"
+                  className="text-base bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                 />
                 <Popover>
                   <PopoverTrigger asChild>
@@ -1012,6 +1025,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
                   {...editForm.register('content')}
                   placeholder="Details..."
                   rows={4}
+                  className="bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                 />
                 <div>
                   <Label className="text-sm font-medium">Tags</Label>
@@ -1019,7 +1033,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
                     value={editForm.watch('tags') || []}
                     onChange={(tags) => editForm.setValue('tags', tags)}
                     placeholder="Add tags..."
-                    className="mt-1"
+                    className="mt-1 bg-gray-50 dark:bg-gray-800 border-gray-900 dark:border-gray-900"
                   />
                 </div>
                 <div>
