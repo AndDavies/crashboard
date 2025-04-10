@@ -641,7 +641,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-screen bg-gray-50 dark:bg-black">
+    <div className="p-2 md:p-1 space-y-6 min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-semibold text-foreground">Reminders</h1>
@@ -676,7 +676,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
                 <Input
                   {...addForm.register('title')}
                   placeholder="Reminder title (optional, can be generated)"
-                  className="text-base"
+                  className="text-base dark:bg-gray-700"
                 />
                 {/* Date Picker */}
                 <Popover>
@@ -713,7 +713,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
                 <Textarea
                   {...addForm.register('content')}
                   placeholder="Details, links, etc."
-                  className="text-base"
+                  className="text-base dark:bg-gray-700"
                   rows={3}
                 />
                 <div>
@@ -721,9 +721,10 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
                   <TagsInput
                     value={addForm.watch('tags') || []}
                     onChange={(tags) => addForm.setValue('tags', tags)}
-                    className="mt-1"
+                    className="mt-1 rounded-md dark:bg-gray-700"
                   />
                 </div>
+
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Category</Label>
                   <div className="flex flex-wrap gap-2">
@@ -979,7 +980,7 @@ export function RemindersClient({ initialReminders, userId }: { initialReminders
 
       {/* Edit Reminder Dialog */}
       <Dialog open={!!selectedReminder} onOpenChange={(isOpen) => !isOpen && setSelectedReminder(null)}>
-        <DialogContent className="sm:max-w-lg bg-white dark:bg-gray-800 dark:border-gray-700">
+        <DialogContent className="sm:max-w-lg bg-white dark:bg-gray-800 dark:border-pink-700">
           {selectedReminder && (
             <>
               <DialogHeader>

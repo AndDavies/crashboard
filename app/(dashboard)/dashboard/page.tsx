@@ -112,35 +112,31 @@ export default async function DashboardPage() {
   const readingListReminders = reminders.filter(r => r.category === 'reading_list');
 
   return (
-    <div className="space-y-6 p-4">
-
-      {/* Bento-box grid layout */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-  {/* Widget 4: Reading List (Antique White) - Top row, spans 3 columns */}
-  <div className="md:col-span-2 lg:col-span-3">
+<div className="grid gap-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+  {/* Widget 4: Reading List (Antique White) - Top row, wider (2 columns) */}
+  <div className="md:col-span-1 lg:col-span-2 rounded-lg shadow-md bg-antique-white p-4">
     <ReadingListWidget reminders={readingListReminders} />
   </div>
 
-  {/* Widget 5: Upcoming Reminders (Dark Pastel Red) - Second row, spans 2 columns */}
-  <div className="md:col-span-1 lg:col-span-2">
-    <UpcomingRemindersWidget reminders={reminders.slice(0, 5)} />
-  </div>
-
-  {/* Widget 1: Quote of the Day (Cosmic Latte) - Second row, 1 column */}
-  <div className="md:col-span-1 lg:col-span-1">
+  {/* Widget 1: Quote of the Day (Cosmic Latte) - Top row, narrower (2 columns) */}
+  <div className="md:col-span-1 lg:col-span-2 rounded-lg shadow-md bg-cosmic-latte p-4">
     <QuoteOfTheDayWidget quote={quote} />
   </div>
 
-  {/* Widget 2: To-Do Snapshot (Emerald Green) - Third row, 1 column */}
-  <div className="md:col-span-1 lg:col-span-1">
+  {/* Widget 5: Upcoming Reminders (Dark Pastel Red) - Second row, wider (4 columns) */}
+  <div className="md:col-span-2 lg:col-span-4 rounded-lg shadow-md bg-dark-pastel-red p-4">
+    <UpcomingRemindersWidget reminders={reminders.slice(0, 5)} />
+  </div>
+
+  {/* Widget 2: To-Do Snapshot (Emerald Green) - Third row, 2 columns */}
+  <div className="md:col-span-1 lg:col-span-2 rounded-lg shadow-md bg-emerald-green p-4">
     <ToDoSnapshotWidget reminders={toDoReminders} />
   </div>
 
-  {/* Widget 3: Needs vs Wants (Maximum Yellow) - Third row, 1 column */}
-  <div className="md:col-span-1 lg:col-span-1">
+  {/* Widget 3: Needs vs Wants (Maximum Yellow) - Third row, 2 columns */}
+  <div className="md:col-span-1 lg:col-span-2 rounded-lg shadow-md bg-maximum-yellow p-4">
     <NeedsVsWantsWidget reminders={needsVsWantsReminders} />
   </div>
 </div>
-    </div>
   );
 }

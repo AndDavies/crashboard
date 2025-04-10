@@ -11,14 +11,6 @@ import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { Pin, CalendarClock, Check } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type ColorKey = 'soft-blue' | 'soft-green' | 'soft-red' | 'soft-yellow' | 'soft-purple' | 'soft-gray';
@@ -32,88 +24,76 @@ export type Reminder = {
   is_done?: boolean;
 };
 
-const COLORS: Record<ColorKey, { hex: string; tailwindBg: string }> = {
-  'soft-blue': { hex: '#A3BFFA', tailwindBg: 'bg-blue-100 dark:bg-blue-900' },
-  'soft-green': { hex: '#B5EAD7', tailwindBg: 'bg-green-100 dark:bg-green-900' },
-  'soft-red': { hex: '#FF9AA2', tailwindBg: 'bg-red-100 dark:bg-red-900' },
-  'soft-yellow': { hex: '#FFECB3', tailwindBg: 'bg-yellow-100 dark:bg-yellow-900' },
-  'soft-purple': { hex: '#D6BCFA', tailwindBg: 'bg-purple-100 dark:bg-purple-900' },
-  'soft-gray': { hex: '#E2E8F0', tailwindBg: 'bg-gray-100 dark:bg-gray-800' },
-};
-
 interface UpcomingRemindersWidgetProps {
   reminders: Reminder[];
 }
 
 export function UpcomingRemindersWidget({ reminders }: UpcomingRemindersWidgetProps) {
   return (
-    <Card style={{ backgroundColor: '#CC4824', color: '#FFF' }}>
+    <Card className="rounded-lg shadow-md" style={{ backgroundColor: '#CC4B24', color: '#FFF' }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-white">Upcoming Reminders</CardTitle>
-        <CardDescription className="text-gray-200">Your pinned or soon-due tasks.</CardDescription>
+        <CardTitle className="text-white text-lg font-medium">Upcoming Reminders</CardTitle>
+        <CardDescription className="text-[#F5E6D3]">Your pinned or soon-due tasks.</CardDescription>
       </CardHeader>
-      <CardContent className="p-2">
+      <CardContent className="p-3">
         {reminders.length === 0 ? (
           <p className="text-sm text-gray-300 text-center py-4">
             No upcoming or pinned reminders!
           </p>
         ) : (
-          <div className="rounded-md overflow-hidden bg-gray-800/50">
-            <Table className="border-collapse">
-              <TableHeader className="bg-gray-800/70">
-                <TableRow className="border-b-0">
-                  <TableHead className="text-white w-[40px] py-2">Pin</TableHead>
-                  <TableHead className="text-white w-[40px] py-2">Done</TableHead>
-                  <TableHead className="text-white py-2">Title</TableHead>
-                  <TableHead className="text-white hidden md:table-cell py-2">Due Date</TableHead>
-                  <TableHead className="text-white hidden lg:table-cell py-2">Category</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reminders.map((reminder) => (
-                  <TableRow 
-                    key={reminder.id} 
-                    className={cn(
-                      "border-b border-gray-700 hover:bg-gray-700/70",
-                      reminder.is_done && "opacity-60"
-                    )}
-                  >
-                    <TableCell className="py-1">
-                      {reminder.is_pinned && (
-                        <Pin className="h-4 w-4 text-yellow-400" />
-                      )}
-                    </TableCell>
-                    <TableCell className="py-1">
-                      <Checkbox
-                        checked={reminder.is_done}
-                        className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[#CC4824]"
-                      />
-                    </TableCell>
-                    <TableCell className="py-1 font-medium text-white">
-                      {reminder.title}
-                    </TableCell>
-                    <TableCell className="py-1 hidden md:table-cell text-gray-200">
-                      {reminder.due_date ? (
-                        <span className="flex items-center gap-1">
-                          <CalendarClock className="h-3 w-3" />
-                          {format(new Date(reminder.due_date), 'PP')}
-                        </span>
-                      ) : (
-                        '--'
-                      )}
-                    </TableCell>
-                    <TableCell className="py-1 hidden lg:table-cell text-gray-200 capitalize">
+          <div className="space-y-2">
+            {reminders.map((reminder) => (
+              <div
+                key={reminder.id}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-md bg-gray-800/30 hover:bg-gray-800/50 transition-colors",
+                  reminder.is_done && "opacity-60"
+                )}
+              >
+                {/* Pin Icon */}
+                <div className="flex-shrink-0">
+                  {reminder.is_pinned && (
+                    <Pin className="h-3 w-3 text-[#F5E6D3]" />
+                  )}
+                </div>
+
+                {/* Checkbox */}
+                <div className="flex-shrink-0">
+                  <Checkbox
+                    checked={reminder.is_done}
+                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[#CC4B24] hover:border-gray-300"
+                  />
+                </div>
+
+                {/* Reminder Details */}
+                <div className="flex-grow overflow-hidden">
+                  <p className="text-sm font-medium text-white truncate leading-relaxed">
+                    {reminder.title}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-[#F5E6D3] flex-wrap">
+                    {/* Due Date */}
+                    <span className="flex items-center gap-1">
+                      <CalendarClock className="h-3 w-3" />
+                      {reminder.due_date ? format(new Date(reminder.due_date), 'PP') : '--'}
+                    </span>
+                    {/* Category (visible on lg screens) */}
+                    <span className="hidden lg:inline capitalize">
                       {reminder.category?.replace('_', ' ') || '--'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
       <CardFooter className="pt-2">
-        <Button asChild variant="outline" size="sm" className="w-full text-white border-white hover:bg-white/20">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="w-full text-white border-white rounded-full px-4 py-1 hover:bg-white/30"
+        >
           <Link href="/dashboard/reminders">View All Reminders</Link>
         </Button>
       </CardFooter>
