@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Crashboard
 
-## Getting Started
+Personal site built with [Next.js](https://nextjs.org) (App Router) and [Supabase](https://supabase.com) Auth: public sections for **content**, **blog**, **articles**, and **links**, plus a private **`/dashboard`** when signed in.
 
-First, run the development server:
+## Setup
+
+1. Copy env: `cp .env.example .env.local` and add your [Supabase project URL and anon key](https://supabase.com/dashboard/project/_/settings/api).
+
+2. In Supabase → **Authentication** → [**URL configuration**](https://supabase.com/dashboard/project/nhahhggzdlrejdoftbgb/auth/url-configuration), set:
+   - **Site URL** — `http://localhost:3000` while developing (and your production URL when you deploy).
+   - **Redirect URLs** — include `http://localhost:3000/auth/callback` (and your production `/auth/callback` URL). This app uses the PKCE flow via `/auth/callback`.
+   - Optional wildcard for previews: `http://localhost:3000/**`
+
+3. Under **Authentication** → **Providers**, keep **Email** enabled for password sign-in and magic links (defaults are usually fine for a personal dashboard).
+
+4. Install and run:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Auth callback route: `/auth/callback`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project layout
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Purpose |
+| --- | --- |
+| `/` | Home |
+| `/content`, `/blog`, `/articles`, `/links` | Public sections (placeholders) |
+| `/login` | Email + password or magic link |
+| `/dashboard` | Protected; requires session |
 
-## Learn More
+Middleware refreshes the Supabase session and redirects unauthenticated users away from `/dashboard`.
 
-To learn more about Next.js, take a look at the following resources:
+## Supabase MCP (Cursor)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use the [hosted Supabase MCP server](https://supabase.com/docs/guides/getting-started/mcp) so the agent can query docs, inspect schema, and run **read-only** SQL against your project.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Config** — This repo includes [`.cursor/mcp.json`](.cursor/mcp.json). Cursor also merges your global config at `~/.cursor/mcp.json`. Prefer **one** `supabase` entry (project file overrides global when both define it).
 
-## Deploy on Vercel
+2. **URL** — Default in `mcp.json` is `https://mcp.supabase.com/mcp?read_only=true` (recommended). To limit access to a single project, append `&project_ref=<your-project-id>` (from **Project Settings → General**), or open the [**Connect → MCP**](https://supabase.com/dashboard/project/_?showConnect=true&connectTab=mcp) tab in the dashboard and paste the generated URL into `mcp.json`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Auth** — After saving, **restart Cursor**. When the MCP connects, complete **Supabase OAuth** in the browser if prompted (no personal access token required for the hosted server).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Optional env interpolation** — You can put `&project_ref=${env:SUPABASE_PROJECT_REF}` in the URL if that variable is set in the environment **before** Cursor starts (see [Cursor MCP interpolation](https://cursor.com/docs/context/mcp)).
+
+5. **Revoke old tokens** — If you previously used a Supabase **personal access token** in `mcp.json`, rotate or revoke it under [Account → Access Tokens](https://supabase.com/dashboard/account/tokens); the hosted MCP should use OAuth instead.
+
+If the server fails to start, check **Output → MCP Logs** in Cursor.
