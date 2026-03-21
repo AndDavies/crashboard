@@ -41,6 +41,16 @@ export default async function LoginPage({ searchParams }: Props) {
               Something went wrong confirming your session. Try again.
             </p>
           ) : null}
+          {error === "whoop_session" ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground"
+            >
+              Sign in to finish linking WHOOP, then open the Whoop dashboard and
+              choose <strong className="font-medium">Connect WHOOP</strong>{" "}
+              again.
+            </p>
+          ) : null}
           <LoginForm nextPath={nextPath} />
         </CardContent>
       </Card>
