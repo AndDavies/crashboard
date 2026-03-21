@@ -15,23 +15,24 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-foreground/70">
-          Signed in as{" "}
-          <span className="font-medium text-foreground">
-            {user?.email ?? "you"}
-          </span>
-          . This area is only visible after Supabase authentication.
-        </p>
-      </div>
-      <section className="grid gap-4 rounded-xl border border-foreground/10 bg-foreground/[0.02] p-6 sm:grid-cols-2">
+      <p className="text-sm text-muted-foreground">
+        Signed in as{" "}
+        <span className="font-medium text-foreground">
+          {user?.email ?? "you"}
+        </span>
+        . Use the sidebar to open tools and projects — this hub stays private.
+      </p>
+      <section className="grid gap-4 rounded-xl border border-border/80 bg-muted/30 p-6 sm:grid-cols-2">
         <div className="space-y-1">
           <h2 className="text-sm font-medium text-foreground">Next steps</h2>
-          <ul className="list-inside list-disc space-y-1 text-sm text-foreground/65">
-            <li>Add tables or Edge Functions for your private data</li>
-            <li>Wire blog/articles to Supabase or MDX</li>
-            <li>Customize this layout for your workflow</li>
+          <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+            <li>Connect Whoop or other APIs under their sections</li>
+            <li>Add Supabase tables or Edge Functions for tool data</li>
+            <li>Register new routes in{" "}
+              <code className="rounded bg-background px-1 py-0.5 text-xs">
+                src/lib/dashboard/nav-config.ts
+              </code>
+            </li>
           </ul>
         </div>
         <div className="flex flex-col justify-center gap-2">
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
             href="/"
             className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >
-            ← Back to public site
+            ← Public site
           </Link>
         </div>
       </section>

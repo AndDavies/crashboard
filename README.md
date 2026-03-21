@@ -8,12 +8,15 @@ Personal site built with [Next.js](https://nextjs.org) (App Router) and [Supabas
 
 2. In Supabase → **Authentication** → [**URL configuration**](https://supabase.com/dashboard/project/nhahhggzdlrejdoftbgb/auth/url-configuration), set:
    - **Site URL** — `http://localhost:3000` while developing (and your production URL when you deploy).
-   - **Redirect URLs** — include `http://localhost:3000/auth/callback` (and your production `/auth/callback` URL). This app uses the PKCE flow via `/auth/callback`.
+   - **Redirect URLs** — include `http://localhost:3000/auth/callback` (and your production `/auth/callback` URL). This app uses the PKCE flow via `/auth/callback`. Password reset emails use the same callback with `?next=/auth/update-password`.
+   - **Password reset** — Flow: `/auth/forgot-password` → email link → `/auth/callback` → `/auth/update-password`. Optional: customize the reset email under **Authentication** → **Email templates** → **Reset password**.
+   - **Automate URL allow list** — See [`docs/supabase-auth-callbacks.md`](docs/supabase-auth-callbacks.md) (includes Supabase MCP notes) and run `scripts/apply-supabase-auth-urls.sh` with `SUPABASE_ACCESS_TOKEN` if you prefer the Management API over the dashboard.
    - Optional wildcard for previews: `http://localhost:3000/**`
 
-3. Under **Authentication** → **Providers**, keep **Email** enabled for password sign-in and magic links (defaults are usually fine for a personal dashboard).
+3. Under **Authentication** → **Providers** → **Email**, keep the provider **enabled**. For **password** sign-in, ensure users are created with a password (e.g. **Authentication** → **Users** → **Add user** → set password, or enable **Sign ups** if you want self-serve registration). Magic links remain optional on the login page.
+4. **Session length** — In **Authentication** → **Settings**, review **JWT expiry** and **refresh token reuse**. Cookies are set for up to one year on the browser, but the project’s refresh-token policy still controls when Supabase invalidates a session.
 
-4. Install and run:
+5. Install and run:
 
 ```bash
 npm install
@@ -24,11 +27,27 @@ Open [http://localhost:3000](http://localhost:3000). Auth callback route: `/auth
 
 ## Project layout
 
+This repo uses the **Next.js App Router only** (`src/app`). There is no `pages/` directory. Route groups like `(public)` organize files without changing URLs.
+
+| File | URL |
+| --- | --- |
+| `src/app/layout.tsx` | Root layout (fonts, metadata) |
+| `src/app/(public)/page.tsx` | `/` |
+| `src/app/(public)/login/page.tsx` | `/login` |
+| `src/app/dashboard/page.tsx` | `/dashboard` |
+| `src/app/auth/callback/route.ts` | `/auth/callback` (GET; PKCE exchange) |
+| `src/app/(public)/auth/forgot-password/page.tsx` | `/auth/forgot-password` |
+| `src/app/(public)/auth/update-password/page.tsx` | `/auth/update-password` |
+| `src/middleware.ts` | Session refresh + `/dashboard` guard |
+
 | Route | Purpose |
 | --- | --- |
 | `/` | Home |
+| `/about`, `/work`, `/contact` | Marketing pages |
 | `/content`, `/blog`, `/articles`, `/links` | Public sections (placeholders) |
 | `/login` | Email + password or magic link |
+| `/auth/forgot-password` | Request password reset email |
+| `/auth/update-password` | Set new password after email link |
 | `/dashboard` | Protected; requires session |
 
 Middleware refreshes the Supabase session and redirects unauthenticated users away from `/dashboard`.
