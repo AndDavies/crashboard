@@ -28,7 +28,8 @@ export default async function LoginPage({ searchParams }: Props) {
         <CardHeader className="text-center sm:text-left">
           <CardTitle className="font-heading text-2xl">Sign in</CardTitle>
           <CardDescription>
-            Access your personal dashboard. Uses your existing Supabase session.
+            Use the email and password for your Supabase user. You’ll stay signed
+            in until you sign out.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
