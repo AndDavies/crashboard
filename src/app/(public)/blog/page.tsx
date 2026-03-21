@@ -1,21 +1,36 @@
-export const metadata = {
-  title: "Blog · Crashboard",
-  description: "Blog posts from Crashboard.",
+import type { Metadata } from "next";
+import Link from "next/link";
+import { MarketingPageFrame } from "@/components/marketing/page-frame";
+import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = {
+  title: "Writing",
+  description: "Notes and articles — MDX, CMS, or Supabase-backed posts.",
 };
 
 export default function BlogPage() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-3xl font-semibold tracking-tight">Blog</h1>
-      <p className="max-w-2xl text-foreground/70">
-        Post list will live here — e.g. MDX files, a CMS, or Supabase-backed
-        entries. For now this route is ready for your data layer.
+    <MarketingPageFrame>
+      <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
+        Writing
       </p>
-      <ul className="mt-8 space-y-3 text-sm text-foreground/55">
-        <li className="rounded-lg border border-dashed border-foreground/15 px-4 py-6 text-center">
+      <h1 className="mt-3 font-heading text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+        Archive
+      </h1>
+      <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
+        Longer-form pieces will live here. Connect MDX, a headless CMS, or
+        Supabase when you are ready to publish.
+      </p>
+      <ul className="mt-12 divide-y divide-border/80 border-y border-border/80">
+        <li className="py-8 text-center text-sm text-muted-foreground">
           No posts yet.
         </li>
       </ul>
-    </div>
+      <div className="mt-10">
+        <Button nativeButton={false} variant="outline" render={<Link href="/" />}>
+          ← Back home
+        </Button>
+      </div>
+    </MarketingPageFrame>
   );
 }

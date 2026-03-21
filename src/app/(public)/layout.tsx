@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/marketing/site-footer";
 
 export default function PublicLayout({
   children,
@@ -8,9 +9,8 @@ export default function PublicLayout({
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-10 sm:px-6">
-        {children}
-      </main>
+      <main className="flex flex-1 flex-col">{children}</main>
+      <SiteFooter />
     </>
   );
 }

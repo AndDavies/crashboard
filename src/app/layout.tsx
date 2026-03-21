@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s · Crashboard",
   },
   description:
-    "Personal site with public content and a private dashboard — powered by Next.js and Supabase.",
+    "Product design, frontend engineering, and writing — with a private Supabase-backed dashboard.",
 };
 
 export default function RootLayout({

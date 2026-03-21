@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
 import { LoginForm } from "./login-form";
+import { MarketingPageFrame } from "@/components/marketing/page-frame";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Sign in · Crashboard",
+  title: "Sign in",
   description: "Sign in to your Crashboard dashboard.",
 };
 
@@ -15,20 +23,26 @@ export default async function LoginPage({ searchParams }: Props) {
   const nextPath = next?.startsWith("/") ? next : "/dashboard";
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-8">
-      <div className="space-y-2 text-center sm:text-left">
-        <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-sm text-foreground/65">
-          Access your personal dashboard. Configure Supabase Auth and env vars
-          to enable sign-in.
-        </p>
-      </div>
-      {error === "auth" ? (
-        <p className="rounded-lg border border-foreground/15 bg-foreground/5 px-3 py-2 text-center text-sm text-foreground/80">
-          Something went wrong confirming your session. Try again.
-        </p>
-      ) : null}
-      <LoginForm nextPath={nextPath} />
-    </div>
+    <MarketingPageFrame className="flex min-h-[min(70vh,40rem)] flex-col justify-center py-16 md:py-24">
+      <Card className="mx-auto w-full max-w-md shadow-sm">
+        <CardHeader className="text-center sm:text-left">
+          <CardTitle className="font-heading text-2xl">Sign in</CardTitle>
+          <CardDescription>
+            Access your personal dashboard. Uses your existing Supabase session.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {error === "auth" ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground"
+            >
+              Something went wrong confirming your session. Try again.
+            </p>
+          ) : null}
+          <LoginForm nextPath={nextPath} />
+        </CardContent>
+      </Card>
+    </MarketingPageFrame>
   );
 }
