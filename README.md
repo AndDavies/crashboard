@@ -33,6 +33,35 @@ Open [http://localhost:3000](http://localhost:3000). Auth callback route: `/auth
 
 Middleware refreshes the Supabase session and redirects unauthenticated users away from `/dashboard`.
 
+## Push to GitHub
+
+The repo is ready on branch `main` with `.env.local` **ignored** (never commit secrets).
+
+1. Install the [GitHub CLI](https://cli.github.com/) if needed: `brew install gh`
+
+2. Sign in (browser or token):
+
+```bash
+gh auth login
+```
+
+3. Create the remote repository from this folder and push:
+
+```bash
+gh repo create crashboard --source=. --public --remote=origin --push
+```
+
+(Run this from the project root.)
+
+Use `--private` instead of `--public` for a private repo. If the name `crashboard` is taken, pick another: `gh repo create my-crashboard --source=. --public --remote=origin --push`.
+
+**Without `gh`:** create an empty repo on GitHub, then:
+
+```bash
+git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
+git push -u origin main
+```
+
 ## Supabase MCP (Cursor)
 
 Use the [hosted Supabase MCP server](https://supabase.com/docs/guides/getting-started/mcp) so the agent can query docs, inspect schema, and run **read-only** SQL against your project.
