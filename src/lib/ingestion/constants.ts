@@ -10,6 +10,12 @@ export const INGESTION_ORIGIN_TELEGRAM = "telegram";
 /** ingestion_jobs.trigger_type for OpenClaw → Baggo Topics URL drops */
 export const TRIGGER_OPENCLAW_TELEGRAM_URL = "openclaw.telegram.url";
 
+/** Agent-side structured payload (Leroy / OpenClaw) — no server fetch */
+export const TRIGGER_OPENCLAW_STRUCTURED = "openclaw.structured";
+
+/** sources.origin when no Telegram identity in payload (orchestrator-only) */
+export const INGESTION_ORIGIN_OPENCLAW = "openclaw";
+
 export const FETCH_TIMEOUT_MS = 45_000;
 
 /** Hard cap to limit accidental huge downloads (PDF/HTML). */

@@ -59,3 +59,7 @@ Telegram URL drops use the same `runIngestion` implementation with optional `Ing
 ## Phase 1D (OpenClaw)
 
 HTTPS calls from OpenClaw (Telegram orchestrator) use **`POST /api/ingestion/openclaw`** with **`OPENCLAW_INGESTION_SECRET`**. See [phase1d-openclaw-ingestion.md](./phase1d-openclaw-ingestion.md).
+
+## Phase 1E (structured / Leroy)
+
+Agent-side extraction → **`POST /api/ingestion/openclaw/structured`** (same secret). See [phase1e-structured-ingestion.md](./phase1e-structured-ingestion.md).

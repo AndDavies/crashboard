@@ -124,16 +124,33 @@ export function createIngestionRepository(admin: SupabaseClient) {
       return data as SourceRow | null;
     },
 
+    /** Weaker identity than canonical/hash; first match wins. */
+    async findSourceByOriginalUrl(
+      originalUrl: string,
+    ): Promise<SourceRow | null> {
+      const { data, error } = await admin
+        .from("sources")
+        .select("*")
+        .eq("original_url", originalUrl)
+        .order("ingested_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(`findSourceByOriginalUrl: ${error.message}`);
+      return data as SourceRow | null;
+    },
+
     async insertSource(payload: {
       source_type: SourceType;
       origin: string;
       original_url: string | null;
       canonical_url: string | null;
       title: string | null;
+      author_name?: string | null;
       publisher_name: string | null;
       language: string | null;
       status: SourceStatus;
       content_hash: string | null;
+      published_at?: string | null;
       metadata: Record<string, unknown>;
     }): Promise<SourceRow> {
       const { data, error } = await admin
@@ -144,10 +161,12 @@ export function createIngestionRepository(admin: SupabaseClient) {
           original_url: payload.original_url,
           canonical_url: payload.canonical_url,
           title: payload.title,
+          author_name: payload.author_name ?? null,
           publisher_name: payload.publisher_name,
           language: payload.language,
           status: payload.status,
           content_hash: payload.content_hash,
+          published_at: payload.published_at ?? null,
           metadata: asJsonObject(payload.metadata),
           last_processed_at: new Date().toISOString(),
         })
@@ -170,10 +189,12 @@ export function createIngestionRepository(admin: SupabaseClient) {
         original_url?: string | null;
         canonical_url?: string | null;
         title?: string | null;
+        author_name?: string | null;
         publisher_name?: string | null;
         language?: string | null;
         status?: SourceStatus;
         content_hash?: string | null;
+        published_at?: string | null;
         metadata?: Record<string, unknown>;
         last_processed_at?: string;
       },
@@ -183,11 +204,13 @@ export function createIngestionRepository(admin: SupabaseClient) {
       if (patch.original_url !== undefined) row.original_url = patch.original_url;
       if (patch.canonical_url !== undefined) row.canonical_url = patch.canonical_url;
       if (patch.title !== undefined) row.title = patch.title;
+      if (patch.author_name !== undefined) row.author_name = patch.author_name;
       if (patch.publisher_name !== undefined)
         row.publisher_name = patch.publisher_name;
       if (patch.language !== undefined) row.language = patch.language;
       if (patch.status !== undefined) row.status = patch.status;
       if (patch.content_hash !== undefined) row.content_hash = patch.content_hash;
+      if (patch.published_at !== undefined) row.published_at = patch.published_at;
       if (patch.last_processed_at !== undefined)
         row.last_processed_at = patch.last_processed_at;
       if (patch.metadata !== undefined) row.metadata = asJsonObject(patch.metadata);
@@ -397,6 +420,16 @@ export function createIngestionRepository(admin: SupabaseClient) {
       return { id: (data as { id: string }).id };
     },
 
+    async getIngestionEventById(id: string): Promise<IngestionEventRow | null> {
+      const { data, error } = await admin
+        .from("ingestion_events")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(`getIngestionEventById: ${error.message}`);
+      return data as IngestionEventRow | null;
+    },
+
     async findTelegramEventByMessageKey(params: {
       chatId: number | string;
       threadId: number | string | null;
@@ -466,6 +499,7 @@ export function createIngestionRepository(admin: SupabaseClient) {
         source_id?: string | null;
         ingestion_job_id?: string | null;
         metadata?: Record<string, unknown>;
+        raw_text?: string | null;
       },
     ): Promise<void> {
       const row: Record<string, unknown> = {};
@@ -474,12 +508,68 @@ export function createIngestionRepository(admin: SupabaseClient) {
         row.ingestion_job_id = patch.ingestion_job_id;
       }
       if (patch.metadata !== undefined) row.metadata = asJsonObject(patch.metadata);
+      if (patch.raw_text !== undefined) row.raw_text = patch.raw_text;
 
       const { error } = await admin
         .from("ingestion_events")
         .update(row)
         .eq("id", id);
       if (error) throw new Error(`updateIngestionEvent: ${error.message}`);
+    },
+
+    async findEntityByLabelAndType(
+      label: string,
+      entityType: string,
+    ): Promise<{ id: string } | null> {
+      const { data, error } = await admin
+        .from("entities")
+        .select("id")
+        .eq("label", label)
+        .eq("entity_type", entityType)
+        .maybeSingle();
+      if (error) throw new Error(`findEntityByLabelAndType: ${error.message}`);
+      return data as { id: string } | null;
+    },
+
+    async insertEntity(payload: {
+      label: string;
+      entity_type: string;
+      metadata: Record<string, unknown>;
+    }): Promise<{ id: string }> {
+      const { data, error } = await admin
+        .from("entities")
+        .insert({
+          label: payload.label,
+          entity_type: payload.entity_type,
+          metadata: asJsonObject(payload.metadata),
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(`insertEntity: ${error.message}`);
+      return { id: (data as { id: string }).id };
+    },
+
+    async tryInsertSourceEntity(payload: {
+      source_id: string;
+      entity_id: string;
+      role: string | null;
+      confidence: number | null;
+      span_start: number | null;
+      span_end: number | null;
+      metadata: Record<string, unknown>;
+    }): Promise<boolean> {
+      const { error } = await admin.from("source_entities").insert({
+        source_id: payload.source_id,
+        entity_id: payload.entity_id,
+        role: payload.role,
+        confidence: payload.confidence,
+        span_start: payload.span_start,
+        span_end: payload.span_end,
+        metadata: asJsonObject(payload.metadata),
+      });
+      if (error?.code === "23505") return false;
+      if (error) throw new Error(`tryInsertSourceEntity: ${error.message}`);
+      return true;
     },
   };
 }

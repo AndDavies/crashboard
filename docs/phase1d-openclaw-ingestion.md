@@ -147,6 +147,10 @@ Content-Type: application/json
 3. `curl` the example body to `/api/ingestion/openclaw` with the Bearer header.
 4. Repeat the same `telegram.chat_id` / `thread_id` / `message_id`: expect `deduped: true`.
 
+## Phase 1E (structured / Leroy)
+
+Agent-extracted payloads (no server fetch) use **`POST /api/ingestion/openclaw/structured`** with the same Bearer secret. See [phase1e-structured-ingestion.md](./phase1e-structured-ingestion.md).
+
 ## Deferred
 
 Queues, outbound Telegram replies, non-URL kinds, and OpenClaw-specific DB enums — not in this phase.
