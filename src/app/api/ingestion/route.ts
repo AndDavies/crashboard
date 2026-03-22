@@ -6,16 +6,10 @@ import type {
   IngestionServiceError,
   IngestionServiceResult,
 } from "@/lib/ingestion/types";
+import { verifyOptionalBearerSecret } from "@/lib/http/verify-bearer-secret";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-
-function checkIngestionAuth(request: Request): boolean {
-  const secret = process.env.INGESTION_API_SECRET?.trim();
-  if (!secret) return true;
-  const auth = request.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
-}
 
 function jsonSuccess(payload: IngestionServiceResult) {
   return NextResponse.json(payload, { status: 200 });
@@ -32,7 +26,9 @@ function jsonError(err: IngestionServiceError) {
 }
 
 export async function POST(request: Request) {
-  if (!checkIngestionAuth(request)) {
+  if (
+    !verifyOptionalBearerSecret(request, process.env.INGESTION_API_SECRET)
+  ) {
     return NextResponse.json(
       { ok: false, code: "validation", message: "Unauthorized." },
       { status: 401 },

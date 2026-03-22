@@ -57,3 +57,7 @@ supabase db push
 | Update parsing | `src/lib/telegram/parse-update.ts` |
 | Ingestion options | `IngestionRunOptions` in `src/lib/ingestion/types.ts` |
 | Event repository | `src/lib/ingestion/repository.ts` |
+
+## OpenClaw (Phase 1D)
+
+If a separate orchestrator (e.g. OpenClaw watching Baggo Topics) posts links to Crashboard, use **`POST /api/ingestion/openclaw`** instead of this webhook. The same `ingestion_events` dedupe key applies. See [phase1d-openclaw-ingestion.md](./phase1d-openclaw-ingestion.md).

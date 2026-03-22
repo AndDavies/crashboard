@@ -55,3 +55,7 @@ Deduplication: reconcile by `canonical_url` first, then `content_hash` (when set
 ## Phase 1C (Telegram)
 
 Telegram URL drops use the same `runIngestion` implementation with optional `IngestionRunOptions` (shared Supabase client, `sources.origin`, compact `sourceMetadata`). See [phase1c-telegram-webhook.md](./phase1c-telegram-webhook.md).
+
+## Phase 1D (OpenClaw)
+
+HTTPS calls from OpenClaw (Telegram orchestrator) use **`POST /api/ingestion/openclaw`** with **`OPENCLAW_INGESTION_SECRET`**. See [phase1d-openclaw-ingestion.md](./phase1d-openclaw-ingestion.md).

@@ -50,4 +50,4 @@ All listed tables have **RLS enabled** with **no** policies yet — only the **s
 
 Use **bigint** for Telegram IDs. Put structured attachment summaries in **ingestion_events.attachments** (JSON array); optional extra fields in **metadata**.
 
-**Phase 1C deduplication:** partial unique index `ingestion_events_telegram_message_uidx` on `(chat_id, COALESCE(thread_id, 0), message_id)` where `provider = 'telegram'` (see migration `20250322120000_ingestion_events_telegram_dedup.sql`).
+**Phase 1C deduplication:** partial unique index `ingestion_events_telegram_message_uidx` on `(chat_id, COALESCE(thread_id, 0), message_id)` where `provider = 'telegram'` (see migration `20250322120000_ingestion_events_telegram_dedup.sql`). The same key is used for **Phase 1D OpenClaw** calls (`POST /api/ingestion/openclaw`) so one Telegram message maps to one `ingestion_events` row regardless of whether the native webhook or OpenClaw arrived first.

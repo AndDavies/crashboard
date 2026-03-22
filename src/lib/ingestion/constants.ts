@@ -7,6 +7,9 @@ export const INGESTION_ORIGIN_API = "api";
 /** sources.origin when ingested from Telegram webhook */
 export const INGESTION_ORIGIN_TELEGRAM = "telegram";
 
+/** ingestion_jobs.trigger_type for OpenClaw → Baggo Topics URL drops */
+export const TRIGGER_OPENCLAW_TELEGRAM_URL = "openclaw.telegram.url";
+
 export const FETCH_TIMEOUT_MS = 45_000;
 
 /** Hard cap to limit accidental huge downloads (PDF/HTML). */

@@ -398,9 +398,9 @@ export function createIngestionRepository(admin: SupabaseClient) {
     },
 
     async findTelegramEventByMessageKey(params: {
-      chatId: number;
-      threadId: number | null;
-      messageId: number;
+      chatId: number | string;
+      threadId: number | string | null;
+      messageId: number | string;
     }): Promise<IngestionEventRow | null> {
       let q = admin
         .from("ingestion_events")
@@ -423,10 +423,10 @@ export function createIngestionRepository(admin: SupabaseClient) {
      * won the row (unique violation on chat/thread/message).
      */
     async tryInsertTelegramIngestionEvent(payload: {
-      chat_id: number;
-      thread_id: number | null;
-      message_id: number;
-      sender_id: number | null;
+      chat_id: number | string;
+      thread_id: number | string | null;
+      message_id: number | string;
+      sender_id: number | string | null;
       sender_label: string | null;
       raw_text: string | null;
       attachments: Json;
