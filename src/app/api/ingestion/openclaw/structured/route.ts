@@ -38,7 +38,11 @@ export async function POST(request: Request) {
     raw = await request.json();
   } catch {
     return NextResponse.json(
-      { ok: false, code: "validation", message: "Invalid JSON body." },
+      {
+        ok: false,
+        error: "Invalid payload",
+        details: [{ path: "body", message: "Body must be valid JSON." }],
+      },
       { status: 400 },
     );
   }
@@ -46,7 +50,11 @@ export async function POST(request: Request) {
   const parsed = parseBody(raw);
   if (!parsed.ok) {
     return NextResponse.json(
-      { ok: false, code: "validation", message: parsed.message },
+      {
+        ok: false,
+        error: "Invalid payload",
+        details: parsed.details,
+      },
       { status: 400 },
     );
   }
@@ -57,7 +65,11 @@ export async function POST(request: Request) {
     if (!result.ok) {
       return jsonStructuredError(result);
     }
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ok: true,
+      documentId: result.documentId,
+      counts: result.counts,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Internal error.";
     if (message.includes("SUPABASE_SERVICE_ROLE_KEY")) {

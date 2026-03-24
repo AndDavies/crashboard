@@ -1,36 +1,34 @@
 import { type ZodIssue, z } from "zod";
-import type { ArtifactType, ContentKind, SourceType } from "@/lib/ingestion/types";
 
 const sourceTypeSchema = z.enum([
   "article",
   "pdf",
   "youtube_video",
   "x_post",
-  "x_thread",
   "document",
   "unknown",
-]) as z.ZodType<SourceType>;
+]);
 
-const contentKindSchema = z.enum([
-  "primary",
-  "transcript",
-  "description",
-  "ocr",
-  "structured",
-  "auxiliary",
-]) as z.ZodType<ContentKind>;
+const reviewStatusSchema = z.enum([
+  "inbox",
+  "reviewed",
+  "archived",
+  "failed",
+]);
 
-const artifactTypeStructuredSchema = z.enum([
-  "downloaded_pdf",
-  "transcript_file",
-  "raw_html",
-  "html_snapshot",
-  "attachment",
-  "other",
-  "uploaded_pdf",
-  "thumbnail",
-  "screenshot",
-]) as z.ZodType<ArtifactType>;
+const ingestionStatusSchema = z.enum([
+  "pending",
+  "ready",
+  "partial",
+  "failed",
+]);
+
+const captureSourceSchema = z.enum([
+  "telegram",
+  "import",
+  "manual",
+  "api",
+]);
 
 const telegramId = z.union([
   z.number().finite(),
@@ -40,118 +38,86 @@ const telegramId = z.union([
     .regex(/^-?\d+$/, "must be an integer string"),
 ]);
 
-const openclawProvenanceSchema = z
-  .object({
-    agent: z.string().max(200).nullable().optional(),
-    orchestrator: z.string().max(200).nullable().optional(),
-    channel: z.string().max(64).nullable().optional(),
-    session_id: z.string().max(256).nullable().optional(),
-    event_id: z.string().max(256).nullable().optional(),
-    /** e.g. "leroy" */
-    extracted_by: z.string().max(120).nullable().optional(),
-  })
-  .strict()
-  .optional();
-
-const telegramProvenanceSchema = z
-  .object({
-    chat_id: telegramId,
-    message_id: telegramId,
-    thread_id: telegramId.optional().nullable(),
-    sender_id: telegramId.optional().nullable(),
-    sender_label: z.string().max(500).nullable().optional(),
-    raw_text: z.string().max(20_000).nullable().optional(),
-    topic_id: z.union([z.string().max(200), telegramId]).nullable().optional(),
-    group_title: z.string().max(500).nullable().optional(),
-  })
-  .strict();
-
-const provenanceSchema = z
-  .object({
-    origin: z.string().max(64).optional(),
-    telegram: telegramProvenanceSchema.optional(),
-    openclaw: openclawProvenanceSchema,
-    metadata: z.record(z.string(), z.unknown()).optional(),
-  })
-  .strict()
-  .optional();
-
-const sourceBlockSchema = z
+const documentBlockSchema = z
   .object({
     source_type: sourceTypeSchema,
     original_url: z.string().trim().min(1).max(8000),
     canonical_url: z.string().trim().max(8000).nullable().optional(),
-    title: z.string().max(500).nullable().optional(),
+    external_id: z.string().max(512).nullable().optional(),
+    title: z.string().max(2000).nullable().optional(),
     author_name: z.string().max(500).nullable().optional(),
     publisher_name: z.string().max(500).nullable().optional(),
     language: z.string().max(32).nullable().optional(),
     published_at: z.string().max(64).nullable().optional(),
-    content_hash: z.string().max(128).nullable().optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
-  })
-  .strict();
-
-const contentBlockSchema = z
-  .object({
-    content_kind: contentKindSchema.optional(),
-    raw_text: z.string().max(5_000_000).nullable().optional(),
-    normalized_text: z.string().max(5_000_000).nullable().optional(),
-    html: z.string().max(5_000_000).nullable().optional(),
-    markdown: z.string().max(5_000_000).nullable().optional(),
+    content_text: z.string().max(5_000_000).nullable().optional(),
+    content_markdown: z.string().max(5_000_000).nullable().optional(),
     transcript_text: z.string().max(5_000_000).nullable().optional(),
+    summary_short: z.string().max(20_000).nullable().optional(),
+    content_hash: z.string().max(128).nullable().optional(),
+    canonical_key: z.string().max(512).nullable().optional(),
+    review_status: reviewStatusSchema.optional(),
+    ingestion_status: ingestionStatusSchema.optional(),
     extraction_method: z.string().trim().min(1).max(200),
     extraction_version: z.string().max(64).optional(),
-    quality_flags: z.record(z.string(), z.unknown()).optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
+    quality_flags: z.record(z.string(), z.unknown()).optional(),
   })
   .strict()
-  .superRefine((c, ctx) => {
-    const has =
-      (c.normalized_text && c.normalized_text.trim().length > 0) ||
-      (c.raw_text && c.raw_text.trim().length > 0) ||
-      (c.html && c.html.trim().length > 0) ||
-      (c.markdown && c.markdown.trim().length > 0) ||
-      (c.transcript_text && c.transcript_text.trim().length > 0);
-    if (!has) {
+  .superRefine((d, ctx) => {
+    const hasBody =
+      (d.content_text?.trim().length ?? 0) > 0 ||
+      (d.content_markdown?.trim().length ?? 0) > 0 ||
+      (d.transcript_text?.trim().length ?? 0) > 0;
+    const hasSummary = (d.summary_short?.trim().length ?? 0) > 0;
+    if (!hasBody && !hasSummary) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of normalized_text, raw_text, html, markdown, or transcript_text must be non-empty.",
+          "Provide at least one of content_text, content_markdown, transcript_text, or summary_short.",
+        path: ["document"],
       });
     }
   });
 
-const artifactItemSchema = z
+const captureBlockSchema = z
   .object({
-    artifact_type: artifactTypeStructuredSchema,
-    storage_path: z.string().trim().min(1).max(2000),
-    mime_type: z.string().max(200).nullable().optional(),
-    byte_size: z.number().int().nonnegative().nullable().optional(),
-    checksum: z.string().max(128).nullable().optional(),
+    capture_source: captureSourceSchema.optional(),
+    chat_id: telegramId.optional(),
+    message_id: telegramId.optional(),
+    thread_id: telegramId.optional().nullable(),
+    sender_id: telegramId.optional().nullable(),
+    sender_label: z.string().max(500).nullable().optional(),
+    raw_text: z.string().max(20_000).nullable().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
   })
-  .strict();
+  .strict()
+  .optional();
 
-const entityItemSchema = z
+const tagsBlockSchema = z
   .object({
-    label: z.string().trim().min(1).max(500),
-    entity_type: z.string().max(120).optional(),
-    confidence: z.number().min(0).max(1).nullable().optional(),
-    role: z.string().max(120).nullable().optional(),
-    span_start: z.number().int().nullable().optional(),
-    span_end: z.number().int().nullable().optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
+    user_tags: z.array(z.string().max(200)).max(200).optional(),
+    leroy_tags: z
+      .array(
+        z
+          .object({
+            tag: z.string().min(1).max(200),
+            confidence: z.number().min(0).max(1).nullable().optional(),
+            type: z.string().max(64).nullable().optional(),
+          })
+          .strict(),
+      )
+      .max(500)
+      .optional(),
   })
-  .strict();
+  .strict()
+  .optional();
 
 export const structuredIngestionBodySchema = z
   .object({
     kind: z.literal("structured"),
-    source: sourceBlockSchema,
-    content: contentBlockSchema,
-    artifacts: z.array(artifactItemSchema).max(50).optional(),
-    entities: z.array(entityItemSchema).max(200).optional(),
-    provenance: provenanceSchema,
+    document: documentBlockSchema,
+    capture: captureBlockSchema,
+    tags: tagsBlockSchema,
     related_urls: z.array(z.string().trim().max(8000)).max(100).optional(),
     fanout: z
       .object({
@@ -165,20 +131,32 @@ export const structuredIngestionBodySchema = z
   .strict();
 
 export type StructuredIngestionBody = z.infer<typeof structuredIngestionBodySchema>;
+/** Alias for clarity in v2-only call sites */
+export type StructuredIngestionBodyV2 = StructuredIngestionBody;
 
-export function parseStructuredIngestionBody(
-  body: unknown,
-):
+export type StructuredParseDetail = { path: string; message: string };
+
+export function parseStructuredIngestionBody(body: unknown):
   | { ok: true; value: StructuredIngestionBody }
-  | { ok: false; message: string; issues?: ZodIssue[] } {
+  | {
+      ok: false;
+      message: string;
+      details: StructuredParseDetail[];
+      issues?: ZodIssue[];
+    } {
   const r = structuredIngestionBodySchema.safeParse(body);
   if (!r.success) {
+    const details: StructuredParseDetail[] = r.error.issues.map((i) => ({
+      path: i.path.length ? i.path.join(".") : "body",
+      message: i.message,
+    }));
     const first = r.error.issues[0];
     return {
       ok: false,
       message: first
-        ? `${first.path.join(".") || "body"}: ${first.message}`
-        : "Invalid request body.",
+        ? `${first.path.length ? first.path.join(".") : "body"}: ${first.message}`
+        : "Invalid payload",
+      details,
       issues: r.error.issues,
     };
   }
