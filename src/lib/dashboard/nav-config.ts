@@ -9,6 +9,7 @@ import {
   FolderKanban,
   HeartPulse,
   LayoutDashboard,
+  LibraryBig,
   Moon,
   Send,
   Settings,
@@ -81,6 +82,19 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
         title: "Projects",
         href: "/dashboard/openclaw/projects",
         icon: FolderKanban,
+      },
+    ],
+  },
+  {
+    id: "knowledgebase",
+    title: "Knowledgebase",
+    icon: LibraryBig,
+    defaultOpen: true,
+    items: [
+      {
+        title: "Repository",
+        href: "/dashboard/knowledgebase",
+        icon: LibraryBig,
       },
     ],
   },

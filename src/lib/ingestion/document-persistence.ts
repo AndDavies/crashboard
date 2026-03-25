@@ -42,6 +42,17 @@ function effectiveContentHash(body: StructuredIngestionBody): string | null {
   return sha256Hex(basis);
 }
 
+function deriveCanonicalKey(body: StructuredIngestionBody): string | null {
+  const explicit = body.document.canonical_key?.trim();
+  if (explicit) return explicit;
+  const externalId = body.document.external_id?.trim();
+  if (externalId) return `${body.document.source_type}:${externalId}`;
+  const canonicalUrl = body.document.canonical_url?.trim();
+  if (canonicalUrl) return canonicalUrl.toLowerCase();
+  const originalUrl = body.document.original_url.trim();
+  return originalUrl ? originalUrl.toLowerCase() : null;
+}
+
 function mergeDocumentMetadata(
   body: StructuredIngestionBody,
 ): Record<string, unknown> {
@@ -103,6 +114,56 @@ async function getOrCreateTag(
   return { id: race.data.id as string, created: false };
 }
 
+async function findExistingDocumentId(
+  admin: SupabaseClient,
+  body: StructuredIngestionBody,
+  canonicalKey: string | null,
+): Promise<string | null> {
+  const externalId = body.document.external_id?.trim();
+  if (externalId) {
+    const byExternal = await admin
+      .from("documents")
+      .select("id")
+      .eq("source_type", body.document.source_type)
+      .eq("external_id", externalId)
+      .maybeSingle();
+    if (byExternal.error) throw new Error(byExternal.error.message);
+    if (byExternal.data?.id) return byExternal.data.id as string;
+  }
+
+  if (canonicalKey) {
+    const byKey = await admin
+      .from("documents")
+      .select("id")
+      .eq("canonical_key", canonicalKey)
+      .maybeSingle();
+    if (byKey.error) throw new Error(byKey.error.message);
+    if (byKey.data?.id) return byKey.data.id as string;
+  }
+
+  const canonicalUrl = body.document.canonical_url?.trim();
+  if (canonicalUrl) {
+    const byCanonicalUrl = await admin
+      .from("documents")
+      .select("id")
+      .eq("canonical_url", canonicalUrl)
+      .maybeSingle();
+    if (byCanonicalUrl.error) throw new Error(byCanonicalUrl.error.message);
+    if (byCanonicalUrl.data?.id) return byCanonicalUrl.data.id as string;
+  }
+
+  const originalUrl = body.document.original_url.trim();
+  const byOriginalUrl = await admin
+    .from("documents")
+    .select("id")
+    .eq("original_url", originalUrl)
+    .maybeSingle();
+  if (byOriginalUrl.error) throw new Error(byOriginalUrl.error.message);
+  if (byOriginalUrl.data?.id) return byOriginalUrl.data.id as string;
+
+  return null;
+}
+
 export async function persistStructuredDocumentV2(
   admin: SupabaseClient,
   body: StructuredIngestionBody,
@@ -113,6 +174,7 @@ export async function persistStructuredDocumentV2(
   const hash = effectiveContentHash(body);
   const reviewStatus = d.review_status ?? "inbox";
   const ingestionStatus = d.ingestion_status ?? "ready";
+  const canonicalKey = deriveCanonicalKey(body);
 
   const docRow = {
     source_type: d.source_type,
@@ -135,20 +197,34 @@ export async function persistStructuredDocumentV2(
     extraction_method: d.extraction_method.trim(),
     extraction_version: d.extraction_version?.trim() || null,
     content_hash: hash,
-    canonical_key: d.canonical_key?.trim() || null,
+    canonical_key: canonicalKey,
     metadata: mergeDocumentMetadata(body),
     quality_flags: (d.quality_flags ?? {}) as Record<string, unknown>,
     captured_at: nowIso,
+    updated_at: nowIso,
   };
 
-  const docIns = await admin
-    .from("documents")
-    .insert(docRow)
-    .select("id")
-    .single();
+  const existingDocumentId = await findExistingDocumentId(admin, body, canonicalKey);
 
-  if (docIns.error) throw new Error(docIns.error.message);
-  const documentId = docIns.data!.id as string;
+  let documentId: string;
+  if (existingDocumentId) {
+    const docUpd = await admin
+      .from("documents")
+      .update(docRow)
+      .eq("id", existingDocumentId)
+      .select("id")
+      .single();
+    if (docUpd.error) throw new Error(docUpd.error.message);
+    documentId = docUpd.data!.id as string;
+  } else {
+    const docIns = await admin
+      .from("documents")
+      .insert(docRow)
+      .select("id")
+      .single();
+    if (docIns.error) throw new Error(docIns.error.message);
+    documentId = docIns.data!.id as string;
+  }
 
   const capSrc = captureSource(body);
   const cap = body.capture;
@@ -232,13 +308,16 @@ export async function persistStructuredDocumentV2(
     );
     if (created) tagRowsCreated += 1;
 
-    const dtIns = await admin.from("document_tags").insert({
-      document_id: documentId,
-      tag_id: tagId,
-      source: intent.joinSource,
-      confidence: intent.confidence,
-      metadata: intent.joinMeta,
-    });
+    const dtIns = await admin.from("document_tags").upsert(
+      {
+        document_id: documentId,
+        tag_id: tagId,
+        source: intent.joinSource,
+        confidence: intent.confidence,
+        metadata: intent.joinMeta,
+      },
+      { onConflict: "document_id,tag_id,source" },
+    );
     if (dtIns.error) throw new Error(dtIns.error.message);
     documentTagsCreated += 1;
   }
@@ -251,6 +330,17 @@ export async function persistStructuredDocumentV2(
   for (const url of body.related_urls ?? []) {
     const u = url.trim();
     if (!u) continue;
+
+    const existingLink = await admin
+      .from("document_links")
+      .select("id")
+      .eq("from_document_id", documentId)
+      .eq("relation", relation)
+      .eq("url", u)
+      .maybeSingle();
+    if (existingLink.error) throw new Error(existingLink.error.message);
+    if (existingLink.data?.id) continue;
+
     const linkIns = await admin.from("document_links").insert({
       from_document_id: documentId,
       to_document_id: null,
@@ -272,4 +362,3 @@ export async function persistStructuredDocumentV2(
     },
   };
 }
-
