@@ -1,3 +1,4 @@
+// Edited by Ian test
 import { MarketingHero } from "@/components/marketing/hero";
 import { AboutSection } from "@/components/marketing/about-section";
 import { ProjectsSection } from "@/components/marketing/projects-section";

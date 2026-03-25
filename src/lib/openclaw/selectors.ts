@@ -2,7 +2,6 @@ import {
   openclawAgents,
   openclawProjects,
   openclawRelationships,
-  openclawStats,
 } from "@/lib/openclaw/data";
 import type {
   OpenClawAgent,
@@ -14,7 +13,14 @@ import type {
 } from "@/lib/openclaw/types";
 
 export function getOpenClawSnapshotStats(): OpenClawSnapshotStats {
-  return openclawStats;
+  return {
+    totalAgents: openclawAgents.length,
+    specialistAgents: openclawAgents.filter((a) => a.kind === "specialist").length,
+    supportAgents: openclawAgents.filter((a) => a.kind === "support").length,
+    orchestrators: openclawAgents.filter((a) => a.kind === "orchestrator").length,
+    totalProjects: openclawProjects.length,
+    activeProjects: openclawProjects.filter((p) => p.status === "active").length,
+  };
 }
 
 export function getOpenClawAgentById(id: string): OpenClawAgent | undefined {
@@ -104,7 +110,7 @@ export function getProjectAgents(
 /** Cross-page summary: snapshot stats + relationship count. */
 export function getOpenClawSummaryStats() {
   return {
-    ...openclawStats,
+    ...getOpenClawSnapshotStats(),
     relationshipCount: openclawRelationships.length,
   };
 }

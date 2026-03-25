@@ -10,12 +10,12 @@ import type {
  * Pages and components read through `selectors.ts`.
  */
 export const openclawStats: OpenClawSnapshotStats = {
-  totalAgents: 6,
-  specialistAgents: 4,
+  totalAgents: 8,
+  specialistAgents: 6,
   supportAgents: 1,
   orchestrators: 1,
-  totalProjects: 3,
-  activeProjects: 3,
+  totalProjects: 4,
+  activeProjects: 4,
 };
 
 export const openclawAgents: OpenClawAgent[] = [
@@ -177,6 +177,63 @@ export const openclawAgents: OpenClawAgent[] = [
       "Installed skills include SuperDesign, design-system-creation, tailwind-design-system, and sovereign-accessibility-auditor",
     ],
   },
+  {
+    id: "leroy",
+    name: "Leroy",
+    emoji: "📚",
+    kind: "specialist",
+    role: "Ingestion and repository specialist",
+    description:
+      "Dedicated ingestion agent for the Personal Knowledgebase. Handles source detection, fetching, extraction, normalization, fanout, and lightweight enrichment before structured persistence into Crashboard.",
+    capabilities: [
+      "source detection",
+      "content extraction",
+      "normalization",
+      "fanout",
+      "summary generation",
+      "keyword enrichment",
+      "structured ingestion",
+    ],
+    workspace: "~/.openclaw/workspace-leroy",
+    agentDir: "~/.openclaw/agents/leroy/agent",
+    model: "openai-codex/gpt-5.4",
+    status: "active",
+    tier: "specialist",
+    group: "ingestion-knowledgebase",
+    notes: [
+      "Dedicated Personal Knowledgebase ingestion specialist",
+      "Handles article, PDF, YouTube, and X/Twitter extraction workflows",
+    ],
+    tags: ["knowledgebase", "ingestion", "structured-payloads"],
+  },
+  {
+    id: "ian",
+    name: "Ian",
+    emoji: "🛠️",
+    kind: "specialist",
+    role: "Expert coding and implementation agent",
+    description:
+      "Dedicated coding agent for local repositories and dashboard implementation work. Focuses on understanding before editing, making minimal high-leverage changes, and keeping project work clean and reviewable.",
+    capabilities: [
+      "software engineering",
+      "local repository work",
+      "dashboard implementation",
+      "refactoring",
+      "code review",
+      "technical planning",
+    ],
+    workspace: "~/.openclaw/workspace-ian",
+    agentDir: "~/.openclaw/agents/ian/agent",
+    model: "openai-codex/gpt-5.4",
+    status: "active",
+    tier: "specialist",
+    group: "engineering-implementation",
+    notes: [
+      "Created as Andrew’s expert coding agent",
+      "Works directly in local codebases and stops for review before pushes",
+    ],
+    tags: ["coding", "implementation", "crashboard"],
+  },
 ];
 
 export const openclawRelationships: OpenClawRelationship[] = [
@@ -214,6 +271,34 @@ export const openclawRelationships: OpenClawRelationship[] = [
     toAgentId: "daily-brief",
     type: "supports",
     label: "Shared workspace / support function",
+  },
+  {
+    id: "main-manages-leroy",
+    fromAgentId: "main",
+    toAgentId: "leroy",
+    type: "delegates_to",
+    label: "Delegates ingestion, extraction, and repository normalization work",
+  },
+  {
+    id: "main-manages-ian",
+    fromAgentId: "main",
+    toAgentId: "ian",
+    type: "delegates_to",
+    label: "Delegates coding, implementation, and local repository work",
+  },
+  {
+    id: "ian-works-with-riley",
+    fromAgentId: "ian",
+    toAgentId: "riley",
+    type: "works_with",
+    label: "Pairs implementation with dashboard and frontend design work",
+  },
+  {
+    id: "leroy-specializes-for-crashboard",
+    fromAgentId: "leroy",
+    toAgentId: "main",
+    type: "specializes_for",
+    label: "Specialist lane for Personal Knowledgebase ingestion under Baggo",
   },
 ];
 
@@ -282,6 +367,29 @@ export const openclawProjects: OpenClawProject[] = [
     notes: [
       "Preliminary market validation completed",
       "Ready for more structured project work, data strategy, and eventual build planning",
+    ],
+  },
+  {
+    id: "personal-knowledgebase",
+    name: "Personal Knowledgebase",
+    status: "active",
+    stage: "repository-first-buildout",
+    category: "private repository + future knowledgebase",
+    summary:
+      "Private repository system for captured content from Telegram, with Leroy handling extraction and structured ingestion into Crashboard before later semantic retrieval layers are added.",
+    tags: [
+      "knowledgebase",
+      "repository",
+      "telegram-capture",
+      "leroy",
+      "supabase",
+      "rag-later",
+    ],
+    linkedAgentIds: ["main", "leroy", "ian", "riley"],
+    notes: [
+      "Repository usefulness comes before embeddings and semantic retrieval",
+      "Crashboard is the implementation home for the backend and dashboard UI",
+      "Telegram hashtags should become first-class user tags",
     ],
   },
 ];

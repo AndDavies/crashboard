@@ -15,7 +15,7 @@ import {
 
 export const metadata: Metadata = {
   title: "OpenClaw · Agents",
-  description: "OpenClaw agent roster: Baggo, specialists, support, and relationships.",
+  description: "OpenClaw agent roster, delegation model, support agents, and specialist lanes.",
 };
 
 export default function OpenClawAgentsPage() {
@@ -31,13 +31,13 @@ export default function OpenClawAgentsPage() {
     <div className="space-y-10">
       <OpenClawSectionHeader
         title="Agents"
-        description="Live view of your OpenClaw setup: Baggo as the central orchestrator, four specialists for research and execution, and Daily Brief for operational summaries. All copy and structure come from typed config."
+        description="Live view of the current OpenClaw roster: Baggo as the central orchestrator, specialist agents for research, planning, frontend, ingestion, and implementation, plus support coverage for operational summaries. This page renders directly from typed config."
       />
 
       <OpenClawSummaryStats
         stats={[
           { label: "Total agents", value: snapshot.totalAgents },
-          { label: "Orchestrators", value: snapshot.orchestrators, hint: "Baggo" },
+          { label: "Orchestrators", value: snapshot.orchestrators, hint: main?.name ?? "Primary" },
           {
             label: "Specialists",
             value: snapshot.specialistAgents,
@@ -65,7 +65,7 @@ export default function OpenClawAgentsPage() {
 
       <AgentGroupSection
         title="Specialist agents"
-        description="Domain experts Baggo delegates to for market research, planning, deep research, and product UI."
+        description="Domain experts Baggo delegates to for research, planning, frontend, ingestion, and implementation work."
         agents={specialists}
       />
 

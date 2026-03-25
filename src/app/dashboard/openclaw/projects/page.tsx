@@ -20,7 +20,7 @@ export default function OpenClawProjectsPage() {
     <div className="space-y-10">
       <OpenClawSectionHeader
         title="Projects"
-        description="Active workstreams tied to Baggo and specialists. Extend `openclawProjects` with new rows — cards pick up agents via linkedAgentIds automatically."
+        description="Active workstreams tied to Baggo and the current specialist roster. Projects render from typed config and automatically resolve their linked agents via `linkedAgentIds`."
       />
 
       <OpenClawSummaryStats
