@@ -28,6 +28,11 @@ function mockAdmin() {
     }
     if (table === "documents") {
       return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+          }),
+        }),
         insert: () => ({
           select: () => ({
             single: vi.fn(async () => ({
@@ -36,6 +41,25 @@ function mockAdmin() {
             })),
           }),
         }),
+      };
+    }
+    if (table === "document_tags") {
+      return {
+        upsert: vi.fn(async () => ({ error: null })),
+      };
+    }
+    if (table === "document_links") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+              }),
+            }),
+          }),
+        }),
+        insert: vi.fn(async () => ({ error: null })),
       };
     }
     return {

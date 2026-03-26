@@ -1,0 +1,19 @@
+[
+  {
+    "index": 1,
+    "url": "https://1password.com/blog/ai-agent-security-benchmark",
+    "kind": "article",
+    "startedAt": "2026-03-26T12:41:09.518Z",
+    "ok": true,
+    "response": {
+      "ok": true,
+      "documentId": "de33281a-2edf-4058-a284-32d2e620fda5",
+      "counts": {
+        "captures": 1,
+        "tagRowsCreated": 0,
+        "documentTagsCreated": 0,
+        "linksCreated": 0
+      }
+    }
+  }
+]

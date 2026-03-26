@@ -47,6 +47,7 @@ export type KnowledgebaseDocumentListItem = {
   publishedAt: string | null;
   capturedAt: string | null;
   createdAt: string;
+  metadata: Record<string, unknown>;
   qualityFlags: Record<string, unknown>;
   tags: KnowledgebaseTag[];
 };
@@ -118,6 +119,7 @@ function coerceListItem(row: Record<string, unknown>): KnowledgebaseDocumentList
     publishedAt: typeof row.published_at === "string" ? row.published_at : null,
     capturedAt: typeof row.captured_at === "string" ? row.captured_at : null,
     createdAt: String(row.created_at),
+    metadata: asRecord(row.metadata),
     qualityFlags: asRecord(row.quality_flags),
     tags: [],
   };
@@ -209,7 +211,7 @@ export async function getKnowledgebaseList(filters: KnowledgebaseListFilters) {
   let query = admin
     .from("documents")
     .select(
-      "id, source_type, title, publisher_name, author_name, summary_short, review_status, ingestion_status, url_host, original_url, canonical_url, published_at, captured_at, created_at, quality_flags",
+      "id, source_type, title, publisher_name, author_name, summary_short, review_status, ingestion_status, url_host, original_url, canonical_url, published_at, captured_at, created_at, metadata, quality_flags",
       { count: "exact" },
     );
 

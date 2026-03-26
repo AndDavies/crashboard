@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { KnowledgebaseDocumentListItem } from "@/lib/knowledgebase/data";
+import { getKnowledgebasePreferredSourceLink } from "@/lib/knowledgebase/source-links";
 import {
   formatDate,
   IngestionStatusBadge,
@@ -40,6 +41,11 @@ export function KnowledgebaseList({ items }: { items: KnowledgebaseDocumentListI
       {items.map((item) => {
         const title = TitleFallback({ title: item.title, originalUrl: item.originalUrl });
         const qualityCount = qualityFlagCount(item.qualityFlags);
+        const sourceLink = getKnowledgebasePreferredSourceLink({
+          originalUrl: item.originalUrl,
+          canonicalUrl: item.canonicalUrl,
+          metadata: item.metadata,
+        });
         return (
           <Card key={item.id} className="shadow-none transition-shadow hover:shadow-sm">
             <CardContent className="pt-4">
@@ -88,12 +94,12 @@ export function KnowledgebaseList({ items }: { items: KnowledgebaseDocumentListI
                       </span>
                     ) : null}
                     <Link
-                      href={item.canonicalUrl ?? item.originalUrl}
+                      href={sourceLink.href}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted/30"
                     >
-                      Original source
+                      {sourceLink.label}
                       <ExternalLink className="size-3" />
                     </Link>
                   </div>

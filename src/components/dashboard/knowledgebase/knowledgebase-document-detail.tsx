@@ -9,6 +9,10 @@ import {
 } from "@/components/ui/card";
 import type { KnowledgebaseDocumentDetail } from "@/lib/knowledgebase/data";
 import {
+  getKnowledgebaseAlternateSourceLink,
+  getKnowledgebasePreferredSourceLink,
+} from "@/lib/knowledgebase/source-links";
+import {
   formatDate,
   IngestionStatusBadge,
   ReviewStatusBadge,
@@ -59,6 +63,16 @@ function ContentBlock({
 
 export function KnowledgebaseDocumentDetailView({ document }: { document: KnowledgebaseDocumentDetail }) {
   const title = TitleFallback({ title: document.title, originalUrl: document.originalUrl });
+  const primarySourceLink = getKnowledgebasePreferredSourceLink({
+    originalUrl: document.originalUrl,
+    canonicalUrl: document.canonicalUrl,
+    metadata: document.metadata,
+  });
+  const alternateSourceLink = getKnowledgebaseAlternateSourceLink({
+    originalUrl: document.originalUrl,
+    canonicalUrl: document.canonicalUrl,
+    metadata: document.metadata,
+  });
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_22rem]">
@@ -86,22 +100,22 @@ export function KnowledgebaseDocumentDetailView({ document }: { document: Knowle
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2 pt-4">
             <Link
-              href={document.canonicalUrl ?? document.originalUrl}
+              href={primarySourceLink.href}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-background px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted/30"
             >
-              Open original source
+              {primarySourceLink.label}
               <ExternalLink className="size-4" />
             </Link>
-            {document.canonicalUrl && document.canonicalUrl !== document.originalUrl ? (
+            {alternateSourceLink ? (
               <Link
-                href={document.originalUrl}
+                href={alternateSourceLink.href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-background px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted/30"
               >
-                Open original URL
+                {alternateSourceLink.label}
                 <ExternalLink className="size-4" />
               </Link>
             ) : null}
@@ -180,6 +194,18 @@ export function KnowledgebaseDocumentDetailView({ document }: { document: Knowle
               <p className="text-xs font-medium uppercase tracking-wide">Host</p>
               <p>{document.urlHost ?? "—"}</p>
             </div>
+            {typeof document.metadata.drive_file_id === "string" ? (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide">Drive file ID</p>
+                <p className="break-all font-mono text-[11px] text-foreground">{document.metadata.drive_file_id}</p>
+              </div>
+            ) : null}
+            {typeof document.metadata.sheet_import_source === "string" ? (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide">Import source</p>
+                <p>{document.metadata.sheet_import_source}</p>
+              </div>
+            ) : null}
             <div>
               <p className="text-xs font-medium uppercase tracking-wide">Document ID</p>
               <p className="break-all font-mono text-[11px] text-foreground">{document.id}</p>
