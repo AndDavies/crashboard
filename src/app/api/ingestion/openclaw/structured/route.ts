@@ -1,15 +1,15 @@
 import { requireBearerSecret } from "@/lib/http/verify-bearer-secret";
-import { parseStructuredIngestionBody as parseBody } from "@/lib/ingestion/structured-schema";
 import {
+  parseStructuredIngestionBody,
   runStructuredIngestion,
   type StructuredIngestError,
-} from "@/lib/ingestion/structured-service";
+} from "@/lib/openclaw/ingestion";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-function jsonStructuredError(err: StructuredIngestError) {
+function jsonIngestionError(err: StructuredIngestError) {
   const body: Record<string, unknown> = {
     ok: false,
     code: err.code,
@@ -33,26 +33,23 @@ export async function POST(request: Request) {
     );
   }
 
-  let raw: unknown;
+  let body: unknown;
   try {
-    raw = await request.json();
+    body = await request.json();
   } catch {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Invalid payload",
-        details: [{ path: "body", message: "Body must be valid JSON." }],
-      },
+      { ok: false, code: "validation", message: "Invalid JSON body." },
       { status: 400 },
     );
   }
 
-  const parsed = parseBody(raw);
+  const parsed = parseStructuredIngestionBody(body);
   if (!parsed.ok) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Invalid payload",
+        code: "validation",
+        message: parsed.message,
         details: parsed.details,
       },
       { status: 400 },
@@ -62,14 +59,12 @@ export async function POST(request: Request) {
   try {
     const admin = createAdminClient();
     const result = await runStructuredIngestion(parsed.value, admin);
+
     if (!result.ok) {
-      return jsonStructuredError(result);
+      return jsonIngestionError(result);
     }
-    return NextResponse.json({
-      ok: true,
-      documentId: result.documentId,
-      counts: result.counts,
-    });
+
+    return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Internal error.";
     if (message.includes("SUPABASE_SERVICE_ROLE_KEY")) {

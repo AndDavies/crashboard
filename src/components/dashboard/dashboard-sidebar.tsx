@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   dashboardNavGroups,
-  flattenDashboardNav,
   type DashboardNavGroup,
   type DashboardNavLeaf,
 } from "@/lib/dashboard/nav-config";

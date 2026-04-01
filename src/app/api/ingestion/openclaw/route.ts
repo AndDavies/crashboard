@@ -1,15 +1,15 @@
-import type { IngestionServiceError } from "@/lib/ingestion/types";
 import { requireBearerSecret } from "@/lib/http/verify-bearer-secret";
 import {
-  orchestrateOpenclawTelegramUrlIngestion,
-  parseOpenclawIngestionBody,
-} from "@/lib/openclaw/ingestion";
+  ingestOpenclawPhase1,
+  type Phase1IngestionError,
+} from "@/lib/ingestion/openclaw-phase1";
+import { parseOpenclawIngestionBody } from "@/lib/openclaw/ingestion";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-function jsonIngestionError(err: IngestionServiceError) {
+function jsonIngestionError(err: Phase1IngestionError) {
   const body: Record<string, unknown> = {
     ok: false,
     code: err.code,
@@ -54,10 +54,7 @@ export async function POST(request: Request) {
 
   try {
     const admin = createAdminClient();
-    const result = await orchestrateOpenclawTelegramUrlIngestion(
-      parsed.value,
-      admin,
-    );
+    const result = await ingestOpenclawPhase1(parsed.value, admin);
 
     if (!result.ok) {
       return jsonIngestionError(result);

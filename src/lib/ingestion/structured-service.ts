@@ -1,26 +1,18 @@
-/**
- * OpenClaw / Leroy structured ingestion — **v2 repository path only**.
- *
- * Each accepted POST creates:
- * - one `documents` row
- * - one `document_captures` row
- * - zero or more `tags` (get-or-create by normalized label + type)
- * - one `document_tags` row per tag intent
- * - one `document_links` row per `related_urls` entry (optional `fanout` in link metadata)
- *
- * Legacy `sources` / `source_contents` / `ingestion_jobs` are not used.
- */
-import {
-  persistStructuredDocumentV2,
-  type PersistStructuredResult,
-} from "@/lib/ingestion/document-persistence";
+import { persistDocumentGraph } from "@/lib/ingestion/persistence";
 import type { StructuredIngestionBody } from "@/lib/ingestion/structured-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type StructuredIngestSuccess = {
   ok: true;
   documentId: string;
-  counts: PersistStructuredResult["counts"];
+  sourceType: StructuredIngestionBody["document"]["source_type"];
+  deduped: boolean;
+  url: string;
+  title: string | null;
+  counts: {
+    entities: number;
+    embeddings: number;
+  };
 };
 
 export type StructuredIngestError = {
@@ -31,21 +23,46 @@ export type StructuredIngestError = {
   details?: Record<string, unknown>;
 };
 
+function normalizeEntities(body: StructuredIngestionBody): string[] {
+  return (body.entities ?? []).map((entity) =>
+    typeof entity === "string" ? entity : entity.entity,
+  );
+}
+
+function sourceChannel(body: StructuredIngestionBody): string {
+  return body.openclaw?.channel?.trim() || (body.telegram ? "telegram" : "api");
+}
+
 export async function runStructuredIngestion(
   body: StructuredIngestionBody,
   admin: SupabaseClient,
 ): Promise<StructuredIngestSuccess | StructuredIngestError> {
   try {
-    const result = await persistStructuredDocumentV2(admin, body);
+    const persisted = await persistDocumentGraph(admin, {
+      url: body.document.url,
+      sourceType: body.document.source_type,
+      title: body.document.title ?? null,
+      summary: body.document.summary ?? null,
+      content: body.document.content,
+      keywords: body.document.keywords ?? [],
+      entities: normalizeEntities(body),
+      embedding: body.embedding ?? null,
+      sourceChannel: sourceChannel(body),
+    });
+
     return {
       ok: true,
-      documentId: result.documentId,
-      counts: result.counts,
+      documentId: persisted.documentId,
+      sourceType: body.document.source_type,
+      deduped: persisted.deduped,
+      url: body.document.url,
+      title: body.document.title ?? null,
+      counts: persisted.counts,
     };
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "Structured ingestion failed.";
-    console.error("[runStructuredIngestion v2]", message);
+    console.error("[runStructuredIngestion]", message);
     return {
       ok: false,
       code: "database",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelLeftIcon, MenuIcon } from "lucide-react";
@@ -19,6 +19,53 @@ import { DashboardBreadcrumbs } from "@/components/dashboard/dashboard-breadcrum
 import { findNavTitleForPath } from "@/lib/dashboard/nav-config";
 
 const STORAGE_KEY = "crashboard-dashboard-sidebar-collapsed";
+const STORAGE_CHANGE_EVENT = `crashboard-local-storage:${STORAGE_KEY}`;
+
+function usePersistedSidebarCollapsed() {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    if (typeof window === "undefined") return () => {};
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY || e.key === null) onStoreChange();
+    };
+    const onLocal = () => onStoreChange();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(STORAGE_CHANGE_EVENT, onLocal);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(STORAGE_CHANGE_EVENT, onLocal);
+    };
+  }, []);
+
+  const getSnapshot = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const getServerSnapshot = useCallback(() => false, []);
+
+  const collapsed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  const setCollapsed = useCallback(
+    (action: React.SetStateAction<boolean>) => {
+      if (typeof window === "undefined") return;
+      const prev = getSnapshot();
+      const next = typeof action === "function" ? action(prev) : action;
+      try {
+        window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
+    },
+    [getSnapshot],
+  );
+
+  return [collapsed, setCollapsed] as const;
+}
 
 type Props = {
   children: React.ReactNode;
@@ -27,29 +74,8 @@ type Props = {
 
 export function DashboardShell({ children, userEmail }: Props) {
   const pathname = usePathname() ?? "/dashboard";
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = usePersistedSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-    try {
-      if (typeof window !== "undefined" && window.localStorage.getItem(STORAGE_KEY) === "1") {
-        setCollapsed(true);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [collapsed, hydrated]);
 
   const pageTitle = findNavTitleForPath(pathname) ?? "Dashboard";
 

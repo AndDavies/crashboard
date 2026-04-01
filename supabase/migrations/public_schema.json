@@ -1,0 +1,215 @@
+{
+  "meta": {
+    "generated_at": "2026-04-01T16:25:36Z",
+    "source": "Supabase MCP: list_tables (verbose, schema public only) + execute_sql (pg_enum for public)",
+    "project_id": "nhahhggzdlrejdoftbgb",
+    "schema": "public",
+    "table_count": 3
+  },
+  "enums": {
+    "artifact_type": [
+      "uploaded_pdf",
+      "downloaded_pdf",
+      "thumbnail",
+      "transcript_file",
+      "html_snapshot",
+      "raw_html",
+      "screenshot",
+      "attachment",
+      "other"
+    ],
+    "content_kind": [
+      "primary",
+      "transcript",
+      "description",
+      "ocr",
+      "structured",
+      "auxiliary"
+    ],
+    "ingestion_job_status": [
+      "queued",
+      "processing",
+      "completed",
+      "failed",
+      "retryable",
+      "skipped"
+    ],
+    "ingestion_provider": [
+      "telegram",
+      "manual",
+      "api",
+      "browser",
+      "other"
+    ],
+    "source_status": [
+      "draft",
+      "pending",
+      "ready",
+      "failed",
+      "archived"
+    ],
+    "source_type": [
+      "article",
+      "youtube_video",
+      "x_post",
+      "x_thread",
+      "pdf",
+      "note",
+      "document",
+      "unknown"
+    ]
+  },
+  "tables": [
+    {
+      "name": "public.documents",
+      "rls_enabled": false,
+      "rows": 2,
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "format": "uuid",
+          "options": ["updatable"],
+          "default_value": "gen_random_uuid()"
+        },
+        {
+          "name": "title",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "url",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "source_type",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "summary",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "content",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "keywords",
+          "data_type": "ARRAY",
+          "format": "_text",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "source_channel",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"],
+          "default_value": "'telegram'::text"
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp without time zone",
+          "format": "timestamp",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "ingested_at",
+          "data_type": "timestamp without time zone",
+          "format": "timestamp",
+          "options": ["nullable", "updatable"],
+          "default_value": "now()"
+        }
+      ],
+      "primary_keys": ["id"],
+      "foreign_key_constraints": [
+        {
+          "name": "entities_document_id_fkey",
+          "source": "public.entities.document_id",
+          "target": "public.documents.id"
+        },
+        {
+          "name": "embeddings_document_id_fkey",
+          "source": "public.embeddings.document_id",
+          "target": "public.documents.id"
+        }
+      ]
+    },
+    {
+      "name": "public.embeddings",
+      "rls_enabled": false,
+      "rows": 2,
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "format": "uuid",
+          "options": ["updatable"],
+          "default_value": "gen_random_uuid()"
+        },
+        {
+          "name": "document_id",
+          "data_type": "uuid",
+          "format": "uuid",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "embedding",
+          "data_type": "USER-DEFINED",
+          "format": "vector",
+          "options": ["nullable", "updatable"]
+        }
+      ],
+      "primary_keys": ["id"],
+      "foreign_key_constraints": [
+        {
+          "name": "embeddings_document_id_fkey",
+          "source": "public.embeddings.document_id",
+          "target": "public.documents.id"
+        }
+      ]
+    },
+    {
+      "name": "public.entities",
+      "rls_enabled": false,
+      "rows": 12,
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "format": "uuid",
+          "options": ["updatable"],
+          "default_value": "gen_random_uuid()"
+        },
+        {
+          "name": "document_id",
+          "data_type": "uuid",
+          "format": "uuid",
+          "options": ["nullable", "updatable"]
+        },
+        {
+          "name": "entity",
+          "data_type": "text",
+          "format": "text",
+          "options": ["nullable", "updatable"]
+        }
+      ],
+      "primary_keys": ["id"],
+      "foreign_key_constraints": [
+        {
+          "name": "entities_document_id_fkey",
+          "source": "public.entities.document_id",
+          "target": "public.documents.id"
+        }
+      ]
+    }
+  ]
+}
