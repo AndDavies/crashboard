@@ -1,10 +1,11 @@
 export {
-  parseIngestionRequest,
-  runIngestion,
-} from "@/lib/ingestion/service";
-export type {
-  IngestionApiRequest,
-  IngestionRunOptions,
-  IngestionServiceError,
-  IngestionServiceResult,
-} from "@/lib/ingestion/types";
+  parseStructuredIngestionBody,
+  structuredIngestionBodySchema,
+  type StructuredIngestionBody,
+} from "@/lib/ingestion/structured-schema";
+
+export {
+  runStructuredIngestion,
+  type StructuredIngestError,
+  type StructuredIngestSuccess,
+} from "@/lib/ingestion/structured-service";

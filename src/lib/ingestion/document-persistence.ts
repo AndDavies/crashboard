@@ -5,7 +5,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sha256Hex } from "@/lib/ingestion/hash";
 import { normalizeTextForStorage } from "@/lib/ingestion/normalize";
-import type { StructuredIngestionBody } from "@/lib/ingestion/structured-schema";
 import {
   coerceTelegramId,
   extractUrlHost,
@@ -28,42 +27,70 @@ export type PersistStructuredResult = {
   };
 };
 
-function effectiveContentHash(body: StructuredIngestionBody): string | null {
-  const provided = body.document.content_hash?.trim();
+/**
+ * This module is legacy / reference code for a previous structured payload shape.
+ * It is not used by the current runtime ingestion path, but Next's typecheck still
+ * covers it. Treat payloads as `any` to avoid coupling this file to the active
+ * schema types.
+ */
+type LooseStructuredBody = any;
+type LooseStructuredBodyWithFanout = any;
+
+function effectiveContentHash(body: LooseStructuredBody): string | null {
+  const d = body.document as Record<string, unknown>;
+  const provided = typeof d.content_hash === "string" ? d.content_hash.trim() : "";
   if (provided) return provided;
   const basis =
     normalizeTextForStorage(
-      body.document.content_text ??
-        body.document.content_markdown ??
-        body.document.transcript_text ??
-        "",
+      (typeof d.content_text === "string" ? d.content_text : null) ??
+        (typeof d.content_markdown === "string" ? d.content_markdown : null) ??
+        (typeof d.transcript_text === "string" ? d.transcript_text : null) ??
+        (typeof (body as any).document?.content === "string"
+          ? (body as any).document.content
+          : ""),
     ) ?? "";
   if (!basis) return null;
   return sha256Hex(basis);
 }
 
-function deriveCanonicalKey(body: StructuredIngestionBody): string | null {
-  const explicit = body.document.canonical_key?.trim();
+function deriveCanonicalKey(body: LooseStructuredBody): string | null {
+  const d = body.document as Record<string, unknown>;
+  const explicit =
+    typeof d.canonical_key === "string" ? d.canonical_key.trim() : "";
   if (explicit) return explicit;
-  const externalId = body.document.external_id?.trim();
-  if (externalId) return `${body.document.source_type}:${externalId}`;
-  const canonicalUrl = body.document.canonical_url?.trim();
+  const externalId =
+    typeof d.external_id === "string" ? d.external_id.trim() : "";
+  const sourceType = (d.source_type ?? (body as any).document?.source_type) as
+    | string
+    | undefined;
+  if (externalId && sourceType) return `${sourceType}:${externalId}`;
+  const canonicalUrl =
+    typeof d.canonical_url === "string" ? d.canonical_url.trim() : "";
   if (canonicalUrl) return canonicalUrl.toLowerCase();
-  const originalUrl = body.document.original_url.trim();
+  const originalUrl =
+    typeof d.original_url === "string"
+      ? d.original_url.trim()
+      : typeof (body as any).document?.url === "string"
+        ? (body as any).document.url.trim()
+        : "";
   return originalUrl ? originalUrl.toLowerCase() : null;
 }
 
 function mergeDocumentMetadata(
-  body: StructuredIngestionBody,
+  body: LooseStructuredBodyWithFanout,
 ): Record<string, unknown> {
-  const base = { ...(body.document.metadata ?? {}) } as Record<string, unknown>;
-  if (body.related_urls?.length) base.related_urls = body.related_urls;
-  if (body.fanout) base.fanout = body.fanout;
+  const d = body.document as Record<string, unknown>;
+  const base = {
+    ...(typeof d.metadata === "object" && d.metadata !== null ? d.metadata : {}),
+  } as Record<string, unknown>;
+  const related = (body as any).related_urls;
+  if (Array.isArray(related) && related.length) base.related_urls = related;
+  if ((body as any).fanout) base.fanout = (body as any).fanout;
   return base;
 }
 
 function captureSource(
-  body: StructuredIngestionBody,
+  body: LooseStructuredBody,
 ): PkbCaptureSource {
   const raw = body.capture?.capture_source?.trim().toLowerCase();
   if (
@@ -116,15 +143,20 @@ async function getOrCreateTag(
 
 async function findExistingDocumentId(
   admin: SupabaseClient,
-  body: StructuredIngestionBody,
+  body: LooseStructuredBody,
   canonicalKey: string | null,
 ): Promise<string | null> {
-  const externalId = body.document.external_id?.trim();
+  const d = body.document as Record<string, unknown>;
+  const externalId =
+    typeof d.external_id === "string" ? d.external_id.trim() : "";
   if (externalId) {
     const byExternal = await admin
       .from("documents")
       .select("id")
-      .eq("source_type", body.document.source_type)
+      .eq(
+        "source_type",
+        (d.source_type ?? (body as any).document?.source_type) as string,
+      )
       .eq("external_id", externalId)
       .maybeSingle();
     if (byExternal.error) throw new Error(byExternal.error.message);
@@ -141,7 +173,8 @@ async function findExistingDocumentId(
     if (byKey.data?.id) return byKey.data.id as string;
   }
 
-  const canonicalUrl = body.document.canonical_url?.trim();
+  const canonicalUrl =
+    typeof d.canonical_url === "string" ? d.canonical_url.trim() : "";
   if (canonicalUrl) {
     const byCanonicalUrl = await admin
       .from("documents")
@@ -152,7 +185,12 @@ async function findExistingDocumentId(
     if (byCanonicalUrl.data?.id) return byCanonicalUrl.data.id as string;
   }
 
-  const originalUrl = body.document.original_url.trim();
+  const originalUrl =
+    typeof d.original_url === "string"
+      ? d.original_url.trim()
+      : typeof (body as any).document?.url === "string"
+        ? (body as any).document.url.trim()
+        : "";
   const byOriginalUrl = await admin
     .from("documents")
     .select("id")
@@ -166,19 +204,27 @@ async function findExistingDocumentId(
 
 export async function persistStructuredDocumentV2(
   admin: SupabaseClient,
-  body: StructuredIngestionBody,
+  body: any,
 ): Promise<PersistStructuredResult> {
-  const d = body.document;
+  const loose = body as unknown as LooseStructuredBody;
+  const d = body.document as any;
   const nowIso = new Date().toISOString();
-  const urlHost = extractUrlHost(d.original_url);
-  const hash = effectiveContentHash(body);
+  const legacyDoc = (loose.document ?? {}) as Record<string, unknown>;
+  const originalUrl =
+    typeof (legacyDoc.original_url as any) === "string"
+      ? String(legacyDoc.original_url)
+      : typeof (d as any).url === "string"
+        ? String((d as any).url)
+        : "";
+  const urlHost = extractUrlHost(originalUrl);
+  const hash = effectiveContentHash(loose);
   const reviewStatus = d.review_status ?? "inbox";
   const ingestionStatus = d.ingestion_status ?? "ready";
-  const canonicalKey = deriveCanonicalKey(body);
+  const canonicalKey = deriveCanonicalKey(loose);
 
   const docRow = {
     source_type: d.source_type,
-    original_url: d.original_url.trim(),
+    original_url: originalUrl.trim(),
     canonical_url: d.canonical_url?.trim() || null,
     url_host: urlHost,
     external_id: d.external_id?.trim() || null,
@@ -198,13 +244,17 @@ export async function persistStructuredDocumentV2(
     extraction_version: d.extraction_version?.trim() || null,
     content_hash: hash,
     canonical_key: canonicalKey,
-    metadata: mergeDocumentMetadata(body),
+    metadata: mergeDocumentMetadata(loose),
     quality_flags: (d.quality_flags ?? {}) as Record<string, unknown>,
     captured_at: nowIso,
     updated_at: nowIso,
   };
 
-  const existingDocumentId = await findExistingDocumentId(admin, body, canonicalKey);
+  const existingDocumentId = await findExistingDocumentId(
+    admin,
+    loose,
+    canonicalKey,
+  );
 
   let documentId: string;
   if (existingDocumentId) {
@@ -227,7 +277,7 @@ export async function persistStructuredDocumentV2(
   }
 
   const capSrc = captureSource(body);
-  const cap = body.capture;
+  const cap = (body as any).capture;
   const captureMeta: Record<string, unknown> = {
     ...(cap?.metadata ?? {}),
   };

@@ -1,7 +1,7 @@
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 import OpenAI from "openai";
-import pdf from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 import { fetchTranscript } from "youtube-transcript";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { persistDocumentGraph } from "@/lib/ingestion/persistence";
@@ -105,6 +105,8 @@ const STOPWORDS = new Set([
   "you",
   "your",
 ]);
+
+const pdf: any = (pdfParse as any).default ?? (pdfParse as any);
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;

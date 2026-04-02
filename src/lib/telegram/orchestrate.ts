@@ -1,14 +1,5 @@
-import { INGESTION_ORIGIN_TELEGRAM } from "@/lib/ingestion/constants";
-import {
-  createIngestionRepository,
-  mergeIngestionEventMetadata,
-  type Json,
-} from "@/lib/ingestion/repository";
-import { runIngestion } from "@/lib/ingestion/service";
-import type {
-  IngestionServiceError,
-  IngestionServiceResult,
-} from "@/lib/ingestion/types";
+import { ingestOpenclawPhase1 } from "@/lib/ingestion/openclaw-phase1";
+import type { OpenclawIngestionBody } from "@/lib/openclaw/ingestion/schema";
 import { summarizeTelegramAttachments } from "@/lib/telegram/attachments";
 import {
   getTelegramMessageFromUpdate,
@@ -32,19 +23,12 @@ export interface TelegramUrlResultRow {
   url: string;
   index: number;
   ok: boolean;
-  jobId?: string;
-  sourceId?: string;
-  jobStatus?: string;
+  documentId?: string;
+  deduped?: boolean;
+  sourceType?: string;
   errorCode?: string;
   message?: string;
-}
-
-function jobIdFromOutcome(
-  o: IngestionServiceResult | IngestionServiceError,
-): string | undefined {
-  if (o.ok) return o.job.id;
-  const id = o.details?.jobId;
-  return typeof id === "string" ? id : undefined;
+  warnings?: string[];
 }
 
 function senderLabel(message: TelegramMessage): string | null {
@@ -63,7 +47,12 @@ function senderId(message: TelegramMessage): number | null {
 }
 
 /**
- * Idempotent Telegram URL ingestion: one `ingestion_events` row per message, then sequential `runIngestion` per URL.
+ * Telegram URL ingestion: extracts URLs and runs Phase 1 ingestion per URL.
+ *
+ * This is intentionally "stateless" with respect to message-level provenance tables.
+ * The live DB schema currently persists canonical document graph only (`documents`,
+ * `entities`, `embeddings`), so we dedupe by URL in `documents` and surface `deduped`
+ * per URL.
  */
 export async function orchestrateTelegramUrlIngestion(
   update: unknown,
@@ -89,119 +78,62 @@ export async function orchestrateTelegramUrlIngestion(
       ? message.message_thread_id
       : null;
 
-  const repo = createIngestionRepository(admin);
-
-  const inserted = await repo.tryInsertTelegramIngestionEvent({
-    chat_id: chatId,
-    thread_id: threadId,
-    message_id: messageId,
-    sender_id: senderId(message),
-    sender_label: senderLabel(message),
-    raw_text: text.trim() || null,
-    attachments: summarizeTelegramAttachments(message) as Json[],
-    metadata: {
-      phase1c: true,
-      update_id: updateId,
-      chat_type: message.chat.type,
-      message_date: message.date,
-      edited,
-    },
-  });
-
-  if (!inserted) {
-    const existing = await repo.findTelegramEventByMessageKey({
-      chatId,
-      threadId,
-      messageId,
-    });
-    if (!existing) {
-      return {
-        handled: true,
-        deduped: true,
-        ignoredReason: "dedupe_race_no_row",
-      };
-    }
-    return {
-      handled: true,
-      deduped: true,
-      eventId: existing.id,
-      urlCount: urls.length,
-      results: [],
-    };
-  }
-
-  const eventRow = inserted;
-
-  const compactSourceMeta = {
-    ingested_via: "telegram" as const,
-    telegram: {
-      chat_id: chatId,
-      message_id: messageId,
-      thread_id: threadId,
-    },
-  };
-
   const results: TelegramUrlResultRow[] = [];
 
   for (let i = 0; i < urls.length; i++) {
     const url = urls[i]!;
-    const outcome = await runIngestion(
-      {
-        kind: "url",
-        url,
-        metadata: {},
-        triggerType: "telegram.url",
-        triggerReference: `telegram:${chatId}:msg:${messageId}:url:${i}`,
-      },
-      {
-        admin,
-        origin: INGESTION_ORIGIN_TELEGRAM,
-        sourceMetadata: compactSourceMeta,
-      },
-    );
 
-    const jobId = jobIdFromOutcome(outcome);
+    const attachments = summarizeTelegramAttachments(message);
+
+    const body: OpenclawIngestionBody = {
+      kind: "url",
+      url,
+      metadata: {
+        update_id: updateId,
+        edited,
+        chat_type: message.chat.type,
+        message_date: message.date,
+        attachments,
+      },
+      openclaw: {
+        orchestrator: "telegram",
+        channel: "telegram",
+      },
+      telegram: {
+        chat_id: chatId,
+        message_id: messageId,
+        thread_id: threadId,
+        sender_id: senderId(message),
+        sender_label: senderLabel(message) ?? undefined,
+        raw_text: text.trim() || undefined,
+      },
+    };
+
+    const outcome = await ingestOpenclawPhase1(body, admin);
+
     if (outcome.ok) {
       results.push({
         url,
         index: i,
         ok: true,
-        jobId,
-        sourceId: outcome.source?.id,
-        jobStatus: outcome.job.status,
+        documentId: outcome.documentId,
+        deduped: outcome.deduped,
+        sourceType: outcome.sourceType,
+        warnings: outcome.warnings,
       });
     } else {
       results.push({
         url,
         index: i,
         ok: false,
-        jobId,
-        jobStatus: undefined,
         errorCode: outcome.code,
         message: outcome.message,
       });
     }
   }
 
-  const primaryJobId = results.find((r) => r.jobId)?.jobId;
-  const primarySourceId = results.find((r) => r.ok && r.sourceId)?.sourceId;
-
-  const mergedMeta = mergeIngestionEventMetadata(eventRow.metadata, {
-    url_results: results,
-    url_count: urls.length,
-    finished_at: new Date().toISOString(),
-  });
-
-  await repo.updateIngestionEvent(eventRow.id, {
-    ingestion_job_id: primaryJobId ?? null,
-    source_id: primarySourceId ?? null,
-    metadata: mergedMeta as Record<string, unknown>,
-  });
-
   return {
     handled: true,
-    deduped: false,
-    eventId: eventRow.id,
     urlCount: urls.length,
     results,
   };
