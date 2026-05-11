@@ -6,9 +6,10 @@ import { MobileNav, type NavItem } from "@/components/marketing/mobile-nav";
 
 const mainNav: NavItem[] = [
   { href: "/", label: "Home" },
-  { href: "/about", label: "About" },
-  { href: "/work", label: "Work" },
   { href: "/blog", label: "Writing" },
+  { href: "/work", label: "Work" },
+  { href: "/links", label: "Links" },
+  { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -20,14 +21,14 @@ export async function SiteHeader() {
   const signedIn = Boolean(user);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/92 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
         <Link
           href="/"
-          className="font-heading text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+          className="font-heading text-sm font-semibold text-foreground outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring"
         >
           {siteConfig.publicName}
-          <span className="ml-1.5 font-normal text-muted-foreground">
+          <span className="ml-1.5 hidden font-normal text-muted-foreground sm:inline">
             · {siteConfig.brandWordmark}
           </span>
         </Link>
@@ -65,7 +66,7 @@ export async function SiteHeader() {
               size="sm"
               className="hidden sm:inline-flex"
             >
-              Log in
+              Dashboard
             </Button>
           )}
           <MobileNav

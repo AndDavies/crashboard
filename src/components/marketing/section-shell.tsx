@@ -18,11 +18,11 @@ export function SectionShell({
     <section
       id={id}
       className={cn(
-        dense ? "py-14 md:py-20" : "py-16 md:py-28",
+        dense ? "py-14 md:py-20" : "py-16 md:py-24",
         className,
       )}
     >
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">{children}</div>
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</div>
     </section>
   );
 }
@@ -39,11 +39,11 @@ export function SectionHeading({
   return (
     <div className="mb-10 max-w-2xl md:mb-14">
       {eyebrow ? (
-        <p className="mb-2 text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
+        <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+      <h2 className="font-heading text-2xl font-semibold text-foreground md:text-3xl">
         {title}
       </h2>
       {description ? (

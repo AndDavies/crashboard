@@ -1,48 +1,72 @@
+import Image from "next/image";
 import Link from "next/link";
-import { siteConfig } from "@/lib/marketing/site-config";
+import { ArrowRightIcon, BookOpenIcon } from "lucide-react";
+import { siteConfig, signalBlocks } from "@/lib/marketing/site-config";
 import { Button } from "@/components/ui/button";
-import { SectionShell } from "@/components/marketing/section-shell";
 
 export function MarketingHero() {
   return (
-    <SectionShell className="border-b border-border/60 bg-background pb-12 md:pb-16">
-      <div className="max-w-3xl">
-        <p className="mb-4 text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-          {siteConfig.location}
-        </p>
-        <h1 className="font-heading text-4xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-[3.25rem] md:leading-[1.1]">
-          {siteConfig.publicName}
-        </h1>
-        <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground md:text-xl">
-          {siteConfig.title}. {siteConfig.shortBio}
-        </p>
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button
-            nativeButton={false}
-            render={<Link href="/contact" />}
-            size="lg"
-          >
-            Get in touch
-          </Button>
-          <Button
-            nativeButton={false}
-            render={<Link href="/work" />}
-            variant="outline"
-            size="lg"
-          >
-            View selected work
-          </Button>
-          <Button
-            nativeButton={false}
-            render={<Link href="/login" />}
-            variant="ghost"
-            size="lg"
-            className="text-muted-foreground sm:ml-1"
-          >
-            Log in
-          </Button>
+    <section className="relative overflow-hidden border-b border-border/70 bg-foreground text-background">
+      <div className="absolute inset-0">
+        <Image
+          src="/images/marketing/crashboard-hero.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(13,15,15,0.9)_0%,rgba(13,15,15,0.74)_38%,rgba(13,15,15,0.32)_78%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-[linear-gradient(0deg,rgba(13,15,15,0.72),rgba(13,15,15,0))]" />
+      </div>
+
+      <div className="relative mx-auto flex min-h-[calc(100svh-10rem)] max-w-7xl flex-col justify-end px-4 py-12 sm:px-6 md:min-h-[42rem] md:py-16">
+        <div className="max-w-3xl pb-8">
+          <p className="text-xs font-semibold uppercase text-background/70">
+            {siteConfig.location} / {siteConfig.brandWordmark}
+          </p>
+          <h1 className="mt-5 max-w-2xl font-heading text-4xl font-semibold text-background sm:text-5xl md:text-6xl md:leading-[1.04]">
+            {siteConfig.publicName}
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-background/78 md:text-xl">
+            {siteConfig.shortBio}
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              nativeButton={false}
+              size="lg"
+              className="bg-background text-foreground hover:bg-background/90"
+              render={<Link href="/blog" />}
+            >
+              <BookOpenIcon className="size-4" aria-hidden />
+              Read the notes
+            </Button>
+            <Button
+              nativeButton={false}
+              size="lg"
+              variant="outline"
+              className="border-background/35 bg-background/10 text-background hover:bg-background/18 hover:text-background"
+              render={<Link href="/work" />}
+            >
+              View the work
+              <ArrowRightIcon className="size-4" aria-hidden />
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-px overflow-hidden border border-background/18 bg-background/18 md:grid-cols-3">
+          {signalBlocks.map((block) => (
+            <div key={block.title} className="bg-foreground/70 p-5 backdrop-blur">
+              <h2 className="text-sm font-semibold text-background">
+                {block.title}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-background/68">
+                {block.body}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
-    </SectionShell>
+    </section>
   );
 }

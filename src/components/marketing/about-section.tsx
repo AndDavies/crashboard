@@ -1,49 +1,56 @@
+import Link from "next/link";
 import { siteConfig } from "@/lib/marketing/site-config";
 import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+
+const operatingNotes = [
+  "Prefer evidence over enthusiasm.",
+  "Keep the workflow small enough to use.",
+  "Write the decision, not just the summary.",
+  "Preserve the source trail.",
+];
 
 export function AboutSection() {
   return (
-    <SectionShell id="about" className="bg-muted/30">
-      <SectionHeading
-        eyebrow="About"
-        title="Clarity over noise"
-        description="I partner with teams that care about craft and outcomes — not vanity metrics or endless pivots without ship dates."
-      />
-      <div className="grid gap-10 md:grid-cols-[1fr_minmax(0,16rem)] md:items-start md:gap-16">
-        <div className="max-w-2xl space-y-4 text-base leading-relaxed text-muted-foreground">
-          <p>
-            {siteConfig.shortBio} I’m strongest when design and engineering stay
-            in the same loop: prototypes inform constraints, and implementation
-            preserves intent.
-          </p>
-          <p>
-            Recent focus: product UI, design systems, and full-stack delivery
-            with Next.js and Supabase — always with accessibility and performance
-            as non-negotiables.
-          </p>
+    <SectionShell id="about" className="bg-background">
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div>
+          <SectionHeading
+            eyebrow="Personal site"
+            title="A quieter home base for the work behind the work."
+            description={siteConfig.title}
+          />
+          <div className="max-w-3xl space-y-5 text-base leading-relaxed text-muted-foreground">
+            <p>
+              Crashboard is where I want the public layer of my work to live:
+              writing, projects, useful links, and the occasional field note
+              from tools or workflows that are worth keeping.
+            </p>
+            <p>
+              The style direction borrows from intelligence briefs: clear
+              sections, plain labels, source-aware claims, and enough visual
+              restraint that the writing can carry the page.
+            </p>
+          </div>
         </div>
-        <div className="rounded-xl border border-border/80 bg-background p-5 ring-1 ring-foreground/5">
-          <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            Focus
+
+        <aside className="border-l border-border/80 pl-6">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">
+            Operating posture
           </p>
-          <ul className="mt-3 space-y-2 text-sm text-foreground">
-            <li>Product design & UX</li>
-            <li>Frontend architecture</li>
-            <li>Design systems</li>
-            <li>Technical writing</li>
+          <ul className="mt-4 space-y-3">
+            {operatingNotes.map((note) => (
+              <li key={note} className="text-sm leading-relaxed text-foreground">
+                {note}
+              </li>
+            ))}
           </ul>
-          <Button
-            nativeButton={false}
-            variant="outline"
-            size="sm"
-            className="mt-5 w-full"
-            render={<Link href="/about" />}
+          <Link
+            href="/about"
+            className="mt-6 inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >
-            Full bio
-          </Button>
-        </div>
+            Read the fuller profile
+          </Link>
+        </aside>
       </div>
     </SectionShell>
   );

@@ -5,11 +5,12 @@ import { GithubIcon, LinkedinIcon } from "lucide-react";
 
 const footerNav = [
   { href: "/", label: "Home" },
+  { href: "/blog", label: "Writing" },
+  { href: "/articles", label: "Articles" },
+  { href: "/links", label: "Links" },
   { href: "/about", label: "About" },
   { href: "/work", label: "Work" },
-  { href: "/blog", label: "Writing" },
   { href: "/contact", label: "Contact" },
-  { href: "/login", label: "Log in" },
 ] as const;
 
 export function SiteFooter() {
@@ -17,14 +18,14 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t border-border/80 bg-background">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="font-heading text-sm font-semibold text-foreground">
               {siteConfig.publicName}
             </p>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-              {siteConfig.title}. Built with Next.js & Supabase.
+              {siteConfig.shortBio}
             </p>
             <div className="mt-4 flex gap-3">
               <a

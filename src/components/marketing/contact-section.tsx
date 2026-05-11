@@ -15,13 +15,13 @@ export function ContactSection() {
         <div className="max-w-xl">
           <SectionHeading
             eyebrow="Contact"
-            title="Let’s work together"
-            description="Tell me about your product, timeline, and what “done” looks like. I’ll respond within a few business days."
+            title="Send a useful note."
+            description="For project work, writing, or collaboration, include the context, the decision you are trying to make, and what would make the exchange worthwhile."
           />
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button nativeButton={false} size="lg" render={<a href={mailto} />}>
-            Email {siteConfig.email}
+            Email
           </Button>
           <Button
             nativeButton={false}
@@ -30,7 +30,7 @@ export function ContactSection() {
             className="text-muted-foreground"
             render={<Link href="/login" />}
           >
-            Client log in
+            Dashboard
           </Button>
         </div>
       </div>

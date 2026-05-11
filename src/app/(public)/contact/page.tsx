@@ -21,22 +21,22 @@ export default function ContactPage() {
 
   return (
     <MarketingPageFrame>
-      <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">
         Contact
       </p>
-      <h1 className="mt-3 font-heading text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-        Let’s work together
+      <h1 className="mt-4 max-w-3xl font-heading text-4xl font-semibold text-foreground md:text-5xl md:leading-[1.08]">
+        Send context, not just a calendar ask.
       </h1>
-      <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-        Share a short brief: problem, timeline, and how you’ll measure
-        success. I typically reply within a few business days.
+      <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+        The most useful notes include the decision, the constraint, the timeline,
+        and what you have already tried.
       </p>
       <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_minmax(0,22rem)] lg:items-start">
         <Card>
           <CardHeader>
             <CardTitle>Email</CardTitle>
             <CardDescription>
-              Best for introductions and project inquiries.
+              Best for introductions, project work, and useful exchanges.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -58,7 +58,7 @@ export default function ContactPage() {
           <CardHeader>
             <CardTitle className="text-base">Existing clients</CardTitle>
             <CardDescription>
-              Access your private dashboard — same Supabase session as before.
+              Access private notes, dashboards, and work surfaces.
             </CardDescription>
           </CardHeader>
           <CardContent>

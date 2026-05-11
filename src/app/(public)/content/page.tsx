@@ -9,16 +9,15 @@ export const metadata: Metadata = {
 export default function ContentPage() {
   return (
     <MarketingPageFrame>
-      <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
         Content
       </p>
-      <h1 className="mt-3 font-heading text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-        Content
+      <h1 className="mt-4 max-w-3xl font-heading text-4xl font-semibold text-foreground md:text-5xl md:leading-[1.08]">
+        Public shelves for material that is useful outside the dashboard.
       </h1>
-      <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-        Use this area for evergreen pages: about-adjacent detail, policies, or
-        curated collections. This route is unchanged for backwards
-        compatibility — link it from the footer if you still need it.
+      <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+        Essays, articles, links, and project records each have their own lane so
+        the archive can grow without losing shape.
       </p>
     </MarketingPageFrame>
   );
