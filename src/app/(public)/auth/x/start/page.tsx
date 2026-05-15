@@ -13,6 +13,7 @@ import { getPublicSiteOrigin, getXOAuthCallbackUrl } from "@/lib/site-url";
 export const metadata: Metadata = {
   title: "X OAuth setup",
   description: "Callback URL for X developer portal (xurl).",
+  robots: { index: false, follow: false },
 };
 
 export default function XOAuthStartPage() {

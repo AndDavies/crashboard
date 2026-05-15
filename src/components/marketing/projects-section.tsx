@@ -8,21 +8,21 @@ export function ProjectsSection() {
   const featuredPages = index.pages.slice(0, 6);
 
   return (
-    <SectionShell id="wiki" className="border-y border-border/70 bg-muted/25">
+    <SectionShell id="wiki" className="bg-muted/35">
       <SectionHeading
         eyebrow="Wiki"
         title="The real public content lives in the wiki."
         description="These pages are generated from the compiled knowledge base and link to real public routes."
       />
-      <div className="grid gap-px overflow-hidden border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-px border-y border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3">
         {featuredPages.map((page) => (
           <Link
             key={page.slug}
             href={`/wiki/${page.slug}`}
-            className="group bg-background p-6 outline-none transition-colors hover:bg-muted/35 focus-visible:ring-2 focus-visible:ring-ring"
+            className="group bg-background p-6 outline-none transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex items-start justify-between gap-4">
-              <h3 className="font-heading text-lg font-semibold text-foreground">
+              <h3 className="font-heading text-xl leading-tight font-light text-foreground">
                 {page.title}
               </h3>
               <ArrowRightIcon
@@ -30,7 +30,7 @@ export function ProjectsSection() {
                 aria-hidden
               />
             </div>
-            <p className="mt-4 line-clamp-4 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-5 line-clamp-4 text-sm leading-relaxed text-muted-foreground">
               {page.description}
             </p>
           </Link>

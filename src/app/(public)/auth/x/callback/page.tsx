@@ -17,6 +17,7 @@ import { getXOAuthCallbackUrl } from "@/lib/site-url";
 export const metadata: Metadata = {
   title: "X OAuth callback",
   description: "X (Twitter) OAuth redirect landing for xurl setup.",
+  robots: { index: false, follow: false },
 };
 
 type Props = {

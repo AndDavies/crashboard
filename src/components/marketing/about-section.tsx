@@ -12,7 +12,7 @@ export function AboutSection() {
             title="A quieter home base for the work behind the work."
             description={siteConfig.title}
           />
-          <div className="max-w-3xl space-y-5 text-base leading-relaxed text-muted-foreground">
+          <div className="max-w-3xl space-y-5 text-base leading-relaxed text-muted-foreground md:text-lg">
             <p>
               Crashboard currently has one real public content surface: the
               wiki. It is the compiled, browseable layer of source-backed notes
@@ -25,13 +25,13 @@ export function AboutSection() {
           </div>
         </div>
 
-        <aside className="border-l border-border/80 pl-6">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
+        <aside className="border-t border-border/80 pt-6 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">
+          <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
             Operating posture
           </p>
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-5 divide-y divide-border/80 border-y border-border/80">
             {operatingNotes.map((note) => (
-              <li key={note} className="text-sm leading-relaxed text-foreground">
+              <li key={note} className="py-3 text-sm leading-relaxed text-foreground">
                 {note}
               </li>
             ))}

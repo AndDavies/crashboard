@@ -1,8 +1,8 @@
 export const siteConfig = {
   publicName: "Andrew Davies",
-  title: "Personal website, public wiki, and future blog",
+  title: "Personal website, public wiki, and research blog",
   shortBio:
-    "I use Crashboard as the public edge of my working system: a place for source-backed wiki pages now, and longer writing once the publishing workflow is ready.",
+    "I use Crashboard as the public edge of my working system: a place for source-backed wiki pages, AI workflow notes, knowledge-system thinking, and longer strategy writing.",
   location: "Halifax, Canada",
   brandWordmark: "Crashboard",
 } as const;
@@ -41,7 +41,7 @@ export const homeLinks: HomeLink[] = [
   },
   {
     title: "Blog",
-    body: "The future publishing surface for essays and field notes. The route is ready for dynamic content; the CMS comes next.",
+    body: "Essays and field notes on AI workflows, practical research systems, defence strategy, and how ideas turn into working surfaces.",
     href: "/blog",
     label: "Open blog",
   },
@@ -56,8 +56,8 @@ export const homeLinks: HomeLink[] = [
 export const operatingNotes = [
   "Public pages should link somewhere real.",
   "The wiki carries the current content surface.",
-  "The blog should stay empty until posts exist.",
-  "The CMS should feed the blog without another redesign.",
+  "The blog should answer one clear question at a time.",
+  "The CMS should make publishing citeable without becoming heavy.",
 ];
 
 export const blogPosts: BlogPostSummary[] = [];
@@ -69,7 +69,7 @@ export const blogContentModel = [
   },
   {
     field: "Summary",
-    description: "A short description for archive cards, metadata, and feeds.",
+    description: "A short answer and meta description for readers, search snippets, and answer systems.",
   },
   {
     field: "Status",
@@ -81,10 +81,10 @@ export const blogContentModel = [
   },
   {
     field: "Tags",
-    description: "Topic labels that connect posts back to wiki clusters.",
+    description: "Topic labels and focus terms that connect posts back to wiki clusters.",
   },
   {
-    field: "Canonical links",
-    description: "References to related wiki pages, source notes, or external URLs.",
+    field: "Sources and related pages",
+    description: "References to supporting URLs and related wiki pages for context and citation.",
   },
 ];

@@ -19,16 +19,17 @@ export async function SiteHeader() {
   const signedIn = Boolean(user);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/92 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
         <Link
           href="/"
-          className="font-heading text-sm font-semibold text-foreground outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+          className="group font-heading text-[15px] font-medium text-foreground outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring"
         >
           {siteConfig.publicName}
-          <span className="ml-1.5 hidden font-normal text-muted-foreground sm:inline">
-            · {siteConfig.brandWordmark}
+          <span className="ml-2 hidden font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase sm:inline">
+            {siteConfig.brandWordmark}
           </span>
+          <span className="mt-1 block h-0.5 w-14 bg-accent transition-[width] group-hover:w-20" />
         </Link>
 
         <nav
@@ -39,7 +40,7 @@ export async function SiteHeader() {
             <Link
               key={href}
               href={href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {label}
             </Link>
@@ -52,7 +53,7 @@ export async function SiteHeader() {
               nativeButton={false}
               render={<Link href="/dashboard" />}
               size="sm"
-              className="hidden sm:inline-flex"
+              className="hidden rounded-full bg-foreground px-4 text-background hover:bg-foreground/85 sm:inline-flex"
             >
               Dashboard
             </Button>
@@ -62,7 +63,7 @@ export async function SiteHeader() {
               render={<Link href="/login" />}
               variant="outline"
               size="sm"
-              className="hidden sm:inline-flex"
+              className="hidden rounded-full border-foreground/15 bg-background px-4 text-foreground hover:border-foreground/30 hover:bg-muted sm:inline-flex"
             >
               Dashboard
             </Button>

@@ -12,6 +12,7 @@ import {
 export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to your Crashboard dashboard.",
+  robots: { index: false, follow: false },
 };
 
 type Props = {

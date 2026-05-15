@@ -96,7 +96,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-sm">
+      <section className="border-y border-border/80 bg-card/70 py-4">
         <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
           <label className="space-y-2">
             <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -111,7 +111,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
                 setSelectedNodeId(null);
               }}
               placeholder="Search concepts, workflows, source notes..."
-              className="h-10 bg-background/80"
+              className="h-10 rounded-none bg-background/80"
             />
           </label>
 
@@ -122,7 +122,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
             <select
               value={cluster}
               onChange={(event) => setClusterFilter(event.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="all">All clusters</option>
               {index.clusters.map((item) => (
@@ -140,7 +140,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
             <select
               value={role}
               onChange={(event) => setRoleFilter(event.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="all">All roles</option>
               {index.roles.map((item) => (
@@ -159,7 +159,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
             <select
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="cluster">Cluster</option>
               <option value="title">Title</option>
@@ -252,7 +252,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
         onNodeSelect={setSelectedNodeId}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-px border-y border-border/80 bg-border/80 md:grid-cols-2 xl:grid-cols-3">
         {pages.map((page) => (
           <Link
             key={page.slug}
@@ -262,12 +262,12 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
             onFocus={() => setActiveNodeId(page.slug)}
             onBlur={() => setActiveNodeId(null)}
             className={cn(
-              "group relative flex min-h-72 flex-col overflow-hidden rounded-lg border bg-card/75 shadow-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "group relative flex min-h-72 flex-col overflow-hidden bg-card/75 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               focusedNodeId === page.slug
-                ? "border-primary/45 shadow-md ring-1 ring-primary/20"
+                ? "ring-1 ring-primary/20"
                 : focusedNeighbors.has(page.slug)
-                  ? "border-primary/25 shadow-sm"
-                  : "border-border/80 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md",
+                  ? "bg-background"
+                  : "hover:bg-background",
               focusedNodeId && focusedNodeId !== page.slug && !focusedNeighbors.has(page.slug) && "opacity-70",
             )}
           >
@@ -287,7 +287,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
                 <Badge variant="secondary">{label(page.cluster)}</Badge>
                 <Badge variant="outline">{label(page.role)}</Badge>
               </div>
-              <h2 className="font-heading text-lg font-semibold leading-tight text-foreground">
+              <h2 className="font-heading text-xl font-light leading-tight text-foreground">
                 {page.title}
               </h2>
               <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
@@ -328,8 +328,8 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
       </section>
 
       {pages.length === 0 ? (
-        <div className="rounded-lg border border-border/80 bg-card/70 p-8 text-center">
-          <h2 className="font-heading text-lg font-semibold text-foreground">
+        <div className="border-y border-border/80 bg-card/70 p-8 text-center">
+          <h2 className="font-heading text-xl font-light text-foreground">
             No pages match those filters.
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">

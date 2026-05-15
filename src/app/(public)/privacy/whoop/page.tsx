@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { siteConfig } from "@/lib/marketing/site-config";
 import { Separator } from "@/components/ui/separator";
+import { canonicalUrl } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — WHOOP integration",
   description:
     "How Crashboard collects, uses, and protects WHOOP-related data when you connect your WHOOP account.",
   robots: { index: true, follow: true },
+  alternates: { canonical: canonicalUrl("/privacy/whoop") },
 };
 
 export default function WhoopPrivacyPolicyPage() {

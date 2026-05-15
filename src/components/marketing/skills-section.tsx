@@ -12,7 +12,7 @@ export function SkillsSection() {
       <ul className="grid gap-x-12 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
         {blogContentModel.map((field) => (
           <li key={field.field} className="border-t border-border/80 pt-5">
-            <h3 className="font-heading text-base font-semibold text-foreground">
+            <h3 className="font-heading text-lg font-light text-foreground">
               {field.field}
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

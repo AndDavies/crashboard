@@ -156,13 +156,13 @@ export function WikiGraph({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border/80 bg-card/75 shadow-sm transition-shadow hover:shadow-md">
+    <div className="overflow-hidden border-y border-border/80 bg-card/75">
       <div className="flex flex-col gap-3 border-b border-border/70 px-4 py-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
             Graph
           </p>
-          <h2 className="font-heading text-base font-semibold text-foreground">
+          <h2 className="font-heading text-lg font-light text-foreground">
             Page relationships
           </h2>
         </div>

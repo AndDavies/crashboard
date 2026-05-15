@@ -13,6 +13,7 @@ import { UpdatePasswordForm } from "./update-password-form";
 export const metadata: Metadata = {
   title: "New password",
   description: "Set a new password for your Crashboard account.",
+  robots: { index: false, follow: false },
 };
 
 export default function UpdatePasswordPage() {

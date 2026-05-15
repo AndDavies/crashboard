@@ -10,14 +10,31 @@ export const BLOG_MEDIA_BUCKET = "blog-media";
 
 export type BlogPostStatus = "draft" | "published" | "scheduled" | "archived";
 
+export type BlogSourceLink = {
+  label: string;
+  url: string;
+  note?: string;
+};
+
 export type BlogPostSummary = {
   id: string;
   title: string;
   slug: string;
   excerpt: string;
   status: BlogPostStatus;
+  seoTitle: string;
+  metaDescription: string;
+  canonicalUrl: string | null;
   coverImagePath: string | null;
   coverImageUrl: string | null;
+  ogImagePath: string | null;
+  ogImageUrl: string | null;
+  noindex: boolean;
+  focusTopic: string;
+  tags: string[];
+  answerSummary: string;
+  sourceLinks: BlogSourceLink[];
+  relatedWikiSlugs: string[];
   publishedAt: string | null;
   scheduledAt: string | null;
   deletedAt: string | null;
@@ -133,9 +150,33 @@ function asRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function asSourceLinks(value: unknown): BlogSourceLink[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    const record = asRecord(item);
+    const url = typeof record.url === "string" ? record.url.trim() : "";
+    const label = typeof record.label === "string" ? record.label.trim() : "";
+    const note = typeof record.note === "string" ? record.note.trim() : "";
+
+    if (!url || !label) return [];
+    return [{ label, url, ...(note ? { note } : {}) }];
+  });
+}
+
 function coerceSummary(row: Record<string, unknown>): BlogPostSummary {
   const coverImagePath =
     typeof row.cover_image_path === "string" ? row.cover_image_path : null;
+  const ogImagePath =
+    typeof row.og_image_path === "string" ? row.og_image_path : null;
 
   return {
     id: String(row.id),
@@ -143,8 +184,20 @@ function coerceSummary(row: Record<string, unknown>): BlogPostSummary {
     slug: String(row.slug ?? ""),
     excerpt: String(row.excerpt ?? ""),
     status: row.status as BlogPostStatus,
+    seoTitle: String(row.seo_title ?? ""),
+    metaDescription: String(row.meta_description ?? ""),
+    canonicalUrl:
+      typeof row.canonical_url === "string" ? row.canonical_url : null,
     coverImagePath,
     coverImageUrl: getBlogMediaPublicUrl(coverImagePath),
+    ogImagePath,
+    ogImageUrl: getBlogMediaPublicUrl(ogImagePath),
+    noindex: Boolean(row.noindex),
+    focusTopic: String(row.focus_topic ?? ""),
+    tags: asStringArray(row.tags),
+    answerSummary: String(row.answer_summary ?? ""),
+    sourceLinks: asSourceLinks(row.source_links),
+    relatedWikiSlugs: asStringArray(row.related_wiki_slugs),
     publishedAt:
       typeof row.published_at === "string" ? row.published_at : null,
     scheduledAt:
@@ -182,9 +235,7 @@ export const getPublishedBlogPosts = unstable_cache(
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from("blog_posts")
-      .select(
-        "id, title, slug, excerpt, status, cover_image_path, published_at, scheduled_at, deleted_at, created_at, updated_at",
-      )
+      .select("*")
       .is("deleted_at", null)
       .or(
         `and(status.eq.published,published_at.lte.${now}),and(status.eq.scheduled,scheduled_at.lte.${now})`,
@@ -224,9 +275,7 @@ export async function getDashboardBlogPosts(filters: BlogPostFilters) {
   const admin = createAdminClient();
   let query = admin
     .from("blog_posts")
-    .select(
-      "id, title, slug, excerpt, status, cover_image_path, published_at, scheduled_at, deleted_at, created_at, updated_at",
-    );
+    .select("*");
 
   if (!filters.includeDeleted) query = query.is("deleted_at", null);
   if (filters.status && filters.status !== "all") {

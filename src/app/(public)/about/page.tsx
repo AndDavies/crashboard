@@ -3,10 +3,13 @@ import Link from "next/link";
 import { siteConfig } from "@/lib/marketing/site-config";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { Button } from "@/components/ui/button";
+import { canonicalUrl } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = {
   title: "About",
-  description: `About ${siteConfig.publicName} and ${siteConfig.brandWordmark}.`,
+  description:
+    "About Andrew Davies, Crashboard, and the public wiki and blog behind his AI workflow, knowledge-system, and strategy research.",
+  alternates: { canonical: canonicalUrl("/about") },
 };
 
 const principles = [
@@ -19,14 +22,15 @@ const principles = [
 export default function AboutPage() {
   return (
     <MarketingPageFrame>
-      <p className="text-xs font-semibold uppercase text-muted-foreground">
+      <p className="flex items-center gap-3 font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+        <span className="h-1 w-10 bg-accent" aria-hidden />
         About
       </p>
-      <h1 className="mt-4 max-w-3xl font-heading text-4xl font-semibold text-foreground md:text-5xl md:leading-[1.08]">
+      <h1 className="mt-8 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
         A personal site for the public parts of Crashboard.
       </h1>
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_22rem]">
-        <div className="max-w-3xl space-y-6 text-base leading-relaxed text-muted-foreground">
+        <div className="max-w-3xl space-y-6 text-base leading-relaxed text-muted-foreground md:text-lg">
           <p>{siteConfig.shortBio}</p>
           <p>
             The through-line is practical judgment: separating signal from
@@ -39,15 +43,15 @@ export default function AboutPage() {
             it real posts.
           </p>
         </div>
-        <aside className="border-l border-border/80 pl-6">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
+        <aside className="border-t border-border/80 pt-6 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">
+          <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
             Principles
           </p>
-          <ul className="mt-4 space-y-4">
+          <ul className="mt-5 divide-y divide-border/80 border-y border-border/80">
             {principles.map((principle) => (
               <li
                 key={principle}
-                className="text-sm leading-relaxed text-foreground"
+                className="py-3 text-sm leading-relaxed text-foreground"
               >
                 {principle}
               </li>
@@ -56,12 +60,17 @@ export default function AboutPage() {
         </aside>
       </div>
       <div className="mt-12 flex flex-wrap gap-3">
-        <Button nativeButton={false} render={<Link href="/blog" />}>
+        <Button
+          nativeButton={false}
+          className="rounded-full bg-accent px-5 text-accent-foreground hover:bg-accent/85"
+          render={<Link href="/blog" />}
+        >
           Read writing
         </Button>
         <Button
           nativeButton={false}
           variant="outline"
+          className="rounded-full border-foreground/15 px-5"
           render={<Link href="/wiki" />}
         >
           Browse wiki

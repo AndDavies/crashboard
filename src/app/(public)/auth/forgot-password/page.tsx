@@ -13,6 +13,7 @@ import { ForgotPasswordForm } from "./forgot-password-form";
 export const metadata: Metadata = {
   title: "Reset password",
   description: "Request a link to reset your Crashboard password.",
+  robots: { index: false, follow: false },
 };
 
 export default function ForgotPasswordPage() {
