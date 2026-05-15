@@ -133,6 +133,90 @@
 }
 
 @layer components {
+  .blog-editor .tiptap > * + *,
+  .blog-content > * + * {
+    margin-top: 1rem;
+  }
+
+  .blog-editor .tiptap h1,
+  .blog-content h1 {
+    font-size: 2rem;
+    line-height: 1.15;
+    font-weight: 650;
+  }
+
+  .blog-editor .tiptap h2,
+  .blog-content h2 {
+    margin-top: 2rem;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+
+  .blog-editor .tiptap h3,
+  .blog-content h3 {
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    line-height: 1.35;
+    font-weight: 650;
+  }
+
+  .blog-editor .tiptap ul,
+  .blog-content ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+  }
+
+  .blog-editor .tiptap ol,
+  .blog-content ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+  }
+
+  .blog-editor .tiptap blockquote,
+  .blog-content blockquote {
+    border-left: 3px solid var(--border);
+    color: var(--muted-foreground);
+    padding-left: 1rem;
+  }
+
+  .blog-editor .tiptap pre,
+  .blog-content pre {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    padding: 1rem;
+  }
+
+  .blog-editor .tiptap img,
+  .blog-content img {
+    border: 1px solid var(--border);
+    max-width: 100%;
+  }
+
+  .blog-editor .tiptap a,
+  .blog-content a {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .blog-editor .tiptap hr,
+  .blog-content hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 2rem 0;
+  }
+
+  .blog-editor .tiptap p.is-editor-empty:first-child::before {
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
   .wiki-prose {
     @apply max-w-none text-[1rem] leading-7 text-foreground;
   }

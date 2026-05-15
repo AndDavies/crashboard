@@ -146,6 +146,7 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
     defaultOpen: false,
     items: [
       { title: "Notes", href: "/dashboard/content/notes", icon: StickyNote },
+      { title: "Blog", href: "/dashboard/content/blog", icon: FileText },
       { title: "Drafts", href: "/dashboard/content/drafts", icon: FileEdit },
       {
         title: "Publishing",

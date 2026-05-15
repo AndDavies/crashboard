@@ -2,19 +2,20 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
-import { blogContentModel, blogPosts } from "@/lib/marketing/site-config";
+import { getPublishedBlogPosts } from "@/lib/blog/data";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 
 export const metadata: Metadata = {
   title: "Blog",
-  description:
-    "The future publishing surface for Crashboard essays and field notes.",
+  description: "Essays and field notes from Crashboard.",
 };
 
-export default function BlogPage() {
-  const index = getPublicWikiIndex();
-  const hasPosts = blogPosts.length > 0;
+export default async function BlogPage() {
+  const [posts, index] = await Promise.all([
+    getPublishedBlogPosts(),
+    Promise.resolve(getPublicWikiIndex()),
+  ]);
   const relatedWikiPages = index.pages.slice(0, 4);
 
   return (
@@ -25,11 +26,11 @@ export default function BlogPage() {
             Blog
           </p>
           <h1 className="mt-4 font-heading text-4xl font-semibold text-foreground md:text-5xl md:leading-[1.08]">
-            The publishing surface for Crashboard.
+            Essays and field notes from Crashboard.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            Posts are not published yet. This route is now ready for dynamic
-            content from the CMS, while the wiki remains the live public corpus.
+            Published posts from the CMS appear here. The wiki remains the live
+            public corpus for compiled notes and concept pages.
           </p>
         </div>
         <div className="relative aspect-[4/3] overflow-hidden border border-border/80 md:aspect-auto">
@@ -46,32 +47,37 @@ export default function BlogPage() {
 
       <section className="grid gap-10 border-b border-border/80 py-12 lg:grid-cols-[1fr_24rem]">
         <div>
-          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Posts
-              </p>
-              <h2 className="mt-2 font-heading text-2xl font-semibold text-foreground">
-                Published articles
-              </h2>
-            </div>
+          <div className="mb-8">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              Posts
+            </p>
+            <h2 className="mt-2 font-heading text-2xl font-semibold text-foreground">
+              Published articles
+            </h2>
           </div>
 
-          {hasPosts ? (
+          {posts.length > 0 ? (
             <div className="divide-y divide-border/80 border-y border-border/80">
-              {blogPosts.map((post) => (
+              {posts.map((post) => (
                 <Link
-                  key={post.slug}
+                  key={post.id}
                   href={`/blog/${post.slug}`}
-                  className="group grid gap-4 py-6 outline-none hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto]"
+                  className="group grid gap-5 py-7 outline-none hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[12rem_1fr_auto]"
                 >
+                  <div className="text-sm text-muted-foreground">
+                    {post.publishedAt
+                      ? new Date(post.publishedAt).toLocaleDateString()
+                      : "Scheduled"}
+                  </div>
                   <div>
-                    <h3 className="font-heading text-lg font-semibold text-foreground">
+                    <h3 className="font-heading text-xl font-semibold text-foreground">
                       {post.title}
                     </h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                      {post.description}
-                    </p>
+                    {post.excerpt ? (
+                      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                        {post.excerpt}
+                      </p>
+                    ) : null}
                   </div>
                   <ArrowRightIcon
                     className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1"
@@ -86,9 +92,7 @@ export default function BlogPage() {
                 No posts are published yet.
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                The archive intentionally stays empty until there is real blog
-                content. The CMS should populate this list with published posts
-                only.
+                The CMS is ready; published posts will appear here automatically.
               </p>
             </div>
           )}
@@ -125,28 +129,6 @@ export default function BlogPage() {
             <ArrowRightIcon className="size-4" aria-hidden />
           </Link>
         </aside>
-      </section>
-
-      <section className="py-14 md:py-20">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">
-          CMS-ready shape
-        </p>
-        <h2 className="mt-2 max-w-2xl font-heading text-2xl font-semibold text-foreground">
-          The next pass can connect storage and editing without reworking the
-          public page.
-        </h2>
-        <div className="mt-8 grid gap-px overflow-hidden border border-border/80 bg-border/80 sm:grid-cols-2 lg:grid-cols-3">
-          {blogContentModel.map((field) => (
-            <div key={field.field} className="bg-background p-5">
-              <h3 className="font-heading text-base font-semibold text-foreground">
-                {field.field}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {field.description}
-              </p>
-            </div>
-          ))}
-        </div>
       </section>
     </MarketingPageFrame>
   );
