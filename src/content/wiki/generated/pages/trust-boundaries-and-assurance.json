@@ -1,0 +1,79 @@
+{
+  "slug": "trust-boundaries-and-assurance",
+  "title": "Trust Boundaries & Assurance",
+  "description": "Assurance is the discipline of proving that the right boundary is being protected. Dashboards, policies, attestations, and model outputs are weak evidence unless they connect to the actual trust boundary at risk.",
+  "role": "hub",
+  "cluster": "assurance",
+  "visualStatus": "mermaid",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Trust Boundaries & Assurance",
+      "id": "trust-boundaries-and-assurance"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Cluster map",
+      "id": "cluster-map"
+    },
+    {
+      "level": 2,
+      "text": "Assurance loop",
+      "id": "assurance-loop"
+    },
+    {
+      "level": 2,
+      "text": "Practical implication",
+      "id": "practical-implication"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "AI Safety & Control",
+    "Privacy Engineering for AI Systems",
+    "Cybersecurity Boundaries",
+    "eBPF Security Evasion",
+    "Governance Failure Modes",
+    "Controlled Goods Compliance",
+    "Physical Security Zones",
+    "Military Cyber Operations"
+  ],
+  "linkedSlugs": [
+    "ai-safety-and-control",
+    "privacy-engineering-for-ai-systems",
+    "cybersecurity-boundaries",
+    "ebpf-security-evasion",
+    "governance-failure-modes",
+    "controlled-goods-compliance",
+    "physical-security-zones",
+    "military-cyber-operations"
+  ],
+  "sourceNotes": [
+    "`raw/How to Use Guardrails to Design Safe and Trustworthy AI.md` - guardrails, runtime controls, and trustworthy AI design.",
+    "`raw/NIST Privacy Framework_V1.0.pdf` - privacy as enterprise risk and lifecycle data processing.",
+    "Historical source note: Thread by @MatheuzSecurity (raw file currently missing from vault) - observability failure when the trusted substrate is compromised.",
+    "`raw/The _Quixotic_ Auditor_ Navigating the Frontlines of Change.pdf` - governance theater and ineffective assurance.",
+    "`raw/How to meet Level 1 cyber security certification requirements.md` - practical supplier cyber-hygiene evidence requirements."
+  ],
+  "markdown": "# Trust Boundaries & Assurance\n\n> Assurance is the discipline of proving that the right boundary is being protected. Dashboards, policies, attestations, and model outputs are weak evidence unless they connect to the actual trust boundary at risk.\n\n> [!tip] Visual navigation\n> Use the cluster tools to review this hub as a navigable system, not only as prose:\n> - [Trust Boundaries Cluster Dashboard](<../views/Trust Boundaries Cluster Dashboard.md>)\n> - [Trust Boundaries Cluster](<../views/Trust Boundaries Cluster.canvas>)\n> - [Local visuals](<../assets/assurance/README.md>)\n\n```mermaid\nflowchart TD\n    A[\"Asset or decision at risk\"] --> B[\"Trust boundary\"]\n    B --> C[\"Control\"]\n    C --> D[\"Evidence\"]\n    D --> E[\"Assurance judgment\"]\n    E --> F[\"Corrective action\"]\n    F --> C\n\n    B --> G[\"Technical boundary\"]\n    B --> H[\"Organizational boundary\"]\n    B --> I[\"Legal/compliance boundary\"]\n    B --> J[\"Physical boundary\"]\n```\n\n## Why this matters\n\nThis cluster connects security, privacy, governance, AI safety, controlled goods, physical zones, and defence suppliers. The subjects look different, but the same question keeps recurring:\n\n> What boundary actually needs to hold, and what evidence proves it is holding?\n\n## Cluster map\n\n| Page | Boundary | Assurance problem |\n| --- | --- | --- |\n| [AI Safety & Control](/wiki/ai-safety-and-control) | model behavior, tool use, runtime containment | Proving a system stays useful and bounded under real use. |\n| [Privacy Engineering for AI Systems](/wiki/privacy-engineering-for-ai-systems) | personal data processing lifecycle | Managing intended data use, not only breach prevention. |\n| [Cybersecurity Boundaries](/wiki/cybersecurity-boundaries) | technical trust layers and authorization | Avoiding false confidence from visibility or authentication alone. |\n| [eBPF Security Evasion](/wiki/ebpf-security-evasion) | kernel trust | Observability fails when its substrate is compromised. |\n| [Governance Failure Modes](/wiki/governance-failure-modes) | oversight and institutional judgment | Avoiding sincere but ineffective audit theater. |\n| [Controlled Goods Compliance](/wiki/controlled-goods-compliance) | legal authorization and access scope | Keeping registration, designated officials, and exemptions live. |\n| [Physical Security Zones](/wiki/physical-security-zones) | spaces, people, devices, and controlled material | Preventing construction-only security thinking. |\n\n## Assurance loop\n\nGood assurance work is a loop, not a document:\n\n1. name the asset, decision, or information that matters\n2. identify the real trust boundary\n3. map the control to that boundary\n4. collect evidence that the control works\n5. test for failure modes\n6. correct the system\n7. preserve audit history\n\n## Practical implication\n\nThe strongest wiki insight across this cluster is that weak assurance often looks professional. It has policies, dashboards, attestations, and reports. What it lacks is boundary-specific evidence.\n\nThat is the same failure whether the domain is AI guardrails, privacy profiles, kernel observability, controlled-goods access, or supplier cyber hygiene.\n\n## Related\n\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Privacy Engineering for AI Systems](/wiki/privacy-engineering-for-ai-systems)\n- [Cybersecurity Boundaries](/wiki/cybersecurity-boundaries)\n- [eBPF Security Evasion](/wiki/ebpf-security-evasion)\n- [Governance Failure Modes](/wiki/governance-failure-modes)\n- [Controlled Goods Compliance](/wiki/controlled-goods-compliance)\n- [Physical Security Zones](/wiki/physical-security-zones)\n- [Military Cyber Operations](/wiki/military-cyber-operations)\n\n## Source notes\n\n- `raw/How to Use Guardrails to Design Safe and Trustworthy AI.md` - guardrails, runtime controls, and trustworthy AI design.\n- `raw/NIST Privacy Framework_V1.0.pdf` - privacy as enterprise risk and lifecycle data processing.\n- Historical source note: Thread by @MatheuzSecurity (raw file currently missing from vault) - observability failure when the trusted substrate is compromised.\n- `raw/The _Quixotic_ Auditor_ Navigating the Frontlines of Change.pdf` - governance theater and ineffective assurance.\n- `raw/How to meet Level 1 cyber security certification requirements.md` - practical supplier cyber-hygiene evidence requirements.\n",
+  "plainText": "Trust Boundaries & Assurance Assurance is the discipline of proving that the right boundary is being protected. Dashboards, policies, attestations, and model outputs are weak evidence unless they connect to the actual trust boundary at risk. !tip Visual navigation Use the cluster tools to review this hub as a navigable system, not only as prose: Trust Boundaries Cluster Dashboard Trust Boundaries Cluster Local visuals Why this matters This cluster connects security, privacy, governance, AI safety, controlled goods, physical zones, and defence suppliers. The subjects look different, but the same question keeps recurring: What boundary actually needs to hold, and what evidence proves it is holding? Cluster map Page Boundary Assurance problem AI Safety & Control model behavior, tool use, runtime containment Proving a system stays useful and bounded under real use. Privacy Engineering for AI Systems personal data processing lifecycle Managing intended data use, not only breach prevention. Cybersecurity Boundaries technical trust layers and authorization Avoiding false confidence from visibility or authentication alone. eBPF Security Evasion kernel trust Observability fails when its substrate is compromised. Governance Failure Modes oversight and institutional judgment Avoiding sincere but ineffective audit theater. Controlled Goods Compliance legal authorization and access scope Keeping registration, designated officials, and exemptions live. Physical Security Zones spaces, people, devices, and controlled material Preventing construction only security thinking. Assurance loop Good assurance work is a loop, not a document: 1. name the asset, decision, or information that matters 2. identify the real trust boundary 3. map the control to that boundary 4. collect evidence that the control works 5. test for failure modes 6. correct the system 7. preserve audit history Practical implication The strongest wiki insight across this cluster is that weak assurance often looks professional. It has policies, dashboards, attestations, and reports. What it lacks is boundary specific evidence. That is the same failure whether the domain is AI guardrails, privacy profiles, kernel observability, controlled goods access, or supplier cyber hygiene. Related AI Safety & Control Privacy Engineering for AI Systems Cybersecurity Boundaries eBPF Security Evasion Governance Failure Modes Controlled Goods Compliance Physical Security Zones Military Cyber Operations Source notes raw/How to Use Guardrails to Design Safe and Trustworthy AI.md guardrails, runtime controls, and trustworthy AI design. raw/NIST Privacy Framework V1.0.pdf privacy as enterprise risk and lifecycle data processing. Historical source note: Thread by @MatheuzSecurity (raw file currently missing from vault) observability failure when the trusted substrate is compromised. raw/The Quixotic Auditor Navigating the Frontlines of Change.pdf governance theater and ineffective assurance. raw/How to meet Level 1 cyber security certification requirements.md practical supplier cyber hygiene evidence requirements.",
+  "wordCount": 428,
+  "readingMinutes": 2,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/trust-boundaries-and-assurance.svg",
+  "contentHash": "da3a2a6ba234737d2c0f24902807ceb93304b10496f4eaeebfc62e88470269fd"
+}

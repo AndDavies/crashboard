@@ -1,0 +1,164 @@
+{
+  "slug": "personal-knowledge-systems",
+  "title": "Personal Knowledge Systems",
+  "description": "A strong personal knowledge system is not a prettier note app. It is a durable compilation loop: raw inputs come in, an agent organizes them into interlinked pages, and the resulting graph becomes a living interface for thinking.",
+  "role": "concept",
+  "cluster": "knowledge",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Personal Knowledge Systems",
+      "id": "personal-knowledge-systems"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Separate raw, compiled, and operational layers",
+      "id": "1-separate-raw-compiled-and-operational-layers"
+    },
+    {
+      "level": 3,
+      "text": "2. Domain-specific vaults often beat one giant vault",
+      "id": "2-domain-specific-vaults-often-beat-one-giant-vault"
+    },
+    {
+      "level": 3,
+      "text": "3. Graphs matter when links carry semantic meaning",
+      "id": "3-graphs-matter-when-links-carry-semantic-meaning"
+    },
+    {
+      "level": 3,
+      "text": "4. Retrieval quality depends on context hierarchy",
+      "id": "4-retrieval-quality-depends-on-context-hierarchy"
+    },
+    {
+      "level": 3,
+      "text": "5. The real interface is browse plus compile",
+      "id": "5-the-real-interface-is-browse-plus-compile"
+    },
+    {
+      "level": 3,
+      "text": "6. Capture systems become stronger when note types are explicit",
+      "id": "6-capture-systems-become-stronger-when-note-types-are-explicit"
+    },
+    {
+      "level": 3,
+      "text": "7. A knowledge system can double as a publishing engine",
+      "id": "7-a-knowledge-system-can-double-as-a-publishing-engine"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Confusing storage with knowledge",
+      "id": "confusing-storage-with-knowledge"
+    },
+    {
+      "level": 3,
+      "text": "Treating the global graph as proof of usefulness",
+      "id": "treating-the-global-graph-as-proof-of-usefulness"
+    },
+    {
+      "level": 3,
+      "text": "Letting the wiki become generic",
+      "id": "letting-the-wiki-become-generic"
+    },
+    {
+      "level": 3,
+      "text": "Mixing too many domains too early",
+      "id": "mixing-too-many-domains-too-early"
+    },
+    {
+      "level": 3,
+      "text": "Capturing heavily but never running synthesis loops",
+      "id": "capturing-heavily-but-never-running-synthesis-loops"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For this vault pattern",
+      "id": "for-this-vault-pattern"
+    },
+    {
+      "level": 3,
+      "text": "For page design",
+      "id": "for-page-design"
+    },
+    {
+      "level": 3,
+      "text": "For tooling",
+      "id": "for-tooling"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "AI-Assisted Content Systems",
+    "Compiled Knowledge Systems",
+    "Agentic Engineering",
+    "LLM Memory",
+    "AI Foundations & Model Adaptation"
+  ],
+  "linkedSlugs": [
+    "ai-assisted-content-systems",
+    "compiled-knowledge-systems",
+    "agentic-engineering",
+    "llm-memory",
+    "ai-foundations-and-model-adaptation"
+  ],
+  "sourceNotes": [
+    "`raw/Karpathy's 400,000-Word Obsidian Wiki Has Zero RAG Infrastructure.md` - anchor source for persistent compiled wiki architecture.",
+    "`raw/Part 2 Your Second Brain System (Done For You).md` - strongest domain-specific vault argument and four-operation framing.",
+    "`raw/Skill Graphs > SKILL.md` - graph-native model of many small composable files linked through prose and frontmatter.",
+    "`raw/tobiqmd mini cli search engine for your docs, knowledge bases, meeting notes, whatever. Tracking current sota approaches while being all local.md` - local retrieval layer and contextual search hierarchy.",
+    "Historical source note: Thread by @krishdotdev (raw file currently missing from vault) - skepticism about graph-as-display and emphasis on usefulness over visual novelty.",
+    "`raw/I Post Every Day. No Team. No Agency. Just Obsidian + Claude. Here Is the Exact System..md` - extends the vault pattern into a solo publishing engine built on low-friction capture, linked notes, cross-domain connection-finding, brief-first drafting, and feedback from published outputs and performance data."
+  ],
+  "markdown": "# Personal Knowledge Systems\n\n> A strong personal knowledge system is not a prettier note app. It is a durable compilation loop: raw inputs come in, an agent organizes them into interlinked pages, and the resulting graph becomes a living interface for thinking.\n\n## Why this matters\n\nThe recurring promise across these sources is not just “AI plus notes.” It is the possibility of maintaining a persistent knowledge artifact that compounds instead of forcing you to rediscover the same ideas on every search or prompt.\n\nThis is the same underlying pattern that makes the Karpathy-style wiki compelling. Raw materials are cheap to capture, but useful structure is expensive to maintain. A knowledge system becomes powerful when the capture layer, compilation layer, and browsing layer are separated cleanly enough that the agent can do the maintenance work continuously.\n\nA newer source extends this pattern into solo publishing. It shows that a vault is not only a research or memory system. It can also become a personal content engine where observations, reactions, patterns, numbers, linked notes, and performance data compound into repeatable output rather than staying inert.\n\n## Core thesis\n\nThe strongest shared claim in this cluster is:\n\n- capture should be easy\n- structure should emerge from compilation, not from manual filing\n- the maintained wiki should become the working interface for thought\n- the system gets better when it becomes more graph-like, more composable, and more domain-specific\n- the same vault pattern can support both thinking and publishing when captured material is repeatedly linked, briefed, and fed back into the system\n\nThis implies that the value of a second brain does not come from storing everything. It comes from repeatedly turning useful sources into a navigable, cross-linked synthesis layer.\n\n## Framework / model\n\n### 1. Separate raw, compiled, and operational layers\n\nThe most useful architectural pattern in the cluster has three layers:\n\n- raw source capture\n- compiled wiki pages\n- schema or instruction files that tell the agent how to maintain the wiki\n\nThis separation prevents the system from collapsing into a junk drawer. Raw stays messy but trustworthy. The wiki stays curated. The schema stays operational.\n\n### 2. Domain-specific vaults often beat one giant vault\n\nOne of the clearest insights in the “second brain” sources is that general-purpose vaults often degrade into overstuffed storage. Domain-specific vaults compound more cleanly because:\n\n- concepts are more coherent\n- page overlap is tighter\n- cross-linking becomes more meaningful\n- the wiki evolves around a real question space rather than generic capture\n\nThis does not mean one vault is always wrong. It means scope discipline matters.\n\nA newer source adds a concrete example of a domain-shaped vault for publishing. There, the vault is explicitly optimized for repeatable content creation rather than for general-purpose note accumulation.\n\n### 3. Graphs matter when links carry semantic meaning\n\nThe graph-oriented sources argue that linked notes only become powerful when:\n\n- nodes are small enough to be composable\n- links are embedded in meaningful prose\n- frontmatter exposes fast scan-level metadata\n- maps of content provide navigable entry points\n\nIn that model, the graph is not decoration. It is a traversal structure for agents and humans.\n\nA newer publishing-system source sharpens this point: the most valuable links are often not obvious topical neighbors, but cross-domain bridges that reveal the same principle appearing in different contexts.\n\n### 4. Retrieval quality depends on context hierarchy\n\nThe local-search source adds another important layer: retrieval improves when documents exist inside explicit contextual trees instead of as flat files. A useful knowledge system therefore needs:\n\n- good page boundaries\n- contextual labels\n- meaningful parent-child groupings\n- retrieval tools that can exploit those structures\n\n### 5. The real interface is browse plus compile\n\nSeveral sources emphasize that Obsidian or similar tools are not where the core intelligence lives. They are where the compiled artifact becomes inspectable. In practice:\n\n- the LLM maintains the wiki\n- the human browses, questions, and sanity-checks it\n- the note app is the IDE for the artifact\n\n### 6. Capture systems become stronger when note types are explicit\n\nA newer source adds a practical note-design pattern for personal systems. Instead of one generic inbox, captured material can be separated into a few stable categories such as:\n\n- observations\n- reactions\n- patterns\n- numbers\n\nThis matters because different note types support different later uses. Patterns and numbers, for example, often become especially valuable inputs for synthesis, argument, and publishing.\n\n### 7. A knowledge system can double as a publishing engine\n\nA newer source contributes a durable extension of the second-brain pattern.\n\nThe loop becomes:\n\n1. capture raw material daily\n2. sharpen and tag notes\n3. link notes to nearby ideas\n4. run periodic connection-finding across recent notes\n5. build a brief from linked material\n6. draft from the brief plus the vault\n7. return published output and performance data to the system\n\nThis is useful because it turns the vault into a compounding production system rather than just a private archive. See [AI-Assisted Content Systems](/wiki/ai-assisted-content-systems).\n\n## Important examples / reference points\n\n- Karpathy’s wiki pattern is the cleanest statement of the paradigm: the wiki is a persistent compiled artifact sitting between raw sources and future questions.\n- Cowork-style guides are useful because they show how context files, vault access, and file maintenance combine into a practical daily loop.\n- The domain-specific second-brain argument is a useful corrective to endless capture. A vault should have a reason to exist, not just a folder path.\n- Skill-graph thinking extends the wiki idea further: a graph of small linked files can become a traversable capability system, not only a note system.\n- QMD is an important reminder that retrieval infrastructure still matters, but it works best when the corpus already has good contextual structure.\n- The publishing-system source adds a strong operational example of a vault used for daily content creation, where linked notes and performance data become reusable publishing memory.\n\n## Failure modes / limitations\n\n### Confusing storage with knowledge\n\nA vault full of captures is not yet a knowledge base. Without compilation and maintenance, it remains a searchable archive.\n\n### Treating the global graph as proof of usefulness\n\nSeveral sources push back on the dopamine hit of pretty graphs. A graph is useful only if it improves navigation, interpretation, or agent traversal.\n\n### Letting the wiki become generic\n\nIf the agent writes thin summaries with weak links, the compiled layer loses most of its compounding value.\n\n### Mixing too many domains too early\n\nA huge mixed vault can blur concepts, swamp retrieval, and create weakly connected pages that never mature into useful synthesis.\n\n### Capturing heavily but never running synthesis loops\n\nA newer source adds a practical failure mode: even a well-tagged vault stays inert if the operator never runs connection, briefing, or output loops against it.\n\n## Practical implications\n\n### For this vault pattern\n\n- keep `raw/` as capture only\n- keep `wiki/` as the maintained synthesis layer\n- let page structure emerge from repeated compile passes\n- prefer dense concept pages over generic summaries\n\n### For page design\n\n- preserve frameworks and taxonomies when the source has them\n- use prose links deliberately so pages are traversable by meaning, not just by tag\n- keep source notes explicit so synthesis stays auditable\n\n### For tooling\n\n- context files and schema files matter as much as note files\n- local retrieval tools become more valuable once the compiled layer is coherent\n- graph views are best used as navigation aids, not as success metrics\n- a publishing-oriented vault should preserve both raw insight notes and downstream performance evidence where compounding matters\n\n## Tensions / open questions\n\n- When should a domain split into a new vault instead of remaining inside a broader one?\n- How granular should pages become before the graph gets fragmented?\n- What is the right balance between human-curated maps of content and agent-generated emergent structure?\n- How much retrieval infrastructure is still needed once the compiled wiki is strong?\n\n## Related\n\n- [Compiled Knowledge Systems](/wiki/compiled-knowledge-systems)\n- [Agentic Engineering](/wiki/agentic-engineering)\n- [LLM Memory](/wiki/llm-memory)\n- [AI Foundations & Model Adaptation](/wiki/ai-foundations-and-model-adaptation)\n- [AI-Assisted Content Systems](/wiki/ai-assisted-content-systems)\n\n## Source notes\n\n- `raw/Karpathy's 400,000-Word Obsidian Wiki Has Zero RAG Infrastructure.md` - anchor source for persistent compiled wiki architecture.\n- `raw/Part 2 Your Second Brain System (Done For You).md` - strongest domain-specific vault argument and four-operation framing.\n- `raw/Skill Graphs > SKILL.md` - graph-native model of many small composable files linked through prose and frontmatter.\n- `raw/tobiqmd mini cli search engine for your docs, knowledge bases, meeting notes, whatever. Tracking current sota approaches while being all local.md` - local retrieval layer and contextual search hierarchy.\n- Historical source note: Thread by @krishdotdev (raw file currently missing from vault) - skepticism about graph-as-display and emphasis on usefulness over visual novelty.\n- `raw/I Post Every Day. No Team. No Agency. Just Obsidian + Claude. Here Is the Exact System..md` - extends the vault pattern into a solo publishing engine built on low-friction capture, linked notes, cross-domain connection-finding, brief-first drafting, and feedback from published outputs and performance data.\n",
+  "plainText": "Personal Knowledge Systems A strong personal knowledge system is not a prettier note app. It is a durable compilation loop: raw inputs come in, an agent organizes them into interlinked pages, and the resulting graph becomes a living interface for thinking. Why this matters The recurring promise across these sources is not just “AI plus notes.” It is the possibility of maintaining a persistent knowledge artifact that compounds instead of forcing you to rediscover the same ideas on every search or prompt. This is the same underlying pattern that makes the Karpathy style wiki compelling. Raw materials are cheap to capture, but useful structure is expensive to maintain. A knowledge system becomes powerful when the capture layer, compilation layer, and browsing layer are separated cleanly enough that the agent can do the maintenance work continuously. A newer source extends this pattern into solo publishing. It shows that a vault is not only a research or memory system. It can also become a personal content engine where observations, reactions, patterns, numbers, linked notes, and performance data compound into repeatable output rather than staying inert. Core thesis The strongest shared claim in this cluster is: capture should be easy structure should emerge from compilation, not from manual filing the maintained wiki should become the working interface for thought the system gets better when it becomes more graph like, more composable, and more domain specific the same vault pattern can support both thinking and publishing when captured material is repeatedly linked, briefed, and fed back into the system This implies that the value of a second brain does not come from storing everything. It comes from repeatedly turning useful sources into a navigable, cross linked synthesis layer. Framework / model 1. Separate raw, compiled, and operational layers The most useful architectural pattern in the cluster has three layers: raw source capture compiled wiki pages schema or instruction files that tell the agent how to maintain the wiki This separation prevents the system from collapsing into a junk drawer. Raw stays messy but trustworthy. The wiki stays curated. The schema stays operational. 2. Domain specific vaults often beat one giant vault One of the clearest insights in the “second brain” sources is that general purpose vaults often degrade into overstuffed storage. Domain specific vaults compound more cleanly because: concepts are more coherent page overlap is tighter cross linking becomes more meaningful the wiki evolves around a real question space rather than generic capture This does not mean one vault is always wrong. It means scope discipline matters. A newer source adds a concrete example of a domain shaped vault for publishing. There, the vault is explicitly optimized for repeatable content creation rather than for general purpose note accumulation. 3. Graphs matter when links carry semantic meaning The graph oriented sources argue that linked notes only become powerful when: nodes are small enough to be composable links are embedded in meaningful prose frontmatter exposes fast scan level metadata maps of content provide navigable entry points In that model, the graph is not decoration. It is a traversal structure for agents and humans. A newer publishing system source sharpens this point: the most valuable links are often not obvious topical neighbors, but cross domain bridges that reveal the same principle appearing in different contexts. 4. Retrieval quality depends on context hierarchy The local search source adds another important layer: retrieval improves when documents exist inside explicit contextual trees instead of as flat files. A useful knowledge system therefore needs: good page boundaries contextual labels meaningful parent child groupings retrieval tools that can exploit those structures 5. The real interface is browse plus compile Several sources emphasize that Obsidian or similar tools are not where the core intelligence lives. They are where the compiled artifact becomes inspectable. In practice: the LLM maintains the wiki the human browses, questions, and sanity checks it the note app is the IDE for the artifact 6. Capture systems become stronger when note types are explicit A newer source adds a practical note design pattern for personal systems. Instead of one generic inbox, captured material can be separated into a few stable categories such as: observations reactions patterns numbers This matters because different note types support different later uses. Patterns and numbers, for example, often become especially valuable inputs for synthesis, argument, and publishing. 7. A knowledge system can double as a publishing engine A newer source contributes a durable extension of the second brain pattern. The loop becomes: 1. capture raw material daily 2. sharpen and tag notes 3. link notes to nearby ideas 4. run periodic connection finding across recent notes 5. build a brief from linked material 6. draft from the brief plus the vault 7. return published output and performance data to the system This is useful because it turns the vault into a compounding production system rather than just a private archive. See AI Assisted Content Systems. Important examples / reference points Karpathy’s wiki pattern is the cleanest statement of the paradigm: the wiki is a persistent compiled artifact sitting between raw sources and future questions. Cowork style guides are useful because they show how context files, vault access, and file maintenance combine into a practical daily loop. The domain specific second brain argument is a useful corrective to endless capture. A vault should have a reason to exist, not just a folder path. Skill graph thinking extends the wiki idea further: a graph of small linked files can become a traversable capability system, not only a note system. QMD is an important reminder that retrieval infrastructure still matters, but it works best when the corpus already has good contextual structure. The publishing system source adds a strong operational example of a vault used for daily content creation, where linked notes and performance data become reusable publishing memory. Failure modes / limitations Confusing storage with knowledge A vault full of captures is not yet a knowledge base. Without compilation and maintenance, it remains a searchable archive. Treating the global graph as proof of usefulness Several sources push back on the dopamine hit of pretty graphs. A graph is useful only if it improves navigation, interpretation, or agent traversal. Letting the wiki become generic If the agent writes thin summaries with weak links, the compiled layer loses most of its compounding value. Mixing too many domains too early A huge mixed vault can blur concepts, swamp retrieval, and create weakly connected pages that never mature into useful synthesis. Capturing heavily but never running synthesis loops A newer source adds a practical failure mode: even a well tagged vault stays inert if the operator never runs connection, briefing, or output loops against it. Practical implications For this vault pattern keep raw/ as capture only keep wiki/ as the maintained synthesis layer let page structure emerge from repeated compile passes prefer dense concept pages over generic summaries For page design preserve frameworks and taxonomies when the source has them use prose links deliberately so pages are traversable by meaning, not just by tag keep source notes explicit so synthesis stays auditable For tooling context files and schema files matter as much as note files local retrieval tools become more valuable once the compiled layer is coherent graph views are best used as navigation aids, not as success metrics a publishing oriented vault should preserve both raw insight notes and downstream performance evidence where compounding matters Tensions / open questions When should a domain split into a new vault instead of remaining inside a broader one? How granular should pages become before the graph gets fragmented? What is the right balance between human curated maps of content and agent generated emergent structure? How much retrieval infrastructure is still needed once the compiled wiki is strong? Related Compiled Knowledge Systems Agentic Engineering LLM Memory AI Foundations & Model Adaptation AI Assisted Content Systems Source notes raw/Karpathy's 400,000 Word Obsidian Wiki Has Zero RAG Infrastructure.md anchor source for persistent compiled wiki architecture. raw/Part 2 Your Second Brain System (Done For You).md strongest domain specific vault argument and four operation framing. raw/Skill Graphs SKILL.md graph native model of many small composable files linked through prose and frontmatter. raw/tobiqmd mini cli search engine for your docs, knowledge bases, meeting notes, whatever. Tracking current sota approaches while being all local.md local retrieval layer and contextual search hierarchy. Historical source note: Thread by @krishdotdev (raw file currently missing from vault) skepticism about graph as display and emphasis on usefulness over visual novelty. raw/I Post Every Day. No Team. No Agency. Just Obsidian + Claude. Here Is the Exact System..md extends the vault pattern into a solo publishing engine built on low friction capture, linked notes, cross domain connection finding, brief first drafting, and feedback from published outputs and performance data.",
+  "wordCount": 1463,
+  "readingMinutes": 7,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/personal-knowledge-systems.svg",
+  "contentHash": "81f2fffbeb4cd730c87738c0330ca23b49655f0b5b69478b4384b2086358d5f5"
+}

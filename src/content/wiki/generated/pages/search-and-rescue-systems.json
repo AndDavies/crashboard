@@ -1,0 +1,175 @@
+{
+  "slug": "search-and-rescue-systems",
+  "title": "Search and Rescue Systems",
+  "description": "Search and rescue systems are operational stacks that combine sensing, communications, modeling, and field deployment tools to reduce uncertainty fast enough for responders to find people, vessels, or aircraft before time and environment erase the opportunity.",
+  "role": "reference",
+  "cluster": "sovereignty",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Search and Rescue Systems",
+      "id": "search-and-rescue-systems"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. SAR is a search-uncertainty problem",
+      "id": "1-sar-is-a-search-uncertainty-problem"
+    },
+    {
+      "level": 3,
+      "text": "2. Deployable drift markers are field sensors, not just markers",
+      "id": "2-deployable-drift-markers-are-field-sensors-not-just-markers"
+    },
+    {
+      "level": 3,
+      "text": "3. Global communications are part of mission viability",
+      "id": "3-global-communications-are-part-of-mission-viability"
+    },
+    {
+      "level": 3,
+      "text": "4. SAR tools work best when they close the loop into a command surface",
+      "id": "4-sar-tools-work-best-when-they-close-the-loop-into-a-command-surface"
+    },
+    {
+      "level": 3,
+      "text": "5. Expendable tools can still be strategic",
+      "id": "5-expendable-tools-can-still-be-strategic"
+    },
+    {
+      "level": 3,
+      "text": "6. Specialized suppliers matter in operational ecosystems",
+      "id": "6-specialized-suppliers-matter-in-operational-ecosystems"
+    },
+    {
+      "level": 3,
+      "text": "7. Bi-directional links turn telemetry into controllable infrastructure",
+      "id": "7-bi-directional-links-turn-telemetry-into-controllable-infrastructure"
+    },
+    {
+      "level": 3,
+      "text": "8. SAR command surfaces are operational software, not just dashboards",
+      "id": "8-sar-command-surfaces-are-operational-software-not-just-dashboards"
+    },
+    {
+      "level": 3,
+      "text": "9. National SAR is a multi-actor readiness system",
+      "id": "9-national-sar-is-a-multi-actor-readiness-system"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Treating SAR as only an asset-dispatch problem",
+      "id": "treating-sar-as-only-an-asset-dispatch-problem"
+    },
+    {
+      "level": 3,
+      "text": "Collecting data without an operational command surface",
+      "id": "collecting-data-without-an-operational-command-surface"
+    },
+    {
+      "level": 3,
+      "text": "Overrelying on generic infrastructure",
+      "id": "overrelying-on-generic-infrastructure"
+    },
+    {
+      "level": 3,
+      "text": "Confusing rugged hardware with full mission effectiveness",
+      "id": "confusing-rugged-hardware-with-full-mission-effectiveness"
+    },
+    {
+      "level": 3,
+      "text": "Ignoring specialized suppliers in readiness planning",
+      "id": "ignoring-specialized-suppliers-in-readiness-planning"
+    },
+    {
+      "level": 3,
+      "text": "Mistaking a tracking device for a full search solution",
+      "id": "mistaking-a-tracking-device-for-a-full-search-solution"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For coast guards and naval operators",
+      "id": "for-coast-guards-and-naval-operators"
+    },
+    {
+      "level": 3,
+      "text": "For mission-system designers",
+      "id": "for-mission-system-designers"
+    },
+    {
+      "level": 3,
+      "text": "For defence and industrial strategy",
+      "id": "for-defence-and-industrial-strategy"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Sovereignty & Critical Infrastructure",
+    "Military Cyber Operations",
+    "AI Safety & Control",
+    "Sovereign Defence Manufacturing",
+    "AI-Native Organizations"
+  ],
+  "linkedSlugs": [
+    "sovereignty-and-critical-infrastructure",
+    "military-cyber-operations",
+    "ai-safety-and-control",
+    "sovereign-defence-manufacturing",
+    "ai-native-organizations"
+  ],
+  "sourceNotes": [
+    "`raw/MetOcean Telematics Wins SAR Buoy Contract by US Coast Guard.md` - anchor source on deployable SAR buoys, drift tracking, global satellite-linked telemetry, bi-directional communications, cloud-based asset control, and the role of specialized suppliers in coast-guard mission effectiveness.",
+    "`raw/D3-37-2026-eng.pdf` - added CAF aeronautical SAR responsibilities, Joint Rescue Coordination Centres, CASARA partnership, Canadian Rangers support in northern communities, cellphone detection and sensor modernization, Kingfisher/Cormorant fleet upgrades, and SAR Mission Management System replacement."
+  ],
+  "markdown": "# Search and Rescue Systems\n\n> Search and rescue systems are operational stacks that combine sensing, communications, modeling, and field deployment tools to reduce uncertainty fast enough for responders to find people, vessels, or aircraft before time and environment erase the opportunity.\n\n## Why this matters\n\nSearch and rescue is a race against drift, weather, fuel, exposure, and incomplete information. The core challenge is not only mobilizing assets, but narrowing uncertainty quickly enough that ships, aircraft, and crews search the right place.\n\nThe source in this cluster is promotional, but it contributes a durable and useful pattern: modern SAR effectiveness increasingly depends on deployable telemetry tools that can be dropped into the environment, report real-time drift conditions, and feed those observations into a command surface that improves search planning.\n\nThat makes SAR a systems problem rather than only a bravery or coordination problem.\n\nA newer source sharpens this further with a particularly useful operational example: an expendable buoy that combines GPS, sea-surface sensing, and bi-directional satellite communications, then closes the loop through a cloud platform that lets operators both monitor and command deployed assets during live SAR missions.\n\nA newer DND/CAF departmental plan adds the public-system version of the same pattern. It frames SAR as part of national operations, with CAF primary aeronautical SAR, Joint Rescue Coordination Centres, CASARA partnership, Canadian Rangers support in northern and remote communities, Kingfisher and Cormorant fleet upgrades, cellphone detection, sensor systems, and a SAR Mission Management System replacement.\n\n## Core thesis\n\nThe strongest ideas in this source are:\n\n- SAR effectiveness depends heavily on reducing uncertainty about drift and movement in the search area\n- rugged expendable field sensors can act as temporary environmental proxies during live missions\n- global low-latency communications matter because SAR often happens outside convenient terrestrial coverage\n- cloud platforms add value when they turn raw field telemetry into trackable, commandable operational awareness\n- operational control improves when deployed assets can be both monitored and re-tasked remotely\n- specialized suppliers can materially improve coast-guard and naval readiness through focused mission hardware rather than only large platforms\n- cost-efficient expendable devices can produce outsized mission value when they reduce search uncertainty quickly enough\n\nThe durable lesson is that SAR performance improves when sensing, telemetry, and command surfaces are treated as one operational loop.\n\n## Framework / model\n\n### 1. SAR is a search-uncertainty problem\n\nA useful synthesis from the source is that live SAR missions are constrained by uncertainty about:\n\n- current location\n- drift direction\n- drift speed\n- changing surface conditions\n- how quickly the search box is expanding\n\nThat means one of the highest-leverage interventions is improving the model of where the target is likely moving.\n\n### 2. Deployable drift markers are field sensors, not just markers\n\nThe buoy in the source is useful as a general concept because it is not only a floating beacon.\n\nIt functions as a deployed telemetry asset that can provide:\n\n- GPS position\n- surface-drift behavior\n- environmental context such as sea-surface temperature\n- repeated updates over time\n\nThis turns a simple object into a live decision aid.\n\n### 3. Global communications are part of mission viability\n\nThe source adds an important systems point.\n\nA field sensor is much more valuable when it can communicate:\n\n- globally\n- with low latency\n- from open-ocean conditions\n- in a way that supports both status reporting and command traffic\n\nThis is why satellite connectivity is part of the capability, not an accessory.\n\n### 4. SAR tools work best when they close the loop into a command surface\n\nThe cloud platform in the source adds a durable operations lesson.\n\nThe useful system is not only:\n\n- sensor in the field\n- data returned somewhere\n\nIt is:\n\n1. deploy asset into environment\n2. stream position and context data back in near real time\n3. visualize and analyze it in an operator-facing platform\n4. issue commands or adjust settings if needed\n5. adapt search planning and asset allocation accordingly\n\nThat is a real-time operational loop rather than passive monitoring.\n\n### 5. Expendable tools can still be strategic\n\nThe source highlights a helpful distinction.\n\nA tool does not need to be durable or capital-intensive to be strategically valuable. An expendable mission aid can be high value when it:\n\n- is cheap enough to deploy quickly\n- is rugged enough to survive the environment long enough to matter\n- produces insight that saves flight hours, vessel time, and human risk\n\n### 6. Specialized suppliers matter in operational ecosystems\n\nThe source also contributes a more industrial point.\n\nOperational readiness is not delivered only by large ships, aircraft, or primes. It also depends on specialized firms that provide:\n\n- niche sensors\n- telemetry hardware\n- deployable mission aids\n- command-and-control software surfaces\n- interoperable communications products\n\nThis matters because operational advantage often sits in the supporting layer, not only the flagship platform layer.\n\n### 7. Bi-directional links turn telemetry into controllable infrastructure\n\nA useful refinement from the source is that the communications link is not only for one-way reporting.\n\nWhen operators can send commands back over the same network, deployed assets become more than passive indicators. They become controllable field nodes inside the mission system.\n\nThat matters because it supports:\n\n- dynamic retasking\n- configuration changes during an incident\n- tighter integration between field conditions and command decisions\n- better asset management in evolving search areas\n\n### 8. SAR command surfaces are operational software, not just dashboards\n\nThe LiNC example is useful because it shows that the software layer matters as much as the buoy.\n\nA serious SAR platform should do more than display dots on a map. It should help operators:\n\n- track live positions\n- inspect historical movement\n- compare drift behavior over time\n- communicate with deployed assets\n- turn field telemetry into search planning decisions\n\nThis makes the command surface part of the mission stack, not an afterthought.\n\n### 9. National SAR is a multi-actor readiness system\n\nThe departmental plan adds a useful institutional layer to the mission-system model.\n\n| Layer | Role in SAR readiness |\n| --- | --- |\n| Joint Rescue Coordination Centres | Coordinate domestic aeronautical and maritime SAR responses. |\n| CAF primary SAR assets | Provide response aircraft and crews under posture and arrival targets. |\n| CASARA | Extends aeronautical SAR through trained volunteer partnership. |\n| Canadian Rangers | Support ground SAR in northern, remote, isolated, and sparsely populated communities. |\n| Sensor modernization | Adds cellphone detection and other sensors to aircraft and volunteer-operated platforms. |\n| Mission-management software | Replaces legacy coordination software so asset coordination can improve over time. |\n\nThis is useful because it connects field telemetry to the broader readiness stack. SAR performance depends on sensors, software, aircraft, volunteers, local knowledge, and coordination centres working as one system.\n\n## Important examples / reference points\n\n- **MetOcean Telematics iSLDMB** is the central example of an expendable search-and-rescue buoy designed to estimate open-ocean surface drift during live missions.\n- The combination of **Iridium communications**, **GPS**, and **sea-surface temperature sensing** is important because it shows how several modest components together create a mission-relevant decision aid.\n- The source’s emphasis on **air or ship deployment** is useful because it shows SAR hardware must fit real operational insertion modes.\n- **LiNC** is a useful example of a cloud command surface that turns deployed hardware into remotely trackable and commandable operational assets.\n- The **US Coast Guard BPA** matters less as contract news than as evidence that this class of tool has institutional demand inside real SAR operations.\n- The source’s emphasis on **NATO A-size compliance** is useful because it suggests deployment practicality and interoperability with established operational form factors.\n- The **drogue assembly** matters because it shows the buoy is designed not only to float, but to behave in ways that make drift estimation operationally meaningful.\n\n## Failure modes / limitations\n\n### Treating SAR as only an asset-dispatch problem\n\nLaunching aircraft and vessels quickly still leaves large uncertainty if environmental drift is poorly understood.\n\n### Collecting data without an operational command surface\n\nTelemetry is less useful if operators cannot visualize, interpret, and act on it in time.\n\n### Overrelying on generic infrastructure\n\nOpen-ocean SAR can fail if communications assumptions depend too heavily on terrestrial coverage or ad hoc relay.\n\n### Confusing rugged hardware with full mission effectiveness\n\nA good buoy or sensor helps, but SAR outcomes still depend on doctrine, training, search planning, weather interpretation, and asset coordination.\n\n### Ignoring specialized suppliers in readiness planning\n\nInstitutions can underappreciate the supporting hardware and telemetry firms that make high-tempo field operations materially better.\n\n### Mistaking a tracking device for a full search solution\n\nDrift markers reduce uncertainty, but they do not replace judgment about currents, weather, search geometry, aircraft routing, or rescue execution.\n\n## Practical implications\n\n### For coast guards and naval operators\n\n- treat drift estimation as a core SAR input, not a minor add-on\n- prefer tools that can be deployed rapidly from real operational platforms\n- integrate field telemetry into live search planning rather than post hoc analysis\n- value communications resilience as part of mission-tool selection\n- favor systems that support both live reporting and remote command when incident tempo is high\n\n### For mission-system designers\n\n- build closed loops between sensing, transport, visualization, and operator control\n- optimize for ruggedness, low latency, and simplicity under field conditions\n- distinguish between data collection and actionable operational awareness\n- design tools that reduce responder workload rather than merely producing more telemetry\n- treat software command surfaces as part of mission effectiveness, not only as post-processing layers\n\n### For defence and industrial strategy\n\n- include niche mission-system suppliers in readiness thinking, not only primes and platforms\n- recognize that modest specialized hardware can have outsized effects on mission efficiency and personnel safety\n- treat SAR and field-support telemetry as part of the wider operational technology stack\n- pay attention to communications ecosystems, such as satellite providers and command software, not just the deployed device itself\n\n## Tensions / open questions\n\n- How much SAR improvement comes from better field telemetry versus better search models and training?\n- Which mission contexts benefit most from expendable deployed sensors rather than persistent platforms?\n- How interoperable should SAR telemetry tools be across coast guards, navies, and allied partners?\n- When do cloud command surfaces become critical infrastructure that need their own resilience planning?\n- How much bi-directional control is useful before field tools become too complex for rapid deployment?\n\n## Related\n\n- [Sovereignty & Critical Infrastructure](/wiki/sovereignty-and-critical-infrastructure)\n- [Military Cyber Operations](/wiki/military-cyber-operations)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Sovereign Defence Manufacturing](/wiki/sovereign-defence-manufacturing)\n- [AI-Native Organizations](/wiki/ai-native-organizations)\n\n## Source notes\n\n- `raw/MetOcean Telematics Wins SAR Buoy Contract by US Coast Guard.md` - anchor source on deployable SAR buoys, drift tracking, global satellite-linked telemetry, bi-directional communications, cloud-based asset control, and the role of specialized suppliers in coast-guard mission effectiveness.\n- `raw/D3-37-2026-eng.pdf` - added CAF aeronautical SAR responsibilities, Joint Rescue Coordination Centres, CASARA partnership, Canadian Rangers support in northern communities, cellphone detection and sensor modernization, Kingfisher/Cormorant fleet upgrades, and SAR Mission Management System replacement.\n",
+  "plainText": "Search and Rescue Systems Search and rescue systems are operational stacks that combine sensing, communications, modeling, and field deployment tools to reduce uncertainty fast enough for responders to find people, vessels, or aircraft before time and environment erase the opportunity. Why this matters Search and rescue is a race against drift, weather, fuel, exposure, and incomplete information. The core challenge is not only mobilizing assets, but narrowing uncertainty quickly enough that ships, aircraft, and crews search the right place. The source in this cluster is promotional, but it contributes a durable and useful pattern: modern SAR effectiveness increasingly depends on deployable telemetry tools that can be dropped into the environment, report real time drift conditions, and feed those observations into a command surface that improves search planning. That makes SAR a systems problem rather than only a bravery or coordination problem. A newer source sharpens this further with a particularly useful operational example: an expendable buoy that combines GPS, sea surface sensing, and bi directional satellite communications, then closes the loop through a cloud platform that lets operators both monitor and command deployed assets during live SAR missions. A newer DND/CAF departmental plan adds the public system version of the same pattern. It frames SAR as part of national operations, with CAF primary aeronautical SAR, Joint Rescue Coordination Centres, CASARA partnership, Canadian Rangers support in northern and remote communities, Kingfisher and Cormorant fleet upgrades, cellphone detection, sensor systems, and a SAR Mission Management System replacement. Core thesis The strongest ideas in this source are: SAR effectiveness depends heavily on reducing uncertainty about drift and movement in the search area rugged expendable field sensors can act as temporary environmental proxies during live missions global low latency communications matter because SAR often happens outside convenient terrestrial coverage cloud platforms add value when they turn raw field telemetry into trackable, commandable operational awareness operational control improves when deployed assets can be both monitored and re tasked remotely specialized suppliers can materially improve coast guard and naval readiness through focused mission hardware rather than only large platforms cost efficient expendable devices can produce outsized mission value when they reduce search uncertainty quickly enough The durable lesson is that SAR performance improves when sensing, telemetry, and command surfaces are treated as one operational loop. Framework / model 1. SAR is a search uncertainty problem A useful synthesis from the source is that live SAR missions are constrained by uncertainty about: current location drift direction drift speed changing surface conditions how quickly the search box is expanding That means one of the highest leverage interventions is improving the model of where the target is likely moving. 2. Deployable drift markers are field sensors, not just markers The buoy in the source is useful as a general concept because it is not only a floating beacon. It functions as a deployed telemetry asset that can provide: GPS position surface drift behavior environmental context such as sea surface temperature repeated updates over time This turns a simple object into a live decision aid. 3. Global communications are part of mission viability The source adds an important systems point. A field sensor is much more valuable when it can communicate: globally with low latency from open ocean conditions in a way that supports both status reporting and command traffic This is why satellite connectivity is part of the capability, not an accessory. 4. SAR tools work best when they close the loop into a command surface The cloud platform in the source adds a durable operations lesson. The useful system is not only: sensor in the field data returned somewhere It is: 1. deploy asset into environment 2. stream position and context data back in near real time 3. visualize and analyze it in an operator facing platform 4. issue commands or adjust settings if needed 5. adapt search planning and asset allocation accordingly That is a real time operational loop rather than passive monitoring. 5. Expendable tools can still be strategic The source highlights a helpful distinction. A tool does not need to be durable or capital intensive to be strategically valuable. An expendable mission aid can be high value when it: is cheap enough to deploy quickly is rugged enough to survive the environment long enough to matter produces insight that saves flight hours, vessel time, and human risk 6. Specialized suppliers matter in operational ecosystems The source also contributes a more industrial point. Operational readiness is not delivered only by large ships, aircraft, or primes. It also depends on specialized firms that provide: niche sensors telemetry hardware deployable mission aids command and control software surfaces interoperable communications products This matters because operational advantage often sits in the supporting layer, not only the flagship platform layer. 7. Bi directional links turn telemetry into controllable infrastructure A useful refinement from the source is that the communications link is not only for one way reporting. When operators can send commands back over the same network, deployed assets become more than passive indicators. They become controllable field nodes inside the mission system. That matters because it supports: dynamic retasking configuration changes during an incident tighter integration between field conditions and command decisions better asset management in evolving search areas 8. SAR command surfaces are operational software, not just dashboards The LiNC example is useful because it shows that the software layer matters as much as the buoy. A serious SAR platform should do more than display dots on a map. It should help operators: track live positions inspect historical movement compare drift behavior over time communicate with deployed assets turn field telemetry into search planning decisions This makes the command surface part of the mission stack, not an afterthought. 9. National SAR is a multi actor readiness system The departmental plan adds a useful institutional layer to the mission system model. Layer Role in SAR readiness Joint Rescue Coordination Centres Coordinate domestic aeronautical and maritime SAR responses. CAF primary SAR assets Provide response aircraft and crews under posture and arrival targets. CASARA Extends aeronautical SAR through trained volunteer partnership. Canadian Rangers Support ground SAR in northern, remote, isolated, and sparsely populated communities. Sensor modernization Adds cellphone detection and other sensors to aircraft and volunteer operated platforms. Mission management software Replaces legacy coordination software so asset coordination can improve over time. This is useful because it connects field telemetry to the broader readiness stack. SAR performance depends on sensors, software, aircraft, volunteers, local knowledge, and coordination centres working as one system. Important examples / reference points MetOcean Telematics iSLDMB is the central example of an expendable search and rescue buoy designed to estimate open ocean surface drift during live missions. The combination of Iridium communications , GPS , and sea surface temperature sensing is important because it shows how several modest components together create a mission relevant decision aid. The source’s emphasis on air or ship deployment is useful because it shows SAR hardware must fit real operational insertion modes. LiNC is a useful example of a cloud command surface that turns deployed hardware into remotely trackable and commandable operational assets. The US Coast Guard BPA matters less as contract news than as evidence that this class of tool has institutional demand inside real SAR operations. The source’s emphasis on NATO A size compliance is useful because it suggests deployment practicality and interoperability with established operational form factors. The drogue assembly matters because it shows the buoy is designed not only to float, but to behave in ways that make drift estimation operationally meaningful. Failure modes / limitations Treating SAR as only an asset dispatch problem Launching aircraft and vessels quickly still leaves large uncertainty if environmental drift is poorly understood. Collecting data without an operational command surface Telemetry is less useful if operators cannot visualize, interpret, and act on it in time. Overrelying on generic infrastructure Open ocean SAR can fail if communications assumptions depend too heavily on terrestrial coverage or ad hoc relay. Confusing rugged hardware with full mission effectiveness A good buoy or sensor helps, but SAR outcomes still depend on doctrine, training, search planning, weather interpretation, and asset coordination. Ignoring specialized suppliers in readiness planning Institutions can underappreciate the supporting hardware and telemetry firms that make high tempo field operations materially better. Mistaking a tracking device for a full search solution Drift markers reduce uncertainty, but they do not replace judgment about currents, weather, search geometry, aircraft routing, or rescue execution. Practical implications For coast guards and naval operators treat drift estimation as a core SAR input, not a minor add on prefer tools that can be deployed rapidly from real operational platforms integrate field telemetry into live search planning rather than post hoc analysis value communications resilience as part of mission tool selection favor systems that support both live reporting and remote command when incident tempo is high For mission system designers build closed loops between sensing, transport, visualization, and operator control optimize for ruggedness, low latency, and simplicity under field conditions distinguish between data collection and actionable operational awareness design tools that reduce responder workload rather than merely producing more telemetry treat software command surfaces as part of mission effectiveness, not only as post processing layers For defence and industrial strategy include niche mission system suppliers in readiness thinking, not only primes and platforms recognize that modest specialized hardware can have outsized effects on mission efficiency and personnel safety treat SAR and field support telemetry as part of the wider operational technology stack pay attention to communications ecosystems, such as satellite providers and command software, not just the deployed device itself Tensions / open questions How much SAR improvement comes from better field telemetry versus better search models and training? Which mission contexts benefit most from expendable deployed sensors rather than persistent platforms? How interoperable should SAR telemetry tools be across coast guards, navies, and allied partners? When do cloud command surfaces become critical infrastructure that need their own resilience planning? How much bi directional control is useful before field tools become too complex for rapid deployment? Related Sovereignty & Critical Infrastructure Military Cyber Operations AI Safety & Control Sovereign Defence Manufacturing AI Native Organizations Source notes raw/MetOcean Telematics Wins SAR Buoy Contract by US Coast Guard.md anchor source on deployable SAR buoys, drift tracking, global satellite linked telemetry, bi directional communications, cloud based asset control, and the role of specialized suppliers in coast guard mission effectiveness. raw/D3 37 2026 eng.pdf added CAF aeronautical SAR responsibilities, Joint Rescue Coordination Centres, CASARA partnership, Canadian Rangers support in northern communities, cellphone detection and sensor modernization, Kingfisher/Cormorant fleet upgrades, and SAR Mission Management System replacement.",
+  "wordCount": 1767,
+  "readingMinutes": 8,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/search-and-rescue-systems.svg",
+  "contentHash": "dcc1d1d02a73e5d8467a1624fffdba69b290dbfcf88188a90f4f90b210cbda15"
+}

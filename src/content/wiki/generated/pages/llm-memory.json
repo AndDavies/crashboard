@@ -1,0 +1,225 @@
+{
+  "slug": "llm-memory",
+  "title": "LLM Memory",
+  "description": "Long-term memory for LLM systems remains unsolved because useful memory requires preserving meaning over time without losing fidelity, over-compressing context, or making retrieval too expensive and unreliable.",
+  "role": "reference",
+  "cluster": "memory",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "LLM Memory",
+      "id": "llm-memory"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. What gets stored",
+      "id": "1-what-gets-stored"
+    },
+    {
+      "level": 3,
+      "text": "2. When derivation happens",
+      "id": "2-when-derivation-happens"
+    },
+    {
+      "level": 3,
+      "text": "3. What triggers a write",
+      "id": "3-what-triggers-a-write"
+    },
+    {
+      "level": 3,
+      "text": "4. Where memory gets stored",
+      "id": "4-where-memory-gets-stored"
+    },
+    {
+      "level": 3,
+      "text": "5. How retrieval works",
+      "id": "5-how-retrieval-works"
+    },
+    {
+      "level": 3,
+      "text": "6. Post-retrieval processing",
+      "id": "6-post-retrieval-processing"
+    },
+    {
+      "level": 3,
+      "text": "7. When retrieval happens",
+      "id": "7-when-retrieval-happens"
+    },
+    {
+      "level": 3,
+      "text": "8. Who is doing the curating",
+      "id": "8-who-is-doing-the-curating"
+    },
+    {
+      "level": 3,
+      "text": "9. Forgetting policy",
+      "id": "9-forgetting-policy"
+    },
+    {
+      "level": 2,
+      "text": "Why infinite context does not solve memory",
+      "id": "why-infinite-context-does-not-solve-memory"
+    },
+    {
+      "level": 3,
+      "text": "Cost",
+      "id": "cost"
+    },
+    {
+      "level": 3,
+      "text": "Degradation",
+      "id": "degradation"
+    },
+    {
+      "level": 2,
+      "text": "The evaluation paradox",
+      "id": "the-evaluation-paradox"
+    },
+    {
+      "level": 2,
+      "text": "Learned context management is adjacent to memory, not the same thing",
+      "id": "learned-context-management-is-adjacent-to-memory-not-the-same-thing"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Session amnesia",
+      "id": "session-amnesia"
+    },
+    {
+      "level": 3,
+      "text": "Entity confusion",
+      "id": "entity-confusion"
+    },
+    {
+      "level": 3,
+      "text": "Over-inference",
+      "id": "over-inference"
+    },
+    {
+      "level": 3,
+      "text": "Derivation drift",
+      "id": "derivation-drift"
+    },
+    {
+      "level": 3,
+      "text": "Retrieval misfire",
+      "id": "retrieval-misfire"
+    },
+    {
+      "level": 3,
+      "text": "Stale context dominance",
+      "id": "stale-context-dominance"
+    },
+    {
+      "level": 3,
+      "text": "Selective retrieval bias",
+      "id": "selective-retrieval-bias"
+    },
+    {
+      "level": 3,
+      "text": "Compaction information loss",
+      "id": "compaction-information-loss"
+    },
+    {
+      "level": 3,
+      "text": "Confidence without provenance",
+      "id": "confidence-without-provenance"
+    },
+    {
+      "level": 3,
+      "text": "Memory-induced bias",
+      "id": "memory-induced-bias"
+    },
+    {
+      "level": 3,
+      "text": "Architecture mismatch",
+      "id": "architecture-mismatch"
+    },
+    {
+      "level": 3,
+      "text": "Retrieval-depth mismatch",
+      "id": "retrieval-depth-mismatch"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For system builders",
+      "id": "for-system-builders"
+    },
+    {
+      "level": 3,
+      "text": "For agent and harness designers",
+      "id": "for-agent-and-harness-designers"
+    },
+    {
+      "level": 3,
+      "text": "For evaluating products and demos",
+      "id": "for-evaluating-products-and-demos"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Agent Memory Architectures",
+    "Second Brain Systems",
+    "Chief of Staff Agents",
+    "Context Compaction",
+    "Proactive Agents"
+  ],
+  "linkedSlugs": [
+    "agent-memory-architectures",
+    "second-brain-systems",
+    "chief-of-staff-agents",
+    "context-compaction",
+    "proactive-agents"
+  ],
+  "sourceNotes": [
+    "`raw/Build Agents that never forget.md` - anchor source on the core trade-offs of raw versus derived memory, retrieval design, derivation timing, forgetting, and the broader unsolved nature of long-term LLM memory.",
+    "`raw/PASK Toward Intent-Aware Proactive Agents with Long-Term Memory.md` - added the proactive-memory perspective that separates workspace, user, and global memory roles and links retrieval depth to intervention quality rather than passive recall alone."
+  ],
+  "markdown": "# LLM Memory\n\n> Long-term memory for LLM systems remains unsolved because useful memory requires preserving meaning over time without losing fidelity, over-compressing context, or making retrieval too expensive and unreliable.\n\n## Why this matters\n\nMemory is one of the most important and most misunderstood parts of modern LLM systems. Product narratives often make memory sound like a near-solved feature that will naturally improve as context windows grow. The stronger view in the current source material is that memory is a hard systems problem with no clean solution. What users want is not just recall, but continuity, interpretation, personalization, and evolving meaning across long arcs of interaction.\n\nThat makes memory central to the quality of agents, assistants, and long-lived workflows. If memory is weak, the system forgets, drifts, or misremembers. If memory is strong but poorly designed, it becomes expensive, opaque, biased, hard to evaluate, and hard to correct.\n\nA newer proactive-agents source adds an important extension: memory is not only a storage problem. In proactive systems it is part of an intervention loop. The memory layer must help decide whether the system should stay silent, give immediate help from local context, or escalate into deeper retrieval and reasoning.\n\n## Core thesis\n\nLong-term memory for LLMs is not solved because every approach is forced into trade-offs between two competing goals:\n\n- preserving the original source material accurately\n- turning that material into something usable enough to retrieve, reason over, and personalize with\n\nThe most useful framing from the source is the distinction between:\n\n1. **Raw memory**: original messages or transcripts stored verbatim\n2. **Derived memory**: summaries, narratives, extracted facts, structured records, or other compressed representations\n\nNeither extreme works on its own.\n\n- Raw memory is lossless but inert. It preserves detail but does not create understanding, prioritization, or semantic structure.\n- Derived memory is compact and operationally useful, but it drifts from the source over time as repeated summarization compounds loss and distortion.\n\nThis is why memory remains unsolved: the thing people actually want requires both strong preservation and strong interpretation at once.\n\nA newer and more implementation-oriented source in this cluster adds a complementary point: memory quality also depends on architecture progression. Replay, markdown persistence, vector retrieval, graph traversal, and provenance are not interchangeable tricks. They are different responses to different failure modes. See [Agent Memory Architectures](/wiki/agent-memory-architectures).\n\nA further proactive-agents source adds a second complementary point: memory quality also depends on when deeper memory is consulted at all. In proactive systems, not every moment deserves the same retrieval depth.\n\n## Framework / model\n\nThe source maps the memory design space across nine dimensions. This is the highest-value part of the source and should be preserved as a reusable framework.\n\n### 1. What gets stored\n\nMemory systems store:\n\n- raw material\n- derived material\n- or a mixture of both\n\nRaw material means original turns, transcripts, or direct history. Derived material means compressions or abstractions such as summaries, extracted facts, entity records, user preferences, and structured state.\n\nThis axis matters because it shapes almost every downstream trade-off. Raw preserves fidelity but creates retrieval and cost problems. Derived material increases usability but introduces interpretation and drift risk.\n\nA useful adjacent distinction from the newer memory-architecture source is that long-term memory may itself contain different memory types:\n\n- **episodic memory** for specific events\n- **semantic memory** for generalized facts and concepts\n- **procedural memory** for workflows, habits, and skills\n\nThis matters because systems often fail by flattening these into one undifferentiated store.\n\n### 2. When derivation happens\n\nIf a system stores derived memory, it has to decide when derivation occurs.\n\nExamples include:\n\n- immediately at write time\n- periodically in background compaction\n- at retrieval time\n- in layered or repeated re-derivation\n\nTiming affects both cost and error accumulation. Re-derivation may improve organization, but it also increases the chance that the memory representation drifts away from the source.\n\nThe newer source adds a useful adjacent operation here: **consolidation**. Repeated episodic traces may need to become semantic or procedural knowledge over time. Without consolidation, the system stores events but does not really learn.\n\n### 3. What triggers a write\n\nEvery memory system needs a write policy. It must decide what deserves to be remembered at all.\n\nThat trigger might be:\n\n- every turn\n- selected turns\n- explicit user actions\n- model judgments\n- external hooks or heuristics\n\nBad write decisions poison the whole system. If the wrong things are stored, no retrieval strategy can fully recover the mistake later.\n\n### 4. Where memory gets stored\n\nThe storage layer constrains the rest of the system.\n\nThe source highlights common backends such as:\n\n- filesystem or document store\n- vector database\n- graph database\n- combinations of the above\n\nIn practice, many systems are hybrid. Raw material may live in a document store, retrieval may use embeddings, and relationship-heavy memory may be represented as graph structure.\n\nThe newer architecture source sharpens this further by arguing that serious systems often need three complementary layers:\n\n- relational storage for provenance and access metadata\n- vector storage for semantic similarity\n- graph storage for entity and relationship traversal\n\nThe important point is not that every agent needs all three on day one. It is that each storage form preserves something the others lose.\n\n### 5. How retrieval works\n\nDifferent retrieval methods are good at different things:\n\n- semantic retrieval for conceptual similarity\n- full-text search for exact phrases and named references\n- graph traversal for entities and relationships\n- direct filesystem exploration for tool-using agents\n\nThis matters because retrieval errors are often not obvious. A system can retrieve something that is semantically close but contextually wrong.\n\nThe newer source adds a particularly useful practical distinction:\n\n- vector search solves synonym and paraphrase problems\n- vector-only systems often fail on multi-hop relational questions because the bridge fact may not rank highly enough\n\nThis means retrieval quality depends not only on recall, but also on the structure of the question.\n\n### 6. Post-retrieval processing\n\nRetrieval is usually only the first pass. Many systems then:\n\n- rerank\n- filter\n- cluster\n- compress\n- summarize again\n\nThe source makes a useful point here: perceived quality often comes as much from post-retrieval narrowing as from the retrieval layer itself.\n\n### 7. When retrieval happens\n\nThe source distinguishes three broad modes:\n\n- always injected\n- hook-driven\n- tool-driven\n\nEach has different failure modes:\n\n- always injected can pollute context with irrelevant history\n- hook-driven can create expensive and noisy \"memory performance\"\n- tool-driven depends on the model knowing when it should go look something up\n\nA newer proactive-agents source adds a fourth operational refinement that is especially useful:\n\n- **tiered retrieval** based on intervention mode\n\nThat means:\n\n- silence may require no retrieval at all\n- fast help may use only local workspace context\n- full assistance may justify deeper user and global memory lookup\n\nThis makes retrieval timing part of action control, not only context enrichment.\n\n### 8. Who is doing the curating\n\nAt each stage, some curator is making decisions:\n\n- the main model\n- a cheaper supporting model\n- the user\n- explicit system logic\n\nThis is a major systems choice because it changes quality, cost, friction, and accountability.\n\n### 9. Forgetting policy\n\nEvery memory system forgets, whether deliberately or accidentally.\n\nForgetting has several dimensions:\n\n- what gets forgotten\n- how deletion propagates through derived artifacts\n- when forgetting occurs\n\nThe source makes an important point here: forgetting is structurally hard because deleting raw material does not automatically delete summaries, graphs, extracted facts, or downstream derivations. Real forgetting often requires provenance tracking or expensive re-derivation.\n\n## Why infinite context does not solve memory\n\nOne of the strongest sections in the source argues that larger context windows are not a complete solution.\n\nTwo reasons stand out:\n\n### Cost\n\nEven if a system could fit years of interaction history into a context window, it would have to pay to process that history repeatedly on every turn. That is economically punishing and scales badly with usage.\n\n### Degradation\n\nModel quality often degrades as context windows fill:\n\n- attention weakens\n- instructions become less reliable\n- middle-context information gets lost\n- reasoning quality declines\n\nSo \"just use bigger context\" is really only the extreme version of the raw-memory path, and it inherits the same weaknesses as raw storage generally.\n\nThe newer source reinforces this with a practical architecture view: longer windows extend replay, but they still do not create persistence, prioritization, consolidation, or multi-hop retrieval.\n\n## The evaluation paradox\n\nAnother high-value idea from the source is that memory is hard to evaluate because realistic ground truth is hard to define.\n\nThe problem is:\n\n- true long-term memory depends on full historical context\n- that context is larger than practical evaluation windows\n- the significance of earlier facts changes over time\n- the system being judged and the judge often share the same context limitations\n\nThis is why simple benchmarks are insufficient. Needle-in-haystack retrieval is useful, but retrieval is only one part of memory. Real memory has to deal with:\n\n- changing facts\n- evolving relationships\n- delayed significance\n- superseded context\n- shifting relevance over time\n\nThis makes memory evaluation fundamentally harder than many product demos suggest.\n\nThe newer source adds a good practical test condition: evaluate systems on cross-fact and multi-hop queries, not only direct recall. A memory system that stores everything but cannot retrieve the bridge fact is not working well enough.\n\nA proactive-agents source adds a second evaluation problem: memory should also be judged by whether it improves intervention quality. A memory system may retrieve well in isolation yet still fail to help a proactive agent decide when to remain silent, when to respond quickly, or when to escalate into deeper assistance.\n\n## Learned context management is adjacent to memory, not the same thing\n\nThe newer compaction source adds an important refinement: some systems pressure that gets described as \"memory\" is really a context-management problem happening inside a trajectory, not a durable cross-session memory problem.\n\nThe key distinction is:\n\n- long-term memory is about what survives over time and how it stays retrievable, governed, and auditable\n- context compaction is about how a model keeps enough state to continue reasoning effectively without carrying every prior token at full cost\n\nThis matters because compaction introduces a new design layer between raw-history replay and persistent long-term memory.\n\nThe Memento result is especially useful here because it suggests:\n\n- models can learn to segment reasoning into blocks\n- they can compress those blocks into dense state records\n- some important signal survives not only in the compressed text, but also in retained KV-state representations\n\nThat does not solve long-term memory, but it does expand the design space of what \"remembering enough to continue\" can mean inside an active reasoning loop.\n\n## Failure modes / limitations\n\nThe source lists a set of recurring failure modes that are worth preserving directly because they provide an excellent operational checklist.\n\n### Session amnesia\n\nEach new session starts effectively from zero, with no durable awareness of prior context.\n\n### Entity confusion\n\nThe system merges or misidentifies people, concepts, or categories, especially when derived memory is overly compressed or poorly structured.\n\n### Over-inference\n\nThe system promotes interpretation into fact and stores conclusions that were never clearly supported by the original source material.\n\n### Derivation drift\n\nRepeated summarization gradually moves the memory representation away from the source, often without a clean boundary where anyone can say exactly when it became wrong.\n\n### Retrieval misfire\n\nThe system retrieves something semantically close but contextually wrong.\n\n### Stale context dominance\n\nOlder and more frequently referenced memory dominates newer and more relevant context.\n\n### Selective retrieval bias\n\nThe system only finds what matches the present framing, missing relevant context stored under a different conceptual or emotional register.\n\n### Compaction information loss\n\nCompression destroys precisely the details that later turn out to matter.\n\n### Confidence without provenance\n\nThe system produces a memory-like answer confidently but cannot clearly trace it back to what was actually said.\n\n### Memory-induced bias\n\nPersistent memory colors future outputs in ways that may help personalization but may also narrow perspective or overfit to past interactions.\n\n### Architecture mismatch\n\nThe newer source adds a practical failure mode: the memory layer may be well-built for similarity search while still failing on relational queries, provenance needs, or consolidation demands. In other words, even a \"working\" memory system can be built on the wrong architectural assumptions.\n\n### Retrieval-depth mismatch\n\nA newer proactive-systems failure mode is consulting the wrong depth of memory for the decision at hand. The system may overpay and overinterrupt by doing deep retrieval for trivial moments, or underhelp by relying on local context when deeper user or global memory was necessary.\n\n## Practical implications\n\nThis source matters because it changes how memory should be discussed and designed.\n\n### For system builders\n\n- Treat memory as an architectural subsystem, not a feature toggle.\n- Choose explicit trade-offs instead of pretending there is a single best design.\n- Keep provenance in view wherever possible so stored claims can be traced back to raw material.\n- Be careful about repeated derivation and multi-stage compression.\n- Design forgetting as a first-class concern.\n- Match the memory architecture to the question shapes the agent must answer.\n- Match retrieval depth to intervention mode when building proactive systems.\n\n### For agent and harness designers\n\n- Memory quality depends on the broader harness, not just on the model.\n- Retrieval strategy, write policy, post-processing, and context injection are all part of the memory system.\n- The choice of curator matters as much as the choice of storage backend.\n- Separate episodic, semantic, and procedural memory where possible.\n- Add consolidation paths so repeated episodes can become durable reusable knowledge.\n- Distinguish workspace memory from stable user memory and deeper global retrieval when the agent needs calibrated proactivity.\n\n### For evaluating products and demos\n\n- Be skeptical of memory claims that do not explain storage, derivation, retrieval, and forgetting.\n- Distinguish retrieval competence from actual long-horizon memory quality.\n- Look for whether a system can handle drift, supersession, provenance, and multi-hop retrieval, not only simple recall.\n- Ask whether memory improves intervention decisions, not just answer quality, in proactive settings.\n\n## Tensions / open questions\n\n- What should remain in workspace memory versus graduating into user memory?\n- How should stable user-state memory be updated without overfitting to transient behavior?\n- What is the best threshold for escalating from fast local reasoning to deeper global-memory retrieval?\n- Can memory systems remain interpretable as they become more layered and more proactive?\n\n## Related\n\n- [Agent Memory Architectures](/wiki/agent-memory-architectures)\n- [Second Brain Systems](/wiki/second-brain-systems)\n- [Chief of Staff Agents](/wiki/chief-of-staff-agents)\n- [Context Compaction](/wiki/context-compaction)\n- [Proactive Agents](/wiki/proactive-agents)\n\n## Source notes\n\n- `raw/Build Agents that never forget.md` - anchor source on the core trade-offs of raw versus derived memory, retrieval design, derivation timing, forgetting, and the broader unsolved nature of long-term LLM memory.\n- `raw/PASK Toward Intent-Aware Proactive Agents with Long-Term Memory.md` - added the proactive-memory perspective that separates workspace, user, and global memory roles and links retrieval depth to intervention quality rather than passive recall alone.\n",
+  "plainText": "LLM Memory Long term memory for LLM systems remains unsolved because useful memory requires preserving meaning over time without losing fidelity, over compressing context, or making retrieval too expensive and unreliable. Why this matters Memory is one of the most important and most misunderstood parts of modern LLM systems. Product narratives often make memory sound like a near solved feature that will naturally improve as context windows grow. The stronger view in the current source material is that memory is a hard systems problem with no clean solution. What users want is not just recall, but continuity, interpretation, personalization, and evolving meaning across long arcs of interaction. That makes memory central to the quality of agents, assistants, and long lived workflows. If memory is weak, the system forgets, drifts, or misremembers. If memory is strong but poorly designed, it becomes expensive, opaque, biased, hard to evaluate, and hard to correct. A newer proactive agents source adds an important extension: memory is not only a storage problem. In proactive systems it is part of an intervention loop. The memory layer must help decide whether the system should stay silent, give immediate help from local context, or escalate into deeper retrieval and reasoning. Core thesis Long term memory for LLMs is not solved because every approach is forced into trade offs between two competing goals: preserving the original source material accurately turning that material into something usable enough to retrieve, reason over, and personalize with The most useful framing from the source is the distinction between: 1. Raw memory : original messages or transcripts stored verbatim 2. Derived memory : summaries, narratives, extracted facts, structured records, or other compressed representations Neither extreme works on its own. Raw memory is lossless but inert. It preserves detail but does not create understanding, prioritization, or semantic structure. Derived memory is compact and operationally useful, but it drifts from the source over time as repeated summarization compounds loss and distortion. This is why memory remains unsolved: the thing people actually want requires both strong preservation and strong interpretation at once. A newer and more implementation oriented source in this cluster adds a complementary point: memory quality also depends on architecture progression. Replay, markdown persistence, vector retrieval, graph traversal, and provenance are not interchangeable tricks. They are different responses to different failure modes. See Agent Memory Architectures. A further proactive agents source adds a second complementary point: memory quality also depends on when deeper memory is consulted at all. In proactive systems, not every moment deserves the same retrieval depth. Framework / model The source maps the memory design space across nine dimensions. This is the highest value part of the source and should be preserved as a reusable framework. 1. What gets stored Memory systems store: raw material derived material or a mixture of both Raw material means original turns, transcripts, or direct history. Derived material means compressions or abstractions such as summaries, extracted facts, entity records, user preferences, and structured state. This axis matters because it shapes almost every downstream trade off. Raw preserves fidelity but creates retrieval and cost problems. Derived material increases usability but introduces interpretation and drift risk. A useful adjacent distinction from the newer memory architecture source is that long term memory may itself contain different memory types: episodic memory for specific events semantic memory for generalized facts and concepts procedural memory for workflows, habits, and skills This matters because systems often fail by flattening these into one undifferentiated store. 2. When derivation happens If a system stores derived memory, it has to decide when derivation occurs. Examples include: immediately at write time periodically in background compaction at retrieval time in layered or repeated re derivation Timing affects both cost and error accumulation. Re derivation may improve organization, but it also increases the chance that the memory representation drifts away from the source. The newer source adds a useful adjacent operation here: consolidation . Repeated episodic traces may need to become semantic or procedural knowledge over time. Without consolidation, the system stores events but does not really learn. 3. What triggers a write Every memory system needs a write policy. It must decide what deserves to be remembered at all. That trigger might be: every turn selected turns explicit user actions model judgments external hooks or heuristics Bad write decisions poison the whole system. If the wrong things are stored, no retrieval strategy can fully recover the mistake later. 4. Where memory gets stored The storage layer constrains the rest of the system. The source highlights common backends such as: filesystem or document store vector database graph database combinations of the above In practice, many systems are hybrid. Raw material may live in a document store, retrieval may use embeddings, and relationship heavy memory may be represented as graph structure. The newer architecture source sharpens this further by arguing that serious systems often need three complementary layers: relational storage for provenance and access metadata vector storage for semantic similarity graph storage for entity and relationship traversal The important point is not that every agent needs all three on day one. It is that each storage form preserves something the others lose. 5. How retrieval works Different retrieval methods are good at different things: semantic retrieval for conceptual similarity full text search for exact phrases and named references graph traversal for entities and relationships direct filesystem exploration for tool using agents This matters because retrieval errors are often not obvious. A system can retrieve something that is semantically close but contextually wrong. The newer source adds a particularly useful practical distinction: vector search solves synonym and paraphrase problems vector only systems often fail on multi hop relational questions because the bridge fact may not rank highly enough This means retrieval quality depends not only on recall, but also on the structure of the question. 6. Post retrieval processing Retrieval is usually only the first pass. Many systems then: rerank filter cluster compress summarize again The source makes a useful point here: perceived quality often comes as much from post retrieval narrowing as from the retrieval layer itself. 7. When retrieval happens The source distinguishes three broad modes: always injected hook driven tool driven Each has different failure modes: always injected can pollute context with irrelevant history hook driven can create expensive and noisy \"memory performance\" tool driven depends on the model knowing when it should go look something up A newer proactive agents source adds a fourth operational refinement that is especially useful: tiered retrieval based on intervention mode That means: silence may require no retrieval at all fast help may use only local workspace context full assistance may justify deeper user and global memory lookup This makes retrieval timing part of action control, not only context enrichment. 8. Who is doing the curating At each stage, some curator is making decisions: the main model a cheaper supporting model the user explicit system logic This is a major systems choice because it changes quality, cost, friction, and accountability. 9. Forgetting policy Every memory system forgets, whether deliberately or accidentally. Forgetting has several dimensions: what gets forgotten how deletion propagates through derived artifacts when forgetting occurs The source makes an important point here: forgetting is structurally hard because deleting raw material does not automatically delete summaries, graphs, extracted facts, or downstream derivations. Real forgetting often requires provenance tracking or expensive re derivation. Why infinite context does not solve memory One of the strongest sections in the source argues that larger context windows are not a complete solution. Two reasons stand out: Cost Even if a system could fit years of interaction history into a context window, it would have to pay to process that history repeatedly on every turn. That is economically punishing and scales badly with usage. Degradation Model quality often degrades as context windows fill: attention weakens instructions become less reliable middle context information gets lost reasoning quality declines So \"just use bigger context\" is really only the extreme version of the raw memory path, and it inherits the same weaknesses as raw storage generally. The newer source reinforces this with a practical architecture view: longer windows extend replay, but they still do not create persistence, prioritization, consolidation, or multi hop retrieval. The evaluation paradox Another high value idea from the source is that memory is hard to evaluate because realistic ground truth is hard to define. The problem is: true long term memory depends on full historical context that context is larger than practical evaluation windows the significance of earlier facts changes over time the system being judged and the judge often share the same context limitations This is why simple benchmarks are insufficient. Needle in haystack retrieval is useful, but retrieval is only one part of memory. Real memory has to deal with: changing facts evolving relationships delayed significance superseded context shifting relevance over time This makes memory evaluation fundamentally harder than many product demos suggest. The newer source adds a good practical test condition: evaluate systems on cross fact and multi hop queries, not only direct recall. A memory system that stores everything but cannot retrieve the bridge fact is not working well enough. A proactive agents source adds a second evaluation problem: memory should also be judged by whether it improves intervention quality. A memory system may retrieve well in isolation yet still fail to help a proactive agent decide when to remain silent, when to respond quickly, or when to escalate into deeper assistance. Learned context management is adjacent to memory, not the same thing The newer compaction source adds an important refinement: some systems pressure that gets described as \"memory\" is really a context management problem happening inside a trajectory, not a durable cross session memory problem. The key distinction is: long term memory is about what survives over time and how it stays retrievable, governed, and auditable context compaction is about how a model keeps enough state to continue reasoning effectively without carrying every prior token at full cost This matters because compaction introduces a new design layer between raw history replay and persistent long term memory. The Memento result is especially useful here because it suggests: models can learn to segment reasoning into blocks they can compress those blocks into dense state records some important signal survives not only in the compressed text, but also in retained KV state representations That does not solve long term memory, but it does expand the design space of what \"remembering enough to continue\" can mean inside an active reasoning loop. Failure modes / limitations The source lists a set of recurring failure modes that are worth preserving directly because they provide an excellent operational checklist. Session amnesia Each new session starts effectively from zero, with no durable awareness of prior context. Entity confusion The system merges or misidentifies people, concepts, or categories, especially when derived memory is overly compressed or poorly structured. Over inference The system promotes interpretation into fact and stores conclusions that were never clearly supported by the original source material. Derivation drift Repeated summarization gradually moves the memory representation away from the source, often without a clean boundary where anyone can say exactly when it became wrong. Retrieval misfire The system retrieves something semantically close but contextually wrong. Stale context dominance Older and more frequently referenced memory dominates newer and more relevant context. Selective retrieval bias The system only finds what matches the present framing, missing relevant context stored under a different conceptual or emotional register. Compaction information loss Compression destroys precisely the details that later turn out to matter. Confidence without provenance The system produces a memory like answer confidently but cannot clearly trace it back to what was actually said. Memory induced bias Persistent memory colors future outputs in ways that may help personalization but may also narrow perspective or overfit to past interactions. Architecture mismatch The newer source adds a practical failure mode: the memory layer may be well built for similarity search while still failing on relational queries, provenance needs, or consolidation demands. In other words, even a \"working\" memory system can be built on the wrong architectural assumptions. Retrieval depth mismatch A newer proactive systems failure mode is consulting the wrong depth of memory for the decision at hand. The system may overpay and overinterrupt by doing deep retrieval for trivial moments, or underhelp by relying on local context when deeper user or global memory was necessary. Practical implications This source matters because it changes how memory should be discussed and designed. For system builders Treat memory as an architectural subsystem, not a feature toggle. Choose explicit trade offs instead of pretending there is a single best design. Keep provenance in view wherever possible so stored claims can be traced back to raw material. Be careful about repeated derivation and multi stage compression. Design forgetting as a first class concern. Match the memory architecture to the question shapes the agent must answer. Match retrieval depth to intervention mode when building proactive systems. For agent and harness designers Memory quality depends on the broader harness, not just on the model. Retrieval strategy, write policy, post processing, and context injection are all part of the memory system. The choice of curator matters as much as the choice of storage backend. Separate episodic, semantic, and procedural memory where possible. Add consolidation paths so repeated episodes can become durable reusable knowledge. Distinguish workspace memory from stable user memory and deeper global retrieval when the agent needs calibrated proactivity. For evaluating products and demos Be skeptical of memory claims that do not explain storage, derivation, retrieval, and forgetting. Distinguish retrieval competence from actual long horizon memory quality. Look for whether a system can handle drift, supersession, provenance, and multi hop retrieval, not only simple recall. Ask whether memory improves intervention decisions, not just answer quality, in proactive settings. Tensions / open questions What should remain in workspace memory versus graduating into user memory? How should stable user state memory be updated without overfitting to transient behavior? What is the best threshold for escalating from fast local reasoning to deeper global memory retrieval? Can memory systems remain interpretable as they become more layered and more proactive? Related Agent Memory Architectures Second Brain Systems Chief of Staff Agents Context Compaction Proactive Agents Source notes raw/Build Agents that never forget.md anchor source on the core trade offs of raw versus derived memory, retrieval design, derivation timing, forgetting, and the broader unsolved nature of long term LLM memory. raw/PASK Toward Intent Aware Proactive Agents with Long Term Memory.md added the proactive memory perspective that separates workspace, user, and global memory roles and links retrieval depth to intervention quality rather than passive recall alone.",
+  "wordCount": 2446,
+  "readingMinutes": 11,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/llm-memory.svg",
+  "contentHash": "b40683c27e5492dd64896f39210b93de707f26ed783b90285a7e909bffbf3b83"
+}

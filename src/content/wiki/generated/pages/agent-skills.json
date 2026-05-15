@@ -1,0 +1,144 @@
+{
+  "slug": "agent-skills",
+  "title": "Agent Skills",
+  "description": "Agent skills are reusable harness extensions that package task-specific instructions, trigger logic, optional tools, and supporting references so an agent can specialize without changing the base model.",
+  "role": "concept",
+  "cluster": "execution",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Agent Skills",
+      "id": "agent-skills"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. A skill has layered structure",
+      "id": "1-a-skill-has-layered-structure"
+    },
+    {
+      "level": 3,
+      "text": "2. Trigger design is the real control surface",
+      "id": "2-trigger-design-is-the-real-control-surface"
+    },
+    {
+      "level": 3,
+      "text": "3. Lean loading beats giant monoliths",
+      "id": "3-lean-loading-beats-giant-monoliths"
+    },
+    {
+      "level": 3,
+      "text": "4. Skills and runtimes solve different problems",
+      "id": "4-skills-and-runtimes-solve-different-problems"
+    },
+    {
+      "level": 3,
+      "text": "5. Skills should define goals and constraints, not full runtime policy",
+      "id": "5-skills-should-define-goals-and-constraints-not-full-runtime-policy"
+    },
+    {
+      "level": 3,
+      "text": "6. Repeated planning prompts are often proto-skills",
+      "id": "6-repeated-planning-prompts-are-often-proto-skills"
+    },
+    {
+      "level": 3,
+      "text": "7. Good coding skills often preserve phase boundaries",
+      "id": "7-good-coding-skills-often-preserve-phase-boundaries"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Putting too much runtime policy into the skill",
+      "id": "putting-too-much-runtime-policy-into-the-skill"
+    },
+    {
+      "level": 3,
+      "text": "Assuming a runtime API removes the need for skills",
+      "id": "assuming-a-runtime-api-removes-the-need-for-skills"
+    },
+    {
+      "level": 3,
+      "text": "Over-triggering broad skills in tool-rich environments",
+      "id": "over-triggering-broad-skills-in-tool-rich-environments"
+    },
+    {
+      "level": 3,
+      "text": "Treating one good prompt as a finished skill too early",
+      "id": "treating-one-good-prompt-as-a-finished-skill-too-early"
+    },
+    {
+      "level": 3,
+      "text": "Collapsing plan, build, and refine into one skill with no phase control",
+      "id": "collapsing-plan-build-and-refine-into-one-skill-with-no-phase-control"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "AI Safety & Control",
+    "Agent Execution Systems",
+    "Agentic Engineering",
+    "Persistent Agent Threads",
+    "Chief of Staff Agents",
+    "Agent Evaluation & Verification"
+  ],
+  "linkedSlugs": [
+    "ai-safety-and-control",
+    "agent-execution-systems",
+    "agentic-engineering",
+    "persistent-agent-threads",
+    "chief-of-staff-agents",
+    "agent-evaluation-and-verification"
+  ],
+  "sourceNotes": [
+    "`raw/Skill Graphs > SKILL.md` - core skill structure, trigger design, and layered loading model.",
+    "`raw/Save workflows as skills  Codex use cases.md` - added the operational bridge from successful workflow to reusable skill.",
+    "`raw/Codex for Beginners Tutorial (2026) Build Your First App in Minutes.md` - added planning, execution, and refinement prompts as proto-skill patterns, plus the value of read-only plan-first scaffolds before implementation.",
+    "`raw/Cursor Cookbook.md` - added the distinction between reusable skill logic and programmable runtime control over local or cloud runs, event streams, artifacts, and conversation state."
+  ],
+  "markdown": "# Agent Skills\n\n> Agent skills are reusable harness extensions that package task-specific instructions, trigger logic, optional tools, and supporting references so an agent can specialize without changing the base model.\n\n## Why this matters\n\nSkills are one of the cleanest ways to turn a general-purpose model into a useful working system. They let builders encode repeatable behaviors, workflows, and tool patterns without relying on the model to rediscover those conventions from scratch on every run.\n\nThe important distinction is that a skill is not just a prompt snippet. It is a small operating bundle with:\n\n- a trigger surface that tells the agent when to use it\n- instructions that shape behavior once loaded\n- optional scripts, references, and assets that extend what the agent can do\n\nA newer Cursor runtime source adds a useful systems boundary: skills are not the same thing as runtime control planes. A skill defines procedural memory and task behavior, while the surrounding SDK or agent platform decides execution location, model configuration, cancellation, event streaming, artifact exposure, and conversation-state persistence.\n\nA newer Codex tutorial adds a practical bridge between raw prompting and full skills: repeated planning prompts, build prompts, and refinement prompts often act like proto-skills before they are formalized. That matters because many good skills are discovered by noticing which prompt shapes keep producing clean plans, predictable first builds, and legible refinement loops.\n\n## Core thesis\n\nThe strongest ideas in this source are:\n\n- skills are durable harness-level specialization mechanisms\n- the trigger description is often more important than the body instructions\n- good skills constrain outcomes and boundaries rather than micromanaging every step\n- reference material, scripts, and assets should be loaded in layers rather than dumped into one giant instruction file\n- skills need evals, including negative trigger cases, because bad triggering can be as harmful as bad task execution\n- productizable systems often work best when capabilities are packaged as reusable skills while user-specific preferences stay outside those shared capability bundles\n- skill quality in production depends as much on finding the right skill as on executing it once found\n- mature skill systems often expose command-like entry points that map common user intents onto the right underlying skills automatically\n- skills can call plugins, CLIs, or other tools, but they still need a separate runtime layer to manage run lifecycle, state, and artifacts\n- a strong agent product often pairs stable skill bundles with programmable runtime controls rather than trying to encode runtime behavior inside the skill itself\n- planning-first prompts are often the earliest reusable form of procedural memory, especially in coding workflows where assumptions need review before mutation\n- a good proto-skill usually captures both the sequence and the constraint, for example: clarify scope, stay read-only first, check assumptions, implement only after approval, then preview and refine\n\n## Framework / model\n\n### 1. A skill has layered structure\n\nThe source defines a simple but important layout:\n\n```text\nmy-skill/\n├── SKILL.md\n├── scripts/\n├── references/\n└── assets/\n```\n\nThis yields three distinct layers:\n\n- **frontmatter**: the skill name and description, which shape activation\n- **instruction body**: the task guidance that loads after triggering\n- **supporting files**: scripts, references, and assets loaded only when needed\n\n### 2. Trigger design is the real control surface\n\nThe description field is not metadata. It is the activation mechanism.\n\nA good description must answer both:\n\n- what the skill does\n- when it should be used\n\n### 3. Lean loading beats giant monoliths\n\nThe practical loading stack is:\n\n1. always-loaded trigger metadata\n2. instruction body loaded on activation\n3. references, scripts, and assets loaded only on demand\n\n### 4. Skills and runtimes solve different problems\n\nThe Cursor cookbook adds a durable design distinction:\n\n#### Skill layer\n\nDefines:\n\n- task framing\n- workflow rules\n- output conventions\n- reusable examples\n- procedural guidance\n\n#### Runtime layer\n\nDefines:\n\n- local versus cloud execution\n- model selection\n- cancellation behavior\n- streamed event visibility\n- artifact access\n- conversation-state persistence\n- CLI or dashboard entry surfaces\n\nThis is useful because many agent systems become hard to reason about when skill logic and lifecycle control are blended together.\n\n### 5. Skills should define goals and constraints, not full runtime policy\n\nA skill should usually specify:\n\n- what outcome is desired\n- what boundaries matter\n- what artifacts should be produced\n- what references or tools are likely useful\n\nIt should not usually be responsible for:\n\n- which host the run executes on\n- whether the run is cloud or local\n- how cancellation works\n- how streamed telemetry is surfaced\n- how many parallel runs are grouped on an operations board\n\nThose are runtime concerns.\n\n### 6. Repeated planning prompts are often proto-skills\n\nThe beginner Codex tutorial adds a useful operator pattern that belongs here.\n\nBefore a workflow becomes a formal skill, it often appears as a repeated prompt family such as:\n\n1. turn idea into a V1 product spec\n2. stay in plan mode and surface assumptions\n3. build the first version from the approved spec\n4. get the first working result on screen\n5. recommend the next small improvements without increasing scope too much\n\nThis matters because the jump from prompting to skill creation is usually not conceptual. It is editorial. The operator notices that the same prompt scaffold keeps producing good work and packages it.\n\n### 7. Good coding skills often preserve phase boundaries\n\nAnother durable lesson from the tutorial is that skill quality often depends on preserving phase boundaries explicitly.\n\nA strong coding skill or proto-skill may specify:\n\n- start read-only when product shape is unclear\n- ask clarifying questions before coding when assumptions are unstable\n- produce a concise implementation plan\n- prefer visible first results over abstract overengineering\n- refine from previewed behavior rather than speculative redesign\n- keep scope bounded during early passes\n\nThis is useful because many bad coding runs fail not for lack of capability, but because the workflow collapsed planning, implementation, and refinement into one muddy request.\n\n## Important examples / reference points\n\n- Shared team-facing skills are useful because they standardize artifact shape and workflow quality.\n- Planning-first coding prompts are useful because they show how proto-skills emerge from repeated successful threads.\n- Cursor-style programmatic runtimes are useful because they show where skill boundaries end and control-plane boundaries begin.\n- The Codex beginner tutorial is useful because it demonstrates how a repeatable prompt family can evolve into a reusable build-and-refine skill for small application work.\n\n## Failure modes / limitations\n\n### Putting too much runtime policy into the skill\n\nA skill becomes brittle when it tries to encode operational details that belong in the surrounding platform.\n\n### Assuming a runtime API removes the need for skills\n\nProgrammatic agent execution still needs reusable procedural memory, trigger quality, output standards, and task-specific constraints.\n\n### Over-triggering broad skills in tool-rich environments\n\nAs runtime capability expands, bad skill activation can become more expensive because the agent can do more once the wrong instructions are loaded.\n\n### Treating one good prompt as a finished skill too early\n\nA repeated prompt may still depend on hidden operator judgment. Formalize it too quickly and you can freeze a brittle workflow.\n\n### Collapsing plan, build, and refine into one skill with no phase control\n\nSome workflows improve when those phases stay explicit, even if they live in one reusable bundle.\n\n## Practical implications\n\n- write skills for behavior and workflow memory\n- use runtime APIs for lifecycle control and visibility\n- test skill triggers separately from runtime reliability\n- keep the boundary between reusable task logic and execution control explicit\n- watch for repeated prompt families that are functioning as proto-skills already\n- preserve phase boundaries in coding skills when read-only planning and visible refinement improve outcomes\n\n## Related\n\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Agent Execution Systems](/wiki/agent-execution-systems)\n- [Agentic Engineering](/wiki/agentic-engineering)\n- [Persistent Agent Threads](/wiki/persistent-agent-threads)\n- [Chief of Staff Agents](/wiki/chief-of-staff-agents)\n- [Agent Evaluation & Verification](/wiki/agent-evaluation-and-verification)\n\n## Source notes\n\n- `raw/Skill Graphs > SKILL.md` - core skill structure, trigger design, and layered loading model.\n- `raw/Save workflows as skills  Codex use cases.md` - added the operational bridge from successful workflow to reusable skill.\n- `raw/Codex for Beginners Tutorial (2026) Build Your First App in Minutes.md` - added planning, execution, and refinement prompts as proto-skill patterns, plus the value of read-only plan-first scaffolds before implementation.\n- `raw/Cursor Cookbook.md` - added the distinction between reusable skill logic and programmable runtime control over local or cloud runs, event streams, artifacts, and conversation state.\n",
+  "plainText": "Agent Skills Agent skills are reusable harness extensions that package task specific instructions, trigger logic, optional tools, and supporting references so an agent can specialize without changing the base model. Why this matters Skills are one of the cleanest ways to turn a general purpose model into a useful working system. They let builders encode repeatable behaviors, workflows, and tool patterns without relying on the model to rediscover those conventions from scratch on every run. The important distinction is that a skill is not just a prompt snippet. It is a small operating bundle with: a trigger surface that tells the agent when to use it instructions that shape behavior once loaded optional scripts, references, and assets that extend what the agent can do A newer Cursor runtime source adds a useful systems boundary: skills are not the same thing as runtime control planes. A skill defines procedural memory and task behavior, while the surrounding SDK or agent platform decides execution location, model configuration, cancellation, event streaming, artifact exposure, and conversation state persistence. A newer Codex tutorial adds a practical bridge between raw prompting and full skills: repeated planning prompts, build prompts, and refinement prompts often act like proto skills before they are formalized. That matters because many good skills are discovered by noticing which prompt shapes keep producing clean plans, predictable first builds, and legible refinement loops. Core thesis The strongest ideas in this source are: skills are durable harness level specialization mechanisms the trigger description is often more important than the body instructions good skills constrain outcomes and boundaries rather than micromanaging every step reference material, scripts, and assets should be loaded in layers rather than dumped into one giant instruction file skills need evals, including negative trigger cases, because bad triggering can be as harmful as bad task execution productizable systems often work best when capabilities are packaged as reusable skills while user specific preferences stay outside those shared capability bundles skill quality in production depends as much on finding the right skill as on executing it once found mature skill systems often expose command like entry points that map common user intents onto the right underlying skills automatically skills can call plugins, CLIs, or other tools, but they still need a separate runtime layer to manage run lifecycle, state, and artifacts a strong agent product often pairs stable skill bundles with programmable runtime controls rather than trying to encode runtime behavior inside the skill itself planning first prompts are often the earliest reusable form of procedural memory, especially in coding workflows where assumptions need review before mutation a good proto skill usually captures both the sequence and the constraint, for example: clarify scope, stay read only first, check assumptions, implement only after approval, then preview and refine Framework / model 1. A skill has layered structure The source defines a simple but important layout: This yields three distinct layers: frontmatter : the skill name and description, which shape activation instruction body : the task guidance that loads after triggering supporting files : scripts, references, and assets loaded only when needed 2. Trigger design is the real control surface The description field is not metadata. It is the activation mechanism. A good description must answer both: what the skill does when it should be used 3. Lean loading beats giant monoliths The practical loading stack is: 1. always loaded trigger metadata 2. instruction body loaded on activation 3. references, scripts, and assets loaded only on demand 4. Skills and runtimes solve different problems The Cursor cookbook adds a durable design distinction: Skill layer Defines: task framing workflow rules output conventions reusable examples procedural guidance Runtime layer Defines: local versus cloud execution model selection cancellation behavior streamed event visibility artifact access conversation state persistence CLI or dashboard entry surfaces This is useful because many agent systems become hard to reason about when skill logic and lifecycle control are blended together. 5. Skills should define goals and constraints, not full runtime policy A skill should usually specify: what outcome is desired what boundaries matter what artifacts should be produced what references or tools are likely useful It should not usually be responsible for: which host the run executes on whether the run is cloud or local how cancellation works how streamed telemetry is surfaced how many parallel runs are grouped on an operations board Those are runtime concerns. 6. Repeated planning prompts are often proto skills The beginner Codex tutorial adds a useful operator pattern that belongs here. Before a workflow becomes a formal skill, it often appears as a repeated prompt family such as: 1. turn idea into a V1 product spec 2. stay in plan mode and surface assumptions 3. build the first version from the approved spec 4. get the first working result on screen 5. recommend the next small improvements without increasing scope too much This matters because the jump from prompting to skill creation is usually not conceptual. It is editorial. The operator notices that the same prompt scaffold keeps producing good work and packages it. 7. Good coding skills often preserve phase boundaries Another durable lesson from the tutorial is that skill quality often depends on preserving phase boundaries explicitly. A strong coding skill or proto skill may specify: start read only when product shape is unclear ask clarifying questions before coding when assumptions are unstable produce a concise implementation plan prefer visible first results over abstract overengineering refine from previewed behavior rather than speculative redesign keep scope bounded during early passes This is useful because many bad coding runs fail not for lack of capability, but because the workflow collapsed planning, implementation, and refinement into one muddy request. Important examples / reference points Shared team facing skills are useful because they standardize artifact shape and workflow quality. Planning first coding prompts are useful because they show how proto skills emerge from repeated successful threads. Cursor style programmatic runtimes are useful because they show where skill boundaries end and control plane boundaries begin. The Codex beginner tutorial is useful because it demonstrates how a repeatable prompt family can evolve into a reusable build and refine skill for small application work. Failure modes / limitations Putting too much runtime policy into the skill A skill becomes brittle when it tries to encode operational details that belong in the surrounding platform. Assuming a runtime API removes the need for skills Programmatic agent execution still needs reusable procedural memory, trigger quality, output standards, and task specific constraints. Over triggering broad skills in tool rich environments As runtime capability expands, bad skill activation can become more expensive because the agent can do more once the wrong instructions are loaded. Treating one good prompt as a finished skill too early A repeated prompt may still depend on hidden operator judgment. Formalize it too quickly and you can freeze a brittle workflow. Collapsing plan, build, and refine into one skill with no phase control Some workflows improve when those phases stay explicit, even if they live in one reusable bundle. Practical implications write skills for behavior and workflow memory use runtime APIs for lifecycle control and visibility test skill triggers separately from runtime reliability keep the boundary between reusable task logic and execution control explicit watch for repeated prompt families that are functioning as proto skills already preserve phase boundaries in coding skills when read only planning and visible refinement improve outcomes Related AI Safety & Control Agent Execution Systems Agentic Engineering Persistent Agent Threads Chief of Staff Agents Agent Evaluation & Verification Source notes raw/Skill Graphs SKILL.md core skill structure, trigger design, and layered loading model. raw/Save workflows as skills Codex use cases.md added the operational bridge from successful workflow to reusable skill. raw/Codex for Beginners Tutorial (2026) Build Your First App in Minutes.md added planning, execution, and refinement prompts as proto skill patterns, plus the value of read only plan first scaffolds before implementation. raw/Cursor Cookbook.md added the distinction between reusable skill logic and programmable runtime control over local or cloud runs, event streams, artifacts, and conversation state.",
+  "wordCount": 1341,
+  "readingMinutes": 6,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/agent-skills.svg",
+  "contentHash": "9b923710dcfebde9df84972cf4b5e37a01f7b643ee28f53f1c9964a8f934e670"
+}

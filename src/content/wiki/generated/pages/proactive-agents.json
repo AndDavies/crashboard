@@ -1,0 +1,179 @@
+{
+  "slug": "proactive-agents",
+  "title": "Proactive Agents",
+  "description": "Proactive agents are AI systems that do not wait for explicit prompts on every turn. They infer latent user needs from ongoing context, decide whether intervention is warranted, and deliver timely assistance while managing the risk of interruption, error, and overreach.",
+  "role": "reference",
+  "cluster": "execution",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Proactive Agents",
+      "id": "proactive-agents"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Proactivity is intervention under uncertainty",
+      "id": "1-proactivity-is-intervention-under-uncertainty"
+    },
+    {
+      "level": 3,
+      "text": "2. DD-MM-PAS is a useful minimal architecture",
+      "id": "2-dd-mm-pas-is-a-useful-minimal-architecture"
+    },
+    {
+      "level": 3,
+      "text": "3. Demand detection is the defining capability",
+      "id": "3-demand-detection-is-the-defining-capability"
+    },
+    {
+      "level": 3,
+      "text": "4. Proactive systems need calibrated response modes",
+      "id": "4-proactive-systems-need-calibrated-response-modes"
+    },
+    {
+      "level": 3,
+      "text": "5. Memory must be active, not archival",
+      "id": "5-memory-must-be-active-not-archival"
+    },
+    {
+      "level": 3,
+      "text": "6. Proactivity requires an always-on execution substrate",
+      "id": "6-proactivity-requires-an-always-on-execution-substrate"
+    },
+    {
+      "level": 3,
+      "text": "7. Helpfulness and intrusiveness are opposing objectives",
+      "id": "7-helpfulness-and-intrusiveness-are-opposing-objectives"
+    },
+    {
+      "level": 3,
+      "text": "8. Real-world proactivity is constrained by timing, context, and human factors",
+      "id": "8-real-world-proactivity-is-constrained-by-timing-context-and-human-factors"
+    },
+    {
+      "level": 3,
+      "text": "9. Benchmarks for proactive systems need realistic human-intent data",
+      "id": "9-benchmarks-for-proactive-systems-need-realistic-human-intent-data"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Over-intervention",
+      "id": "over-intervention"
+    },
+    {
+      "level": 3,
+      "text": "Shallow demand inference",
+      "id": "shallow-demand-inference"
+    },
+    {
+      "level": 3,
+      "text": "Weak memory grounding",
+      "id": "weak-memory-grounding"
+    },
+    {
+      "level": 3,
+      "text": "Latency collapse",
+      "id": "latency-collapse"
+    },
+    {
+      "level": 3,
+      "text": "Architecture mismatch",
+      "id": "architecture-mismatch"
+    },
+    {
+      "level": 3,
+      "text": "Social-context blindness",
+      "id": "social-context-blindness"
+    },
+    {
+      "level": 3,
+      "text": "Benchmark overclaiming",
+      "id": "benchmark-overclaiming"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For agent builders",
+      "id": "for-agent-builders"
+    },
+    {
+      "level": 3,
+      "text": "For product designers",
+      "id": "for-product-designers"
+    },
+    {
+      "level": 3,
+      "text": "For operators",
+      "id": "for-operators"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Chief of Staff Agents",
+    "Second Brain Systems",
+    "LLM Memory",
+    "AI Safety & Control",
+    "AI Foundations & Model Adaptation"
+  ],
+  "linkedSlugs": [
+    "chief-of-staff-agents",
+    "second-brain-systems",
+    "llm-memory",
+    "ai-safety-and-control",
+    "ai-foundations-and-model-adaptation"
+  ],
+  "sourceNotes": [
+    "`raw/PASK Toward Intent-Aware Proactive Agents with Long-Term Memory.md` - introduced DD-MM-PAS as a general paradigm for proactive AI, including latent-demand detection, hybrid memory layers, calibrated intervention modes, and the trade-off between helpfulness and interruption cost."
+  ],
+  "markdown": "# Proactive Agents\n\n> Proactive agents are AI systems that do not wait for explicit prompts on every turn. They infer latent user needs from ongoing context, decide whether intervention is warranted, and deliver timely assistance while managing the risk of interruption, error, and overreach.\n\n## Why this matters\n\nMost deployed AI systems still operate in a reactive pattern: the human notices a need, formulates a prompt, and the model responds. That works when the user has time, clarity, and willingness to ask. It breaks down when:\n\n- the right moment for help is fleeting\n- the user is overloaded or distracted\n- asking is socially awkward or operationally disruptive\n- the user does not yet know how to formulate the need clearly\n- useful help depends on long-term context the model has to infer rather than retrieve from one explicit request\n\nThis source adds a durable architectural claim: proactivity is not just a UX flourish. It is a different systems regime. A proactive agent needs to infer demand, maintain evolving memory, and execute assistance inside a continuously running loop.\n\nThat makes proactive agents relevant to:\n\n- [Chief of Staff Agents](/wiki/chief-of-staff-agents)\n- [Second Brain Systems](/wiki/second-brain-systems)\n- [LLM Memory](/wiki/llm-memory)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n\n## Core thesis\n\nThe strongest ideas in this source are:\n\n- proactive assistance is a distinct interaction paradigm, not just a better chatbot\n- the central problem is not response generation, but intervention under uncertainty\n- useful proactive systems must infer latent demand from real-time context rather than waiting for explicit requests\n- memory matters because proactive help depends on person-level understanding accumulated over time\n- the system must trade off helpfulness against interruption cost\n- proactive intelligence requires an execution substrate that can fuse signals, retrieve memory, and act in real time\n- a proactive agent should be able to remain silent, intervene quickly from local context, or escalate into deeper memory-grounded reasoning\n- benchmark quality matters because proactive systems are easy to overclaim and hard to evaluate in realistic settings\n\nThe deeper lesson is that proactive agents are not merely chat systems with reminders bolted on. They are closed-loop systems for perception, memory, timing, and assistance.\n\n## Framework / model\n\n### 1. Proactivity is intervention under uncertainty\n\nA durable contribution from the source is its decision framing.\n\nThe agent must decide:\n\n- whether help is needed\n- what kind of help is appropriate\n- whether the expected value of intervention outweighs the interruption cost\n\nThat means proactive assistance is not equivalent to “answer more often.” It is a control problem where silence is sometimes the correct action.\n\n### 2. DD-MM-PAS is a useful minimal architecture\n\nThe source proposes a three-part paradigm:\n\n1. **Demand Detection (DD)** - infer latent need from current context\n2. **Memory Modeling (MM)** - maintain an evolving user representation across time\n3. **Proactive Agent System (PAS)** - execute assistance, scheduling, retrieval, and downstream actions in a stable runtime\n\nThis is useful because it separates three often-collapsed questions:\n\n- how the system notices a need\n- how it knows enough about the person to interpret the need well\n- how it turns that inference into action\n\n### 3. Demand detection is the defining capability\n\nThe source treats demand detection as the perceptual entry point of proactive AI.\n\nThat means the system does not only classify explicit requests. It must infer latent needs from:\n\n- ongoing interaction history\n- current task context\n- user profile information\n- timing and situational cues\n- whether low-latency help or deeper reasoning is warranted\n\nThis is a stronger framing than generic intent classification because the output is not merely “what is the user talking about?” It is “should the system intervene now, and if so how?”\n\n### 4. Proactive systems need calibrated response modes\n\nOne of the most reusable design ideas in the source is the three-way decision pattern:\n\n- **silent** - do not interrupt\n- **fast intervention** - respond immediately from local context\n- **full assistance** - retrieve memory, reason more deeply, and then decide whether to help\n\nThis is a durable control surface because it prevents a false binary between:\n\n- always passive\n- always intrusive\n\nIt also gives a concrete structure for layered latency budgets.\n\n### 5. Memory must be active, not archival\n\nThe source adds a strong memory distinction.\n\nMemory is not only long-term storage. It is an active support mechanism for proactive inference.\n\nThe paper’s hybrid memory design has three layers:\n\n- **workspace memory** - session-local working context\n- **user memory** - stable personal traits and recently salient signals\n- **global memory** - longer-horizon externalized retrieval store\n\nThis is useful because proactive behavior depends on both:\n\n- immediate situational context\n- accumulated person-specific understanding\n\nSee [LLM Memory](/wiki/llm-memory) and [Second Brain Systems](/wiki/second-brain-systems).\n\n### 6. Proactivity requires an always-on execution substrate\n\nThe source makes an important systems point: even strong detection and memory are insufficient without an operational backbone.\n\nA proactive agent system needs to handle:\n\n- signal ingestion\n- information fusion\n- concurrency\n- memory scheduling\n- downstream tool calls or stronger-model escalation\n- feedback loops for continued improvement\n\nThis means proactive intelligence is partly an orchestration problem, not only a modeling problem.\n\n### 7. Helpfulness and intrusiveness are opposing objectives\n\nThe paper’s explicit optimization framing is worth preserving.\n\nA proactive system is trying to maximize:\n\n- assistance utility\n\nwhile minimizing:\n\n- mistimed interruption\n- unnecessary intervention\n- misaligned help\n- social or cognitive disruption\n\nThat matters because the failure mode of proactive systems is not only missing chances to help. It is also becoming noisy, creepy, or counterproductive.\n\n### 8. Real-world proactivity is constrained by timing, context, and human factors\n\nA useful applied insight from the source is that reactive prompting breaks down under three broad conditions:\n\n- **timing constraints** - the user cannot pause to ask\n- **context constraints** - asking is awkward or disruptive in the current setting\n- **human-interface constraints** - the user cannot easily translate felt need into an explicit rational prompt\n\nThis matters because it explains why proactive systems may create real value even when reactive chat systems already look strong in demos.\n\n### 9. Benchmarks for proactive systems need realistic human-intent data\n\nThe source also contributes a useful evaluation point.\n\nProactive systems need datasets and benchmarks that capture:\n\n- latent need rather than only explicit intent\n- realistic streaming context\n- human-edited judgments about when intervention is useful\n- the difference between shallow relevance and deeper user need\n\nThis belongs near the broader evaluation and control stack even when the benchmark itself is specific to this paper.\n\n## Important examples / reference points\n\n- **DD-MM-PAS** is the anchor framework because it cleanly separates detection, memory, and system execution.\n- **IntentFlow** is a useful model-level example because it treats latent-need detection as a primary task rather than a side effect of generic prompting.\n- The three decision states, **silent**, **fast intervention**, and **full assistance**, are one of the paper’s most reusable control ideas.\n- The explicit trade-off between **helpfulness** and **intrusion cost** is important because it clarifies why proactive systems need restraint, not only initiative.\n- The memory split into **workspace**, **user**, and **global** layers is a strong implementation pattern for long-horizon adaptation.\n- **LatentNeeds-Bench** matters mainly as evidence that proactive systems need more realistic evaluation than ordinary chat benchmarks provide.\n\n## Failure modes / limitations\n\n### Over-intervention\n\nA proactive agent can become annoying or trust-eroding if it treats every weak signal as a reason to speak.\n\n### Shallow demand inference\n\nInferring intent from immediate context alone can produce brittle help that sounds relevant but misses the deeper need.\n\n### Weak memory grounding\n\nWithout strong long-term memory, the system may intervene confidently while misunderstanding the user’s actual priorities, history, or preferences.\n\n### Latency collapse\n\nA proactive system that must always do deep retrieval and reasoning may become too slow to help at the right moment.\n\n### Architecture mismatch\n\nA strong detector without execution support, or a rich memory layer without calibrated decision logic, does not yield real proactivity.\n\n### Social-context blindness\nn\nEven helpful content can be poorly timed if the system does not model interruption cost or interaction setting well.\n\n### Benchmark overclaiming\n\nProactive systems are especially vulnerable to optimistic evaluation because realistic latent-need judgment is hard and heavily context dependent.\n\n## Practical implications\n\n### For agent builders\n\n- treat proactivity as a three-part architecture problem, not only a prompting problem\n- design explicit intervention modes rather than one undifferentiated response path\n- separate fast-path assistance from deeper memory-grounded reasoning\n- model interruption cost as a first-class concern\n- build memory layers that support person-level understanding across time\n- give the system an execution substrate that can retrieve, schedule, and act reliably\n\n### For product designers\n\n- silence is a core feature of proactive systems, not a missing behavior\n- users will judge these systems as much by timing and restraint as by raw answer quality\n- proactive experiences need more trust and calibration than ordinary assistants\n- memory and control must be legible enough that proactive behavior does not feel arbitrary or invasive\n\n### For operators\n\n- the best use cases are contexts where asking is too slow, too awkward, or too cognitively expensive\n- proactive agents are strongest when they already know the user’s ongoing work and priorities\n- long-term value comes from the closed loop between observation, memory updates, and future intervention quality\n\n## Tensions / open questions\n\n- How often should a proactive system abstain even when it sees a plausible opportunity to help?\n- What is the best boundary between low-latency local help and slower memory-grounded assistance?\n- How much person-level memory is necessary before proactive behavior becomes meaningfully better than reactive chat?\n- Which forms of proactive intervention feel helpful versus invasive in different social settings?\n- How should proactive systems be evaluated when user need is partly latent and partly subjective?\n\n## Related\n\n- [Chief of Staff Agents](/wiki/chief-of-staff-agents)\n- [Second Brain Systems](/wiki/second-brain-systems)\n- [LLM Memory](/wiki/llm-memory)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [AI Foundations & Model Adaptation](/wiki/ai-foundations-and-model-adaptation)\n\n## Source notes\n\n- `raw/PASK Toward Intent-Aware Proactive Agents with Long-Term Memory.md` - introduced DD-MM-PAS as a general paradigm for proactive AI, including latent-demand detection, hybrid memory layers, calibrated intervention modes, and the trade-off between helpfulness and interruption cost.\n",
+  "plainText": "Proactive Agents Proactive agents are AI systems that do not wait for explicit prompts on every turn. They infer latent user needs from ongoing context, decide whether intervention is warranted, and deliver timely assistance while managing the risk of interruption, error, and overreach. Why this matters Most deployed AI systems still operate in a reactive pattern: the human notices a need, formulates a prompt, and the model responds. That works when the user has time, clarity, and willingness to ask. It breaks down when: the right moment for help is fleeting the user is overloaded or distracted asking is socially awkward or operationally disruptive the user does not yet know how to formulate the need clearly useful help depends on long term context the model has to infer rather than retrieve from one explicit request This source adds a durable architectural claim: proactivity is not just a UX flourish. It is a different systems regime. A proactive agent needs to infer demand, maintain evolving memory, and execute assistance inside a continuously running loop. That makes proactive agents relevant to: Chief of Staff Agents Second Brain Systems LLM Memory AI Safety & Control Core thesis The strongest ideas in this source are: proactive assistance is a distinct interaction paradigm, not just a better chatbot the central problem is not response generation, but intervention under uncertainty useful proactive systems must infer latent demand from real time context rather than waiting for explicit requests memory matters because proactive help depends on person level understanding accumulated over time the system must trade off helpfulness against interruption cost proactive intelligence requires an execution substrate that can fuse signals, retrieve memory, and act in real time a proactive agent should be able to remain silent, intervene quickly from local context, or escalate into deeper memory grounded reasoning benchmark quality matters because proactive systems are easy to overclaim and hard to evaluate in realistic settings The deeper lesson is that proactive agents are not merely chat systems with reminders bolted on. They are closed loop systems for perception, memory, timing, and assistance. Framework / model 1. Proactivity is intervention under uncertainty A durable contribution from the source is its decision framing. The agent must decide: whether help is needed what kind of help is appropriate whether the expected value of intervention outweighs the interruption cost That means proactive assistance is not equivalent to “answer more often.” It is a control problem where silence is sometimes the correct action. 2. DD MM PAS is a useful minimal architecture The source proposes a three part paradigm: 1. Demand Detection (DD) infer latent need from current context 2. Memory Modeling (MM) maintain an evolving user representation across time 3. Proactive Agent System (PAS) execute assistance, scheduling, retrieval, and downstream actions in a stable runtime This is useful because it separates three often collapsed questions: how the system notices a need how it knows enough about the person to interpret the need well how it turns that inference into action 3. Demand detection is the defining capability The source treats demand detection as the perceptual entry point of proactive AI. That means the system does not only classify explicit requests. It must infer latent needs from: ongoing interaction history current task context user profile information timing and situational cues whether low latency help or deeper reasoning is warranted This is a stronger framing than generic intent classification because the output is not merely “what is the user talking about?” It is “should the system intervene now, and if so how?” 4. Proactive systems need calibrated response modes One of the most reusable design ideas in the source is the three way decision pattern: silent do not interrupt fast intervention respond immediately from local context full assistance retrieve memory, reason more deeply, and then decide whether to help This is a durable control surface because it prevents a false binary between: always passive always intrusive It also gives a concrete structure for layered latency budgets. 5. Memory must be active, not archival The source adds a strong memory distinction. Memory is not only long term storage. It is an active support mechanism for proactive inference. The paper’s hybrid memory design has three layers: workspace memory session local working context user memory stable personal traits and recently salient signals global memory longer horizon externalized retrieval store This is useful because proactive behavior depends on both: immediate situational context accumulated person specific understanding See LLM Memory and Second Brain Systems. 6. Proactivity requires an always on execution substrate The source makes an important systems point: even strong detection and memory are insufficient without an operational backbone. A proactive agent system needs to handle: signal ingestion information fusion concurrency memory scheduling downstream tool calls or stronger model escalation feedback loops for continued improvement This means proactive intelligence is partly an orchestration problem, not only a modeling problem. 7. Helpfulness and intrusiveness are opposing objectives The paper’s explicit optimization framing is worth preserving. A proactive system is trying to maximize: assistance utility while minimizing: mistimed interruption unnecessary intervention misaligned help social or cognitive disruption That matters because the failure mode of proactive systems is not only missing chances to help. It is also becoming noisy, creepy, or counterproductive. 8. Real world proactivity is constrained by timing, context, and human factors A useful applied insight from the source is that reactive prompting breaks down under three broad conditions: timing constraints the user cannot pause to ask context constraints asking is awkward or disruptive in the current setting human interface constraints the user cannot easily translate felt need into an explicit rational prompt This matters because it explains why proactive systems may create real value even when reactive chat systems already look strong in demos. 9. Benchmarks for proactive systems need realistic human intent data The source also contributes a useful evaluation point. Proactive systems need datasets and benchmarks that capture: latent need rather than only explicit intent realistic streaming context human edited judgments about when intervention is useful the difference between shallow relevance and deeper user need This belongs near the broader evaluation and control stack even when the benchmark itself is specific to this paper. Important examples / reference points DD MM PAS is the anchor framework because it cleanly separates detection, memory, and system execution. IntentFlow is a useful model level example because it treats latent need detection as a primary task rather than a side effect of generic prompting. The three decision states, silent , fast intervention , and full assistance , are one of the paper’s most reusable control ideas. The explicit trade off between helpfulness and intrusion cost is important because it clarifies why proactive systems need restraint, not only initiative. The memory split into workspace , user , and global layers is a strong implementation pattern for long horizon adaptation. LatentNeeds Bench matters mainly as evidence that proactive systems need more realistic evaluation than ordinary chat benchmarks provide. Failure modes / limitations Over intervention A proactive agent can become annoying or trust eroding if it treats every weak signal as a reason to speak. Shallow demand inference Inferring intent from immediate context alone can produce brittle help that sounds relevant but misses the deeper need. Weak memory grounding Without strong long term memory, the system may intervene confidently while misunderstanding the user’s actual priorities, history, or preferences. Latency collapse A proactive system that must always do deep retrieval and reasoning may become too slow to help at the right moment. Architecture mismatch A strong detector without execution support, or a rich memory layer without calibrated decision logic, does not yield real proactivity. Social context blindness n Even helpful content can be poorly timed if the system does not model interruption cost or interaction setting well. Benchmark overclaiming Proactive systems are especially vulnerable to optimistic evaluation because realistic latent need judgment is hard and heavily context dependent. Practical implications For agent builders treat proactivity as a three part architecture problem, not only a prompting problem design explicit intervention modes rather than one undifferentiated response path separate fast path assistance from deeper memory grounded reasoning model interruption cost as a first class concern build memory layers that support person level understanding across time give the system an execution substrate that can retrieve, schedule, and act reliably For product designers silence is a core feature of proactive systems, not a missing behavior users will judge these systems as much by timing and restraint as by raw answer quality proactive experiences need more trust and calibration than ordinary assistants memory and control must be legible enough that proactive behavior does not feel arbitrary or invasive For operators the best use cases are contexts where asking is too slow, too awkward, or too cognitively expensive proactive agents are strongest when they already know the user’s ongoing work and priorities long term value comes from the closed loop between observation, memory updates, and future intervention quality Tensions / open questions How often should a proactive system abstain even when it sees a plausible opportunity to help? What is the best boundary between low latency local help and slower memory grounded assistance? How much person level memory is necessary before proactive behavior becomes meaningfully better than reactive chat? Which forms of proactive intervention feel helpful versus invasive in different social settings? How should proactive systems be evaluated when user need is partly latent and partly subjective? Related Chief of Staff Agents Second Brain Systems LLM Memory AI Safety & Control AI Foundations & Model Adaptation Source notes raw/PASK Toward Intent Aware Proactive Agents with Long Term Memory.md introduced DD MM PAS as a general paradigm for proactive AI, including latent demand detection, hybrid memory layers, calibrated intervention modes, and the trade off between helpfulness and interruption cost.",
+  "wordCount": 1629,
+  "readingMinutes": 7,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/proactive-agents.svg",
+  "contentHash": "86854c95850ad9a42cb4502a895b2263f23262e11462959a829be19a739ca570"
+}

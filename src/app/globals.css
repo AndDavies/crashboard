@@ -131,3 +131,99 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .wiki-prose {
+    @apply max-w-none text-[1rem] leading-7 text-foreground;
+  }
+
+  .wiki-prose h2 {
+    @apply mt-12 border-t border-border/80 pt-8 font-heading text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .wiki-prose h3 {
+    @apply mt-8 font-heading text-xl font-semibold tracking-tight text-foreground;
+  }
+
+  .wiki-prose h4 {
+    @apply mt-6 font-heading text-lg font-semibold text-foreground;
+  }
+
+  .wiki-prose p {
+    @apply my-5 max-w-3xl text-[1rem] leading-7 text-muted-foreground;
+  }
+
+  .wiki-prose ul,
+  .wiki-prose ol {
+    @apply my-5 max-w-3xl space-y-2 pl-5 text-muted-foreground;
+  }
+
+  .wiki-prose ul {
+    @apply list-disc;
+  }
+
+  .wiki-prose ol {
+    @apply list-decimal;
+  }
+
+  .wiki-prose li {
+    @apply pl-1 leading-7;
+  }
+
+  .wiki-prose blockquote {
+    @apply my-7 max-w-3xl rounded-lg border-l-4 border-primary/60 bg-card/70 px-5 py-4 font-heading text-lg leading-8 text-foreground shadow-sm;
+  }
+
+  .wiki-prose pre {
+    @apply my-7 max-w-4xl overflow-x-auto rounded-lg border border-border/80 bg-primary px-4 py-4 text-sm leading-6 text-primary-foreground;
+  }
+
+  .wiki-graph-edge,
+  .wiki-graph-node,
+  .wiki-graph-node circle,
+  .wiki-graph-node text {
+    transition:
+      opacity 180ms ease,
+      stroke-width 180ms ease,
+      r 180ms ease,
+      transform 180ms ease;
+  }
+
+  .wiki-graph-node:focus-visible circle:first-child {
+    stroke: var(--ring);
+    stroke-width: 5;
+  }
+
+  .wiki-graph-pulse {
+    animation: wiki-pulse 1.8s ease-out infinite;
+  }
+}
+
+@keyframes wiki-pulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.96);
+    transform-origin: center;
+  }
+  70% {
+    opacity: 0.08;
+    transform: scale(1.16);
+    transform-origin: center;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+    transform-origin: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wiki-graph-edge,
+  .wiki-graph-node,
+  .wiki-graph-node circle,
+  .wiki-graph-node text,
+  .wiki-graph-pulse {
+    animation: none;
+    transition: none;
+  }
+}

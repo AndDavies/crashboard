@@ -1,0 +1,137 @@
+{
+  "slug": "ebpf-security-evasion",
+  "title": "eBPF Security Evasion",
+  "description": "eBPF security tooling improves Linux observability, but its guarantees collapse if the kernel itself is no longer trustworthy. Once an attacker gains kernel-level execution, the same plumbing that makes eBPF useful becomes a target for selective blinding and evasion.",
+  "role": "reference",
+  "cluster": "assurance",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "eBPF Security Evasion",
+      "id": "ebpf-security-evasion"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "Security pipeline components",
+      "id": "security-pipeline-components"
+    },
+    {
+      "level": 3,
+      "text": "1. BPF iterators",
+      "id": "1-bpf-iterators"
+    },
+    {
+      "level": 3,
+      "text": "2. Ringbuffers",
+      "id": "2-ringbuffers"
+    },
+    {
+      "level": 3,
+      "text": "3. Perf events",
+      "id": "3-perf-events"
+    },
+    {
+      "level": 3,
+      "text": "4. BPF maps",
+      "id": "4-bpf-maps"
+    },
+    {
+      "level": 2,
+      "text": "Attack model",
+      "id": "attack-model"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Trusting the kernel too absolutely",
+      "id": "trusting-the-kernel-too-absolutely"
+    },
+    {
+      "level": 3,
+      "text": "Confusing eBPF safety with eBPF security",
+      "id": "confusing-ebpf-safety-with-ebpf-security"
+    },
+    {
+      "level": 3,
+      "text": "Watching only probe attachment, not data integrity",
+      "id": "watching-only-probe-attachment-not-data-integrity"
+    },
+    {
+      "level": 3,
+      "text": "Assuming rich telemetry equals tamper resistance",
+      "id": "assuming-rich-telemetry-equals-tamper-resistance"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For defenders",
+      "id": "for-defenders"
+    },
+    {
+      "level": 3,
+      "text": "For detection engineering",
+      "id": "for-detection-engineering"
+    },
+    {
+      "level": 3,
+      "text": "For security architecture",
+      "id": "for-security-architecture"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [],
+  "linkedSlugs": [],
+  "sourceNotes": [
+    "`raw/0001-01-01_matheuzsecurity-github-io_breaking-ebpf-security-how-kernel-rootkits-blind__1e43e293.md` - provides the core argument that eBPF observability depends on a trustworthy kernel and maps the attack surface across iterators, ringbuffers, perf events, and BPF maps."
+  ],
+  "markdown": "# eBPF Security Evasion\n\n> eBPF security tooling improves Linux observability, but its guarantees collapse if the kernel itself is no longer trustworthy. Once an attacker gains kernel-level execution, the same plumbing that makes eBPF useful becomes a target for selective blinding and evasion.\n\n## Why this matters\n\neBPF-based security tools are often treated as a major step forward in runtime visibility. They offer rich telemetry, low overhead, and deep access to kernel events without requiring traditional kernel modifications. That has led many defenders to treat eBPF as a more trustworthy observability layer than user-space monitoring.\n\nThe source challenges that assumption directly. eBPF does not escape the trust model of the kernel. It runs inside the kernel it is trying to observe, and it depends on kernel-controlled mechanisms to move data from eBPF programs into user space. If an attacker can execute code in kernel space, they can target those mechanisms and selectively blind the detection pipeline.\n\n## Core thesis\n\nThe core defensive mistake is assuming that kernel-level observability automatically survives kernel compromise.\n\nThe stronger view is:\n\n- eBPF programs execute inside the kernel\n- event delivery depends on kernel-controlled functions and data paths\n- those functions and data paths can be hooked or manipulated by an attacker with kernel execution\n- therefore eBPF observability is only as trustworthy as the kernel it depends on\n\nThis does not mean eBPF tooling is useless. It means its trust boundary must be stated honestly. eBPF is powerful against many attackers, but not against an attacker who can modify the kernel and selectively disrupt the observability pipeline itself.\n\n## Framework / model\n\nThe source lays out a clear model of the attack surface. The important point is that the target is not only the eBPF program. The target is the whole data path from kernel event to user-space security decision.\n\n### Security pipeline components\n\nThe source identifies four major components in the eBPF security pipeline:\n\n- eBPF programs\n- BPF iterators\n- ringbuffers\n- perf events\n- BPF maps\n\nThese components together determine what the security tool can see, what gets delivered to user space, and what state is preserved.\n\n### 1. BPF iterators\n\nBPF iterators are used to walk kernel objects such as:\n\n- processes\n- sockets\n- network connections\n\nSecurity tools use them to enumerate and inspect kernel-visible state. If iterator execution or output functions are intercepted, defenders may no longer receive a trustworthy view of what actually exists in the system.\n\n### 2. Ringbuffers\n\nRingbuffers are a modern mechanism for kernel-to-user-space event streaming. They are often used for efficient event delivery and are central to how many eBPF-based tools move data out of the kernel.\n\nIf an attacker disrupts reservation, submission, or output behavior, a tool may appear healthy while important events are silently dropped or filtered.\n\n### 3. Perf events\n\nPerf-based delivery is older than ringbuffers but still matters because many tools and tracing paths continue to rely on it.\n\nThis means defenders cannot reason about eBPF security only at the level of “the program ran” or “the probe loaded.” They also need to ask whether the event delivery path is intact.\n\n### 4. BPF maps\n\nBPF maps store state shared between eBPF programs and user space.\n\nIf an attacker manipulates map lookups, updates, or deletions, they can alter:\n\n- process metadata\n- network tracking\n- allow / deny logic\n- state used by detectors and policies\n\nIn other words, even if the program still runs, the state it consults may no longer be trustworthy.\n\n## Attack model\n\nThe source’s attack model is explicit: the attacker has kernel-level execution, for example through a loadable kernel module.\n\nUnder that assumption, the attacker can use function hooking techniques such as ftrace-based interception to target the functions that:\n\n- run iterator programs\n- write iterator output\n- submit ringbuffer events\n- emit perf events\n- manipulate BPF map operations\n\nThe source frames this as a shift in perspective:\n\n- the goal is not to disable every eBPF program outright\n- the goal is to selectively blind what collectors and policy engines are able to observe\n\nThat makes the attack more subtle. Instead of crashing telemetry, the attacker may distort it.\n\n## Important examples / reference points\n\n- The source highlights that tools such as Falco, Tracee, Tetragon, and related observability systems rely on the same general kernel-to-user-space pipeline patterns.\n- A major insight is that the eBPF verifier helps with memory safety and correctness properties, but it does not create a security guarantee against kernel-level manipulation.\n- The source makes the attack surface concrete by naming the specific observability mechanisms defenders often take for granted: iterators, ringbuffers, perf paths, and maps.\n- The strongest conceptual phrase in the source is the “false promise of kernel observability”: once the attacker controls the kernel, observability becomes optional rather than guaranteed.\n\n## Failure modes / limitations\n\nThe source suggests several failure modes defenders should keep in mind.\n\n### Trusting the kernel too absolutely\n\nIf a security design assumes the kernel is always an honest observer, kernel compromise invalidates the whole detection model.\n\n### Confusing eBPF safety with eBPF security\n\nThe verifier can constrain unsafe program behavior, but it does not protect the broader collection pipeline from hostile kernel manipulation.\n\n### Watching only probe attachment, not data integrity\n\nA probe can still appear present while:\n\n- output is filtered\n- events are suppressed\n- state is manipulated\n- collectors receive an incomplete picture\n\n### Assuming rich telemetry equals tamper resistance\n\nDeep telemetry is useful, but usefulness and tamper resistance are different properties.\n\n## Practical implications\n\n### For defenders\n\n- Treat eBPF tooling as powerful observability, not invulnerable observability.\n- Be explicit about the threat model. eBPF is strongest before kernel compromise, not after it.\n- Validate not only that probes are attached, but that event delivery and downstream state remain trustworthy.\n- Be cautious about security claims that imply eBPF makes stealth impossible.\n\n### For detection engineering\n\n- Design layered detections rather than relying exclusively on one kernel telemetry path.\n- Look for integrity checks around kernel event delivery, map state, and collector behavior.\n- Consider whether important detections have independent corroboration outside a single eBPF data path.\n\n### For security architecture\n\n- Kernel-level observability is still valuable, but it should be paired with realistic assumptions about attacker privilege.\n- The real question is not whether eBPF improves visibility. It clearly does. The question is where its trust boundary ends.\n\n## Tensions / open questions\n\n- What defensive strategies best detect selective blinding of eBPF pipelines rather than total failure?\n- How much integrity checking can realistically be built around kernel-controlled telemetry paths?\n- Which detection layers remain trustworthy after kernel compromise?\n- How should teams communicate the difference between improved visibility and security guarantees when evaluating eBPF-based products?\n\n## Related\n\n- index\n\n## Source notes\n\n- `raw/0001-01-01_matheuzsecurity-github-io_breaking-ebpf-security-how-kernel-rootkits-blind__1e43e293.md` - provides the core argument that eBPF observability depends on a trustworthy kernel and maps the attack surface across iterators, ringbuffers, perf events, and BPF maps.\n",
+  "plainText": "eBPF Security Evasion eBPF security tooling improves Linux observability, but its guarantees collapse if the kernel itself is no longer trustworthy. Once an attacker gains kernel level execution, the same plumbing that makes eBPF useful becomes a target for selective blinding and evasion. Why this matters eBPF based security tools are often treated as a major step forward in runtime visibility. They offer rich telemetry, low overhead, and deep access to kernel events without requiring traditional kernel modifications. That has led many defenders to treat eBPF as a more trustworthy observability layer than user space monitoring. The source challenges that assumption directly. eBPF does not escape the trust model of the kernel. It runs inside the kernel it is trying to observe, and it depends on kernel controlled mechanisms to move data from eBPF programs into user space. If an attacker can execute code in kernel space, they can target those mechanisms and selectively blind the detection pipeline. Core thesis The core defensive mistake is assuming that kernel level observability automatically survives kernel compromise. The stronger view is: eBPF programs execute inside the kernel event delivery depends on kernel controlled functions and data paths those functions and data paths can be hooked or manipulated by an attacker with kernel execution therefore eBPF observability is only as trustworthy as the kernel it depends on This does not mean eBPF tooling is useless. It means its trust boundary must be stated honestly. eBPF is powerful against many attackers, but not against an attacker who can modify the kernel and selectively disrupt the observability pipeline itself. Framework / model The source lays out a clear model of the attack surface. The important point is that the target is not only the eBPF program. The target is the whole data path from kernel event to user space security decision. Security pipeline components The source identifies four major components in the eBPF security pipeline: eBPF programs BPF iterators ringbuffers perf events BPF maps These components together determine what the security tool can see, what gets delivered to user space, and what state is preserved. 1. BPF iterators BPF iterators are used to walk kernel objects such as: processes sockets network connections Security tools use them to enumerate and inspect kernel visible state. If iterator execution or output functions are intercepted, defenders may no longer receive a trustworthy view of what actually exists in the system. 2. Ringbuffers Ringbuffers are a modern mechanism for kernel to user space event streaming. They are often used for efficient event delivery and are central to how many eBPF based tools move data out of the kernel. If an attacker disrupts reservation, submission, or output behavior, a tool may appear healthy while important events are silently dropped or filtered. 3. Perf events Perf based delivery is older than ringbuffers but still matters because many tools and tracing paths continue to rely on it. This means defenders cannot reason about eBPF security only at the level of “the program ran” or “the probe loaded.” They also need to ask whether the event delivery path is intact. 4. BPF maps BPF maps store state shared between eBPF programs and user space. If an attacker manipulates map lookups, updates, or deletions, they can alter: process metadata network tracking allow / deny logic state used by detectors and policies In other words, even if the program still runs, the state it consults may no longer be trustworthy. Attack model The source’s attack model is explicit: the attacker has kernel level execution, for example through a loadable kernel module. Under that assumption, the attacker can use function hooking techniques such as ftrace based interception to target the functions that: run iterator programs write iterator output submit ringbuffer events emit perf events manipulate BPF map operations The source frames this as a shift in perspective: the goal is not to disable every eBPF program outright the goal is to selectively blind what collectors and policy engines are able to observe That makes the attack more subtle. Instead of crashing telemetry, the attacker may distort it. Important examples / reference points The source highlights that tools such as Falco, Tracee, Tetragon, and related observability systems rely on the same general kernel to user space pipeline patterns. A major insight is that the eBPF verifier helps with memory safety and correctness properties, but it does not create a security guarantee against kernel level manipulation. The source makes the attack surface concrete by naming the specific observability mechanisms defenders often take for granted: iterators, ringbuffers, perf paths, and maps. The strongest conceptual phrase in the source is the “false promise of kernel observability”: once the attacker controls the kernel, observability becomes optional rather than guaranteed. Failure modes / limitations The source suggests several failure modes defenders should keep in mind. Trusting the kernel too absolutely If a security design assumes the kernel is always an honest observer, kernel compromise invalidates the whole detection model. Confusing eBPF safety with eBPF security The verifier can constrain unsafe program behavior, but it does not protect the broader collection pipeline from hostile kernel manipulation. Watching only probe attachment, not data integrity A probe can still appear present while: output is filtered events are suppressed state is manipulated collectors receive an incomplete picture Assuming rich telemetry equals tamper resistance Deep telemetry is useful, but usefulness and tamper resistance are different properties. Practical implications For defenders Treat eBPF tooling as powerful observability, not invulnerable observability. Be explicit about the threat model. eBPF is strongest before kernel compromise, not after it. Validate not only that probes are attached, but that event delivery and downstream state remain trustworthy. Be cautious about security claims that imply eBPF makes stealth impossible. For detection engineering Design layered detections rather than relying exclusively on one kernel telemetry path. Look for integrity checks around kernel event delivery, map state, and collector behavior. Consider whether important detections have independent corroboration outside a single eBPF data path. For security architecture Kernel level observability is still valuable, but it should be paired with realistic assumptions about attacker privilege. The real question is not whether eBPF improves visibility. It clearly does. The question is where its trust boundary ends. Tensions / open questions What defensive strategies best detect selective blinding of eBPF pipelines rather than total failure? How much integrity checking can realistically be built around kernel controlled telemetry paths? Which detection layers remain trustworthy after kernel compromise? How should teams communicate the difference between improved visibility and security guarantees when evaluating eBPF based products? Related index Source notes raw/0001 01 01 matheuzsecurity github io breaking ebpf security how kernel rootkits blind 1e43e293.md provides the core argument that eBPF observability depends on a trustworthy kernel and maps the attack surface across iterators, ringbuffers, perf events, and BPF maps.",
+  "wordCount": 1132,
+  "readingMinutes": 5,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/ebpf-security-evasion.svg",
+  "contentHash": "a8a5a5a88f05731a881cb24922e34f8ba4f6d92a466b98812b7fdd238f0f1a14"
+}

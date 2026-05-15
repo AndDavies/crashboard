@@ -1,0 +1,140 @@
+{
+  "slug": "context-compaction",
+  "title": "Context Compaction",
+  "description": "Context compaction is the problem of preserving enough intermediate state for a model to keep reasoning effectively without carrying the full cost of its entire visible history at every step.",
+  "role": "reference",
+  "cluster": "memory",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Context Compaction",
+      "id": "context-compaction"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. External compaction and learned compaction are different",
+      "id": "1-external-compaction-and-learned-compaction-are-different"
+    },
+    {
+      "level": 3,
+      "text": "2. The Memento loop",
+      "id": "2-the-memento-loop"
+    },
+    {
+      "level": 3,
+      "text": "3. Compaction preserves different things at different layers",
+      "id": "3-compaction-preserves-different-things-at-different-layers"
+    },
+    {
+      "level": 3,
+      "text": "4. Compaction quality depends on structure, not just brevity",
+      "id": "4-compaction-quality-depends-on-structure-not-just-brevity"
+    },
+    {
+      "level": 3,
+      "text": "5. Compaction is adjacent to memory, but not identical to memory",
+      "id": "5-compaction-is-adjacent-to-memory-but-not-identical-to-memory"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Treating compaction as equivalent to long-term memory",
+      "id": "treating-compaction-as-equivalent-to-long-term-memory"
+    },
+    {
+      "level": 3,
+      "text": "Compressing for readability instead of future reasoning",
+      "id": "compressing-for-readability-instead-of-future-reasoning"
+    },
+    {
+      "level": 3,
+      "text": "Restarting away the implicit state channel",
+      "id": "restarting-away-the-implicit-state-channel"
+    },
+    {
+      "level": 3,
+      "text": "Assuming infrastructure details are secondary",
+      "id": "assuming-infrastructure-details-are-secondary"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For memory-system design",
+      "id": "for-memory-system-design"
+    },
+    {
+      "level": 3,
+      "text": "For agent builders",
+      "id": "for-agent-builders"
+    },
+    {
+      "level": 3,
+      "text": "For model and infrastructure work",
+      "id": "for-model-and-infrastructure-work"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "LLM Memory",
+    "Agentic Engineering",
+    "AI Foundations & Model Adaptation"
+  ],
+  "linkedSlugs": [
+    "llm-memory",
+    "agentic-engineering",
+    "ai-foundations-and-model-adaptation"
+  ],
+  "sourceNotes": [
+    "`raw/Memento Teaching LLMs to Manage Their Own Context.md` - anchor source on learned context compaction, block-wise \"mementos,\" the dual information stream through summary tokens plus KV state, and the infrastructure implications for agent-like long trajectories."
+  ],
+  "markdown": "# Context Compaction\n\n> Context compaction is the problem of preserving enough intermediate state for a model to keep reasoning effectively without carrying the full cost of its entire visible history at every step.\n\n## Why this matters\n\nLong reasoning traces, agent trajectories, and tool-heavy workflows all run into the same bottleneck: useful state accumulates faster than it can be kept in hot context economically. Most current systems handle that pressure externally through summarization, retrieval, restart loops, or orchestration logic. The stronger claim in this source is that context management can also become a learned model skill.\n\nThat matters because compaction sits between short-lived context and long-term memory. It is not full historical memory, but it is also not just prompt trimming. It is a way of carrying forward the right conclusions from a trajectory while discarding the full cost of every intermediate step.\n\n## Core thesis\n\nThe source argues that context compaction should be treated as a first-class capability:\n\n- models can learn to segment their own reasoning into coherent blocks\n- they can compress completed blocks into dense \"mementos\"\n- they can continue reasoning from those compressed records instead of from the full prior trace\n- some of the important state survives not only in the visible summary tokens, but also in the model's internal KV representations\n\nThis makes compaction both a systems problem and a training problem.\n\n## Framework / model\n\n### 1. External compaction and learned compaction are different\n\nMany current systems compact context from outside the model:\n\n- summarizing earlier turns\n- restarting with condensed context\n- retrieving only selected history\n- wrapping the model in orchestration logic\n\nThe source's stronger move is to teach the model to do some of this itself during generation rather than relying entirely on external scaffolding.\n\n### 2. The Memento loop\n\nThe learned loop in the source has four parts:\n\n1. segment the reasoning trace into coherent blocks\n2. produce a dense memento for the completed block\n3. evict the earlier block from active attention / KV cache\n4. continue from the retained mementos plus the current live block\n\nThis creates a sawtooth context profile: context grows during active reasoning, then drops when the completed block is compacted and evicted.\n\n### 3. Compaction preserves different things at different layers\n\nThe source makes an especially useful distinction:\n\n- visible memento tokens preserve explicit compressed conclusions\n- retained KV states preserve additional implicit information from the original block\n\nThis means context is not carried forward only through text. Some relevant state survives through internal representations computed while the block was still visible.\n\n### 4. Compaction quality depends on structure, not just brevity\n\nA useful memento is not a generic summary. It has to preserve:\n\n- decisive intermediate values\n- formulas\n- methods\n- conclusions that future steps depend on\n\nThe key design idea is state compression, not prose shortening.\n\n### 5. Compaction is adjacent to memory, but not identical to memory\n\nContext compaction helps with long trajectories inside or near a session. It does not automatically solve:\n\n- durable long-term recall across sessions\n- provenance across many revisions\n- forgetting policy\n- user-level memory governance\n\nIt is best understood as one layer in a larger memory stack.\n\n## Important examples / reference points\n\n- The Memento work shows that models can learn segmentation and compaction behavior with ordinary training on the right traces instead of needing fully bespoke architecture.\n- The strongest empirical result is not only KV reduction, but the discovery that restart-based compaction can lose a meaningful implicit information channel.\n- The vLLM implementation matters because it shows compaction is not just a paper abstraction; serving infrastructure and RL pipelines both depend on how eviction is implemented.\n- The agent implication is especially important: long CLI or tool-use trajectories naturally produce compaction opportunities at each action-observation block.\n\n## Failure modes / limitations\n\n### Treating compaction as equivalent to long-term memory\n\nCompaction helps preserve local trajectory state, but it does not replace durable memory systems with provenance and retrieval policy.\n\n### Compressing for readability instead of future reasoning\n\nA compact summary can sound good while omitting the exact information the next block needs.\n\n### Restarting away the implicit state channel\n\nIf the system rebuilds context only from summary text, it may lose signal that survived in internal representations during the original forward pass.\n\n### Assuming infrastructure details are secondary\n\nHow masking, eviction, and serving are implemented changes whether the theoretical benefits survive contact with production workloads.\n\n## Practical implications\n\n### For memory-system design\n\n- treat context compaction as a distinct layer from long-term memory\n- decide explicitly what should stay raw, what should be compacted, and what should be retrieved later\n- preserve provenance where possible so compaction does not become silent drift\n\n### For agent builders\n\n- long-running agents need compaction mechanisms, whether external, learned, or both\n- action-observation loops are natural compaction boundaries\n- internal compaction may reduce cost pressure, but it does not eliminate the need for harness design\n\n### For model and infrastructure work\n\n- training data quality matters because compaction is a state-preservation task, not generic summarization\n- evaluation should measure both cost savings and downstream reasoning quality\n- serving infrastructure must respect the difference between logical masking and actual state retention\n\n## Tensions / open questions\n\n- How much context compaction should live inside the model versus inside the harness?\n- When does learned compaction outperform external summarize-and-restart schemes?\n- How far can the implicit KV-information channel be relied on or evaluated?\n- What compaction strategy works best for long-running terminal agents rather than benchmark reasoning traces?\n- How should compaction interact with long-term memory, retrieval, and forgetting policy?\n\n## Related\n\n- [LLM Memory](/wiki/llm-memory)\n- [Agentic Engineering](/wiki/agentic-engineering)\n- [AI Foundations & Model Adaptation](/wiki/ai-foundations-and-model-adaptation)\n- [AI Foundations & Model Adaptation](/wiki/ai-foundations-and-model-adaptation)\n\n## Source notes\n\n- `raw/Memento Teaching LLMs to Manage Their Own Context.md` - anchor source on learned context compaction, block-wise \"mementos,\" the dual information stream through summary tokens plus KV state, and the infrastructure implications for agent-like long trajectories.\n",
+  "plainText": "Context Compaction Context compaction is the problem of preserving enough intermediate state for a model to keep reasoning effectively without carrying the full cost of its entire visible history at every step. Why this matters Long reasoning traces, agent trajectories, and tool heavy workflows all run into the same bottleneck: useful state accumulates faster than it can be kept in hot context economically. Most current systems handle that pressure externally through summarization, retrieval, restart loops, or orchestration logic. The stronger claim in this source is that context management can also become a learned model skill. That matters because compaction sits between short lived context and long term memory. It is not full historical memory, but it is also not just prompt trimming. It is a way of carrying forward the right conclusions from a trajectory while discarding the full cost of every intermediate step. Core thesis The source argues that context compaction should be treated as a first class capability: models can learn to segment their own reasoning into coherent blocks they can compress completed blocks into dense \"mementos\" they can continue reasoning from those compressed records instead of from the full prior trace some of the important state survives not only in the visible summary tokens, but also in the model's internal KV representations This makes compaction both a systems problem and a training problem. Framework / model 1. External compaction and learned compaction are different Many current systems compact context from outside the model: summarizing earlier turns restarting with condensed context retrieving only selected history wrapping the model in orchestration logic The source's stronger move is to teach the model to do some of this itself during generation rather than relying entirely on external scaffolding. 2. The Memento loop The learned loop in the source has four parts: 1. segment the reasoning trace into coherent blocks 2. produce a dense memento for the completed block 3. evict the earlier block from active attention / KV cache 4. continue from the retained mementos plus the current live block This creates a sawtooth context profile: context grows during active reasoning, then drops when the completed block is compacted and evicted. 3. Compaction preserves different things at different layers The source makes an especially useful distinction: visible memento tokens preserve explicit compressed conclusions retained KV states preserve additional implicit information from the original block This means context is not carried forward only through text. Some relevant state survives through internal representations computed while the block was still visible. 4. Compaction quality depends on structure, not just brevity A useful memento is not a generic summary. It has to preserve: decisive intermediate values formulas methods conclusions that future steps depend on The key design idea is state compression, not prose shortening. 5. Compaction is adjacent to memory, but not identical to memory Context compaction helps with long trajectories inside or near a session. It does not automatically solve: durable long term recall across sessions provenance across many revisions forgetting policy user level memory governance It is best understood as one layer in a larger memory stack. Important examples / reference points The Memento work shows that models can learn segmentation and compaction behavior with ordinary training on the right traces instead of needing fully bespoke architecture. The strongest empirical result is not only KV reduction, but the discovery that restart based compaction can lose a meaningful implicit information channel. The vLLM implementation matters because it shows compaction is not just a paper abstraction; serving infrastructure and RL pipelines both depend on how eviction is implemented. The agent implication is especially important: long CLI or tool use trajectories naturally produce compaction opportunities at each action observation block. Failure modes / limitations Treating compaction as equivalent to long term memory Compaction helps preserve local trajectory state, but it does not replace durable memory systems with provenance and retrieval policy. Compressing for readability instead of future reasoning A compact summary can sound good while omitting the exact information the next block needs. Restarting away the implicit state channel If the system rebuilds context only from summary text, it may lose signal that survived in internal representations during the original forward pass. Assuming infrastructure details are secondary How masking, eviction, and serving are implemented changes whether the theoretical benefits survive contact with production workloads. Practical implications For memory system design treat context compaction as a distinct layer from long term memory decide explicitly what should stay raw, what should be compacted, and what should be retrieved later preserve provenance where possible so compaction does not become silent drift For agent builders long running agents need compaction mechanisms, whether external, learned, or both action observation loops are natural compaction boundaries internal compaction may reduce cost pressure, but it does not eliminate the need for harness design For model and infrastructure work training data quality matters because compaction is a state preservation task, not generic summarization evaluation should measure both cost savings and downstream reasoning quality serving infrastructure must respect the difference between logical masking and actual state retention Tensions / open questions How much context compaction should live inside the model versus inside the harness? When does learned compaction outperform external summarize and restart schemes? How far can the implicit KV information channel be relied on or evaluated? What compaction strategy works best for long running terminal agents rather than benchmark reasoning traces? How should compaction interact with long term memory, retrieval, and forgetting policy? Related LLM Memory Agentic Engineering AI Foundations & Model Adaptation AI Foundations & Model Adaptation Source notes raw/Memento Teaching LLMs to Manage Their Own Context.md anchor source on learned context compaction, block wise \"mementos,\" the dual information stream through summary tokens plus KV state, and the infrastructure implications for agent like long trajectories.",
+  "wordCount": 961,
+  "readingMinutes": 4,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/context-compaction.svg",
+  "contentHash": "0d4970209545deb6722001cafc443f4db5c2e9043237501cca2725bb289bc56c"
+}

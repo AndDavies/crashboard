@@ -1,0 +1,128 @@
+{
+  "slug": "physical-security-zones",
+  "title": "Physical Security Zones",
+  "description": "Physical security zoning only works when space design, screening, monitoring, IT restrictions, and custodial practice are treated as one system. Walls alone do not create a secure environment.",
+  "role": "reference",
+  "cluster": "assurance",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Physical Security Zones",
+      "id": "physical-security-zones"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Match zone type to information sensitivity",
+      "id": "1-match-zone-type-to-information-sensitivity"
+    },
+    {
+      "level": 3,
+      "text": "2. Communications rooms can become the real security bottleneck",
+      "id": "2-communications-rooms-can-become-the-real-security-bottleneck"
+    },
+    {
+      "level": 3,
+      "text": "3. Monitoring and alarming are part of the zone definition",
+      "id": "3-monitoring-and-alarming-are-part-of-the-zone-definition"
+    },
+    {
+      "level": 3,
+      "text": "4. Custodial control is as important as construction",
+      "id": "4-custodial-control-is-as-important-as-construction"
+    },
+    {
+      "level": 3,
+      "text": "5. Not every secure room is fit for every secure activity",
+      "id": "5-not-every-secure-room-is-fit-for-every-secure-activity"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Overestimating what construction alone provides",
+      "id": "overestimating-what-construction-alone-provides"
+    },
+    {
+      "level": 3,
+      "text": "Treating intermittent high-security capability as normal operating posture",
+      "id": "treating-intermittent-high-security-capability-as-normal-operating-posture"
+    },
+    {
+      "level": 3,
+      "text": "Ignoring personnel and service access",
+      "id": "ignoring-personnel-and-service-access"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For facility design",
+      "id": "for-facility-design"
+    },
+    {
+      "level": 3,
+      "text": "For operations",
+      "id": "for-operations"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Controlled Goods Compliance",
+    "Cybersecurity Boundaries"
+  ],
+  "linkedSlugs": [
+    "controlled-goods-compliance",
+    "cybersecurity-boundaries"
+  ],
+  "sourceNotes": [
+    "`raw/RA_MTASSpace.pdf` - detailed physical-security assessment covering PROTECTED B operations, contingent SECRET handling, operations/security/reception zones, TEMPEST constraints, alarms, monitoring, and custodial control."
+  ],
+  "markdown": "# Physical Security Zones\n\n> Physical security zoning only works when space design, screening, monitoring, IT restrictions, and custodial practice are treated as one system. Walls alone do not create a secure environment.\n\n## Why this matters\n\nThe MTAS assessment is a useful concrete example of mixed-sensitivity workspace design. It shows how a real environment can support day-to-day protected operations while preserving contingent capability for higher-classification handling, but only if physical controls, equipment restrictions, and personnel processes line up.\n\n## Core thesis\n\nThe main idea from the assessment is:\n\n- PROTECTED B work can live inside an operations-zone design\n- SECRET handling requires a stronger security-zone arrangement\n- special processing areas depend on monitored transition zones, screened personnel, and strict custodial control\n- IT and TEMPEST constraints can become the limiting factor even when the room itself is physically strong\n\nThis makes zoning a system-of-systems problem rather than a floorplan problem.\n\n## Framework / model\n\n### 1. Match zone type to information sensitivity\n\nThe assessment explicitly maps information sensitivity to zone design:\n\n- day-to-day PROTECTED B activity aligns with an operations zone\n- SECRET handling aligns with a security zone\n- external or transitional spaces may need reception-zone and operations-zone functions combined\n\nThe important lesson is that zones should be driven by handling requirements, not convenience.\n\n### 2. Communications rooms can become the real security bottleneck\n\nIn the assessed environment, the communications room is structurally strong enough to become a security zone, but classified capability is still constrained by:\n\n- conductive infrastructure\n- need for TEMPEST-rated equipment\n- IT service access requirements\n- need to place sensitive equipment inside approved security containers\n\nThis is a good reminder that the hardest constraint is often not the wall or door. It is the equipment and servicing model.\n\n### 3. Monitoring and alarming are part of the zone definition\n\nThe assessment repeatedly emphasizes:\n\n- perimeter alarming\n- internal motion sensing\n- continuously armed sub-zones\n- continuous monitoring\n- on-site or rapid security response during silent hours\n\nA zone without active monitoring may satisfy some physical criteria while still falling short operationally.\n\n### 4. Custodial control is as important as construction\n\nThe assessment ties secure handling to operational discipline such as:\n\n- combination control\n- access logs\n- inventory control\n- continuous oversight of special processing areas\n- personnel screening aligned to the means of access granted\n\nThis means a zone is not secure only because access is hard. It is secure because custody is positive and traceable.\n\n### 5. Not every secure room is fit for every secure activity\n\nA strong line in the assessment is that the space should not be treated as a normalized sensitive-discussion area even if it can support receipt, review, and storage under controlled conditions.\n\nThat distinction matters. A room can support one class of secure work without being appropriate for continuous or generalized use at that level.\n\n## Important examples / reference points\n\n- The operations-zone vs security-zone split is the central conceptual move in the document.\n- The communications-room example shows how a smaller subspace can become the higher-security core of a broader protected environment.\n- The special processing area is useful as a model of transitional secure handling that depends on reception, operations, alarm, monitoring, and custodial measures together.\n- The repeated TEMPEST and security-container requirements show how physical and technical controls intertwine.\n\n## Failure modes / limitations\n\n### Overestimating what construction alone provides\n\nA room can be physically strong and still operationally weak if monitoring, equipment, and custody practices are weak.\n\n### Treating intermittent high-security capability as normal operating posture\n\nCapability to receive or review higher-classification material does not automatically make the space suitable for continuous use at that level.\n\n### Ignoring personnel and service access\n\nMaintenance and IT access can weaken a secure design if screening and handling assumptions are not explicit.\n\n## Practical implications\n\n### For facility design\n\n- define the target information sensitivity before defining the zone\n- isolate the most sensitive processing equipment in the strongest subspace\n- align barriers, alarms, and monitoring as one control stack\n\n### For operations\n\n- maintain positive custodial control for secure containers and sensitive equipment\n- screen personnel to the level implied by the access they actually receive\n- avoid treating “rare classified handling” as equivalent to a full-time high-classification environment\n\n## Tensions / open questions\n\n- When is it better to build contingent higher-security capability versus maintaining a fully normalized higher-security space?\n- How should organizations balance collaborative open environments with intermittent secure-handling needs?\n- Which technical restrictions most often limit otherwise acceptable physical-zone designs?\n\n## Related\n\n- [Controlled Goods Compliance](/wiki/controlled-goods-compliance)\n- [Cybersecurity Boundaries](/wiki/cybersecurity-boundaries)\n\n## Source notes\n\n- `raw/RA_MTASSpace.pdf` - detailed physical-security assessment covering PROTECTED B operations, contingent SECRET handling, operations/security/reception zones, TEMPEST constraints, alarms, monitoring, and custodial control.\n",
+  "plainText": "Physical Security Zones Physical security zoning only works when space design, screening, monitoring, IT restrictions, and custodial practice are treated as one system. Walls alone do not create a secure environment. Why this matters The MTAS assessment is a useful concrete example of mixed sensitivity workspace design. It shows how a real environment can support day to day protected operations while preserving contingent capability for higher classification handling, but only if physical controls, equipment restrictions, and personnel processes line up. Core thesis The main idea from the assessment is: PROTECTED B work can live inside an operations zone design SECRET handling requires a stronger security zone arrangement special processing areas depend on monitored transition zones, screened personnel, and strict custodial control IT and TEMPEST constraints can become the limiting factor even when the room itself is physically strong This makes zoning a system of systems problem rather than a floorplan problem. Framework / model 1. Match zone type to information sensitivity The assessment explicitly maps information sensitivity to zone design: day to day PROTECTED B activity aligns with an operations zone SECRET handling aligns with a security zone external or transitional spaces may need reception zone and operations zone functions combined The important lesson is that zones should be driven by handling requirements, not convenience. 2. Communications rooms can become the real security bottleneck In the assessed environment, the communications room is structurally strong enough to become a security zone, but classified capability is still constrained by: conductive infrastructure need for TEMPEST rated equipment IT service access requirements need to place sensitive equipment inside approved security containers This is a good reminder that the hardest constraint is often not the wall or door. It is the equipment and servicing model. 3. Monitoring and alarming are part of the zone definition The assessment repeatedly emphasizes: perimeter alarming internal motion sensing continuously armed sub zones continuous monitoring on site or rapid security response during silent hours A zone without active monitoring may satisfy some physical criteria while still falling short operationally. 4. Custodial control is as important as construction The assessment ties secure handling to operational discipline such as: combination control access logs inventory control continuous oversight of special processing areas personnel screening aligned to the means of access granted This means a zone is not secure only because access is hard. It is secure because custody is positive and traceable. 5. Not every secure room is fit for every secure activity A strong line in the assessment is that the space should not be treated as a normalized sensitive discussion area even if it can support receipt, review, and storage under controlled conditions. That distinction matters. A room can support one class of secure work without being appropriate for continuous or generalized use at that level. Important examples / reference points The operations zone vs security zone split is the central conceptual move in the document. The communications room example shows how a smaller subspace can become the higher security core of a broader protected environment. The special processing area is useful as a model of transitional secure handling that depends on reception, operations, alarm, monitoring, and custodial measures together. The repeated TEMPEST and security container requirements show how physical and technical controls intertwine. Failure modes / limitations Overestimating what construction alone provides A room can be physically strong and still operationally weak if monitoring, equipment, and custody practices are weak. Treating intermittent high security capability as normal operating posture Capability to receive or review higher classification material does not automatically make the space suitable for continuous use at that level. Ignoring personnel and service access Maintenance and IT access can weaken a secure design if screening and handling assumptions are not explicit. Practical implications For facility design define the target information sensitivity before defining the zone isolate the most sensitive processing equipment in the strongest subspace align barriers, alarms, and monitoring as one control stack For operations maintain positive custodial control for secure containers and sensitive equipment screen personnel to the level implied by the access they actually receive avoid treating “rare classified handling” as equivalent to a full time high classification environment Tensions / open questions When is it better to build contingent higher security capability versus maintaining a fully normalized higher security space? How should organizations balance collaborative open environments with intermittent secure handling needs? Which technical restrictions most often limit otherwise acceptable physical zone designs? Related Controlled Goods Compliance Cybersecurity Boundaries Source notes raw/RA MTASSpace.pdf detailed physical security assessment covering PROTECTED B operations, contingent SECRET handling, operations/security/reception zones, TEMPEST constraints, alarms, monitoring, and custodial control.",
+  "wordCount": 768,
+  "readingMinutes": 3,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/physical-security-zones.svg",
+  "contentHash": "7ae19bf28eb600e25074291eb24cb64c0233c59b27c9aed238fa5528b4ac6785"
+}

@@ -1,0 +1,114 @@
+{
+  "slug": "cybersecurity-boundaries",
+  "title": "Cybersecurity Boundaries",
+  "description": "Security systems fail when defenders confuse visibility with invulnerability. Every layer has a trust boundary, and attackers often win by compromising the assumptions underneath the tool rather than by attacking the tool head-on.",
+  "role": "reference",
+  "cluster": "assurance",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Cybersecurity Boundaries",
+      "id": "cybersecurity-boundaries"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Observability depends on trustworthy substrate",
+      "id": "1-observability-depends-on-trustworthy-substrate"
+    },
+    {
+      "level": 3,
+      "text": "2. Many modern failures are ownership and authorization failures",
+      "id": "2-many-modern-failures-are-ownership-and-authorization-failures"
+    },
+    {
+      "level": 3,
+      "text": "3. Offensive capability rises faster than defensive comfort",
+      "id": "3-offensive-capability-rises-faster-than-defensive-comfort"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Trusting dashboards instead of trust boundaries",
+      "id": "trusting-dashboards-instead-of-trust-boundaries"
+    },
+    {
+      "level": 3,
+      "text": "Assuming authentication implies correct authorization",
+      "id": "assuming-authentication-implies-correct-authorization"
+    },
+    {
+      "level": 3,
+      "text": "Treating AI capability as only a productivity gain",
+      "id": "treating-ai-capability-as-only-a-productivity-gain"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 2,
+      "text": "Supplier cyber-hygiene evidence",
+      "id": "supplier-cyber-hygiene-evidence"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Trust Boundaries & Assurance",
+    "eBPF Security Evasion",
+    "AI Safety & Control",
+    "Controlled Goods Compliance",
+    "Privacy Engineering for AI Systems",
+    "Geopolitical Business Risk"
+  ],
+  "linkedSlugs": [
+    "trust-boundaries-and-assurance",
+    "ebpf-security-evasion",
+    "ai-safety-and-control",
+    "controlled-goods-compliance",
+    "privacy-engineering-for-ai-systems",
+    "geopolitical-business-risk"
+  ],
+  "sourceNotes": [
+    "Historical source note: Thread by @MatheuzSecurity (raw file currently missing from vault) - Linux EDR unhooking theme and attacker focus on defensive instrumentation.",
+    "Historical source note: Thread by @markgadala (raw file currently missing from vault) - IoT ownership-verification failure and the danger of cloud-connected devices with weak authorization.",
+    "`raw/Claude Mythos.md` - model-capability and cybersecurity-risk framing.",
+    "`raw/How to meet Level 1 cyber security certification requirements.md` - Canadian supplier cyber-hygiene controls, evidence expectations, account/device/MFA controls, and Level 1 attestation workflow."
+  ],
+  "markdown": "# Cybersecurity Boundaries\n\n> Security systems fail when defenders confuse visibility with invulnerability. Every layer has a trust boundary, and attackers often win by compromising the assumptions underneath the tool rather than by attacking the tool head-on.\n\n## Why this matters\n\nThe security material in the corpus is sparse but sharp. It repeatedly points to the same lesson:\n\n- instrumentation can be blinded\n- connected systems often trust too much by default\n- model capability increases the urgency of cyber defense\n- security claims need to be framed around trust boundaries, not marketing slogans\n\n## Core thesis\n\nThe combined lesson from these sources is:\n\n- every security system depends on assumptions about control and integrity\n- once those assumptions break, observability and policy enforcement can become misleading\n- attackers often target weak verification layers rather than obvious perimeter defenses\n\n## Framework / model\n\n### 1. Observability depends on trustworthy substrate\n\nThe eBPF source is the strongest version of this principle: if the kernel is compromised, kernel-level observability can be selectively blinded.\n\nThat generalizes beyond eBPF. Monitoring is only as trustworthy as the layer it depends on.\n\n### 2. Many modern failures are ownership and authorization failures\n\nThe IoT vacuum thread is a clean example of a broader pattern:\n\n- authentication exists\n- ownership verification is weak or absent\n- valid tokens gain access far beyond intended scope\n\nThis is a common design failure in connected products and internal systems alike.\n\n### 3. Offensive capability rises faster than defensive comfort\n\nThe model-risk material suggests that stronger models can accelerate vulnerability discovery, exploitation assistance, or attacker productivity. Even where the exact threat curve is uncertain, defenders should expect the offensive learning loop to compress.\n\n## Failure modes / limitations\n\n### Trusting dashboards instead of trust boundaries\n\nA healthy-looking control plane can hide a compromised underlying layer.\n\n### Assuming authentication implies correct authorization\n\nMany severe failures come from missing object-level ownership checks.\n\n### Treating AI capability as only a productivity gain\n\nCapability improvements in technical domains can also compress attacker iteration loops.\n\n## Practical implications\n\n- map the real trust boundary of every security control\n- verify authorization and ownership checks explicitly\n- use layered corroboration rather than one observability path\n- prepare for faster offensive iteration in cyber domains\n\n## Supplier cyber-hygiene evidence\n\nThe Canadian Level 1 supplier guidance adds a practical evidence layer to this page. It is useful because it translates abstract trust-boundary thinking into a small set of controls a supplier can actually document.\n\n| Boundary | Control evidence |\n| --- | --- |\n| Account ownership | individual accounts, account inventory, offboarding records |\n| Least privilege | group access, folder permissions, periodic access reviews |\n| Approved systems | device inventory, approved systems list, cloud/vendor review |\n| Authentication | MFA configuration, password policy, lockout rules |\n| Media handling | wipe/destruction logs, decommissioning records |\n| Physical access | visitor logs, key/badge lists, secure storage |\n| Network exposure | firewall settings, blocked inbound services, network-change logs |\n| System integrity | patch logs, update records, antivirus/anti-malware records |\n\nThe recurring pattern is simple: a control that leaves no evidence will be hard to trust later.\n\n## Related\n\n- [Trust Boundaries & Assurance](/wiki/trust-boundaries-and-assurance)\n- [eBPF Security Evasion](/wiki/ebpf-security-evasion)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Controlled Goods Compliance](/wiki/controlled-goods-compliance)\n- [Privacy Engineering for AI Systems](/wiki/privacy-engineering-for-ai-systems)\n- [Geopolitical Business Risk](/wiki/geopolitical-business-risk)\n\n## Source notes\n\n- Historical source note: Thread by @MatheuzSecurity (raw file currently missing from vault) - Linux EDR unhooking theme and attacker focus on defensive instrumentation.\n- Historical source note: Thread by @markgadala (raw file currently missing from vault) - IoT ownership-verification failure and the danger of cloud-connected devices with weak authorization.\n- `raw/Claude Mythos.md` - model-capability and cybersecurity-risk framing.\n- `raw/How to meet Level 1 cyber security certification requirements.md` - Canadian supplier cyber-hygiene controls, evidence expectations, account/device/MFA controls, and Level 1 attestation workflow.\n",
+  "plainText": "Cybersecurity Boundaries Security systems fail when defenders confuse visibility with invulnerability. Every layer has a trust boundary, and attackers often win by compromising the assumptions underneath the tool rather than by attacking the tool head on. Why this matters The security material in the corpus is sparse but sharp. It repeatedly points to the same lesson: instrumentation can be blinded connected systems often trust too much by default model capability increases the urgency of cyber defense security claims need to be framed around trust boundaries, not marketing slogans Core thesis The combined lesson from these sources is: every security system depends on assumptions about control and integrity once those assumptions break, observability and policy enforcement can become misleading attackers often target weak verification layers rather than obvious perimeter defenses Framework / model 1. Observability depends on trustworthy substrate The eBPF source is the strongest version of this principle: if the kernel is compromised, kernel level observability can be selectively blinded. That generalizes beyond eBPF. Monitoring is only as trustworthy as the layer it depends on. 2. Many modern failures are ownership and authorization failures The IoT vacuum thread is a clean example of a broader pattern: authentication exists ownership verification is weak or absent valid tokens gain access far beyond intended scope This is a common design failure in connected products and internal systems alike. 3. Offensive capability rises faster than defensive comfort The model risk material suggests that stronger models can accelerate vulnerability discovery, exploitation assistance, or attacker productivity. Even where the exact threat curve is uncertain, defenders should expect the offensive learning loop to compress. Failure modes / limitations Trusting dashboards instead of trust boundaries A healthy looking control plane can hide a compromised underlying layer. Assuming authentication implies correct authorization Many severe failures come from missing object level ownership checks. Treating AI capability as only a productivity gain Capability improvements in technical domains can also compress attacker iteration loops. Practical implications map the real trust boundary of every security control verify authorization and ownership checks explicitly use layered corroboration rather than one observability path prepare for faster offensive iteration in cyber domains Supplier cyber hygiene evidence The Canadian Level 1 supplier guidance adds a practical evidence layer to this page. It is useful because it translates abstract trust boundary thinking into a small set of controls a supplier can actually document. Boundary Control evidence Account ownership individual accounts, account inventory, offboarding records Least privilege group access, folder permissions, periodic access reviews Approved systems device inventory, approved systems list, cloud/vendor review Authentication MFA configuration, password policy, lockout rules Media handling wipe/destruction logs, decommissioning records Physical access visitor logs, key/badge lists, secure storage Network exposure firewall settings, blocked inbound services, network change logs System integrity patch logs, update records, antivirus/anti malware records The recurring pattern is simple: a control that leaves no evidence will be hard to trust later. Related Trust Boundaries & Assurance eBPF Security Evasion AI Safety & Control Controlled Goods Compliance Privacy Engineering for AI Systems Geopolitical Business Risk Source notes Historical source note: Thread by @MatheuzSecurity (raw file currently missing from vault) Linux EDR unhooking theme and attacker focus on defensive instrumentation. Historical source note: Thread by @markgadala (raw file currently missing from vault) IoT ownership verification failure and the danger of cloud connected devices with weak authorization. raw/Claude Mythos.md model capability and cybersecurity risk framing. raw/How to meet Level 1 cyber security certification requirements.md Canadian supplier cyber hygiene controls, evidence expectations, account/device/MFA controls, and Level 1 attestation workflow.",
+  "wordCount": 584,
+  "readingMinutes": 3,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/cybersecurity-boundaries.svg",
+  "contentHash": "b4a4fbb3c1f46016305e3bb58291bc7f36312933d4d1399aceb337526e580b84"
+}

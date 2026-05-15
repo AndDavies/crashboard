@@ -1,0 +1,130 @@
+{
+  "slug": "controlled-goods-compliance",
+  "title": "Controlled Goods Compliance",
+  "description": "Controlled-goods compliance is not just a registration form. It is a standing authorization system built around eligibility, designated accountability, security assessments, exemptions, and revocation risk.",
+  "role": "reference",
+  "cluster": "assurance",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Controlled Goods Compliance",
+      "id": "controlled-goods-compliance"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Eligibility and registration define the legal perimeter",
+      "id": "1-eligibility-and-registration-define-the-legal-perimeter"
+    },
+    {
+      "level": 3,
+      "text": "2. The designated official is the operational hinge",
+      "id": "2-the-designated-official-is-the-operational-hinge"
+    },
+    {
+      "level": 3,
+      "text": "3. Security assessments are about transfer risk",
+      "id": "3-security-assessments-are-about-transfer-risk"
+    },
+    {
+      "level": 3,
+      "text": "4. Exemptions are conditional, not informal shortcuts",
+      "id": "4-exemptions-are-conditional-not-informal-shortcuts"
+    },
+    {
+      "level": 3,
+      "text": "5. Suspension and revocation remain active controls",
+      "id": "5-suspension-and-revocation-remain-active-controls"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Treating registration as the finish line",
+      "id": "treating-registration-as-the-finish-line"
+    },
+    {
+      "level": 3,
+      "text": "Weak designated-official practice",
+      "id": "weak-designated-official-practice"
+    },
+    {
+      "level": 3,
+      "text": "Informal access for edge-case personnel",
+      "id": "informal-access-for-edge-case-personnel"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For organizations",
+      "id": "for-organizations"
+    },
+    {
+      "level": 3,
+      "text": "For security design",
+      "id": "for-security-design"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Physical Security Zones",
+    "Cybersecurity Boundaries",
+    "AI Safety & Control"
+  ],
+  "linkedSlugs": [
+    "physical-security-zones",
+    "cybersecurity-boundaries",
+    "ai-safety-and-control"
+  ],
+  "sourceNotes": [
+    "`raw/SOR-2001-32.pdf` - Controlled Goods Regulations, including eligibility, registration content, designated official duties, security assessments, exemptions, and suspension/revocation rules."
+  ],
+  "markdown": "# Controlled Goods Compliance\n\n> Controlled-goods compliance is not just a registration form. It is a standing authorization system built around eligibility, designated accountability, security assessments, exemptions, and revocation risk.\n\n## Why this matters\n\nWhen an organization handles controlled goods, the real operating burden is ongoing governance rather than one-time approval. The regulation in this corpus makes that clear: eligibility, assessment, authorization scope, exemptions, and suspension all remain active concerns after registration.\n\n## Core thesis\n\nThe regulation describes a layered compliance model:\n\n- only eligible people or entities can register\n- registration requires disclosure about ownership, sites, goods, and records\n- designated officials carry major internal accountability\n- security assessments are central to access decisions\n- exemptions exist, but they remain conditional, time-bounded, and revocable\n\nThis means compliance is a living control system, not a static status.\n\n## Framework / model\n\n### 1. Eligibility and registration define the legal perimeter\n\nThe regulation sets threshold questions before registration:\n\n- whether the applicant is an eligible individual or business entity\n- whether the applicant operates in Canada in the required way\n- whether the applicant can disclose the business, ownership, and site details required for registration\n\nThe registration application also ties the organization to specific:\n\n- business identity\n- key officers and owners\n- proposed designated official\n- controlled goods to be examined, possessed, or transferred\n- locations for goods and records\n\n### 2. The designated official is the operational hinge\n\nOne of the most important structural elements is the designated official. This role is not clerical. It sits at the center of internal authorization by:\n\n- conducting or supporting security assessment workflows for relevant personnel\n- verifying exemption-related information for temporary workers, students, and visitors\n- considering ministerial recommendations\n- deciding the extent to which individuals should be authorized to examine, possess, or transfer controlled goods\n\nThis makes the designated official the key bridge between the regulatory perimeter and day-to-day access decisions.\n\n### 3. Security assessments are about transfer risk\n\nThe regulation frames security assessment around a specific question: to what extent does the individual pose a risk of transferring a controlled good to someone who is neither registered nor exempt?\n\nThe assessment can include information such as:\n\n- identity and prior names\n- citizenship and residency status\n- references\n- criminal history\n- residence, education, and employment history\n- financial history\n- travel history outside Canada and the United States\n- significant personal and professional associations\n- prior security-clearance history\n\nThe model is therefore broader than simple identity verification.\n\n### 4. Exemptions are conditional, not informal shortcuts\n\nThe regulation creates a pathway for temporary workers, international students, and visitors, but through formal exemption rather than casual access.\n\nThat pathway includes:\n\n- ministerial security assessment\n- approval or denial of the exemption request\n- a certificate stating validity period and conditions\n- obligations to notify the Minister of relevant changes\n\nExemptions are therefore a managed exception layer, not an escape hatch.\n\n### 5. Suspension and revocation remain active controls\n\nThe regulation does not treat authorization as permanent once granted. It allows suspension or revocation where there are reasonable grounds to believe an undue transfer risk exists, including cases involving misleading omissions or bankruptcy.\n\nThis reinforces the idea that compliance status can degrade based on new information.\n\n## Important examples / reference points\n\n- The 20%-owner disclosure requirement is a useful example of how organizational control and beneficial ownership matter to the regime.\n- The designated-official role is the strongest operational insight in the regulation because it localizes accountability.\n- The exemption process for temporary workers, international students, and visitors shows that access for non-standard personnel must still flow through formal risk review.\n- The five-business-day change-notification rules show how strongly the regime emphasizes current information rather than stale declarations.\n\n## Failure modes / limitations\n\n### Treating registration as the finish line\n\nThe regulation clearly expects ongoing security and notification activity after registration.\n\n### Weak designated-official practice\n\nIf the designated official is undertrained, passive, or detached from real access decisions, the control model weakens dramatically.\n\n### Informal access for edge-case personnel\n\nTemporary workers, students, and visitors still require structured exemption handling. Informal shortcuts would undercut the regime.\n\n## Practical implications\n\n### For organizations\n\n- treat registration data as a live compliance record\n- support designated officials as control owners, not admin staff\n- keep security assessment inputs current\n- formalize change-notification and exemption processes\n\n### For security design\n\n- tie access rights to assessed scope, not broad status assumptions\n- expect reassessment when new risk information appears\n- ensure records and goods locations remain explicit and auditable\n\n## Tensions / open questions\n\n- How should organizations operationalize designated-official judgment without creating bottlenecks?\n- What internal monitoring best supports timely change notification?\n- How can organizations keep exemption handling rigorous without making temporary access unworkably slow?\n\n## Related\n\n- [Physical Security Zones](/wiki/physical-security-zones)\n- [Cybersecurity Boundaries](/wiki/cybersecurity-boundaries)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n\n## Source notes\n\n- `raw/SOR-2001-32.pdf` - Controlled Goods Regulations, including eligibility, registration content, designated official duties, security assessments, exemptions, and suspension/revocation rules.\n",
+  "plainText": "Controlled Goods Compliance Controlled goods compliance is not just a registration form. It is a standing authorization system built around eligibility, designated accountability, security assessments, exemptions, and revocation risk. Why this matters When an organization handles controlled goods, the real operating burden is ongoing governance rather than one time approval. The regulation in this corpus makes that clear: eligibility, assessment, authorization scope, exemptions, and suspension all remain active concerns after registration. Core thesis The regulation describes a layered compliance model: only eligible people or entities can register registration requires disclosure about ownership, sites, goods, and records designated officials carry major internal accountability security assessments are central to access decisions exemptions exist, but they remain conditional, time bounded, and revocable This means compliance is a living control system, not a static status. Framework / model 1. Eligibility and registration define the legal perimeter The regulation sets threshold questions before registration: whether the applicant is an eligible individual or business entity whether the applicant operates in Canada in the required way whether the applicant can disclose the business, ownership, and site details required for registration The registration application also ties the organization to specific: business identity key officers and owners proposed designated official controlled goods to be examined, possessed, or transferred locations for goods and records 2. The designated official is the operational hinge One of the most important structural elements is the designated official. This role is not clerical. It sits at the center of internal authorization by: conducting or supporting security assessment workflows for relevant personnel verifying exemption related information for temporary workers, students, and visitors considering ministerial recommendations deciding the extent to which individuals should be authorized to examine, possess, or transfer controlled goods This makes the designated official the key bridge between the regulatory perimeter and day to day access decisions. 3. Security assessments are about transfer risk The regulation frames security assessment around a specific question: to what extent does the individual pose a risk of transferring a controlled good to someone who is neither registered nor exempt? The assessment can include information such as: identity and prior names citizenship and residency status references criminal history residence, education, and employment history financial history travel history outside Canada and the United States significant personal and professional associations prior security clearance history The model is therefore broader than simple identity verification. 4. Exemptions are conditional, not informal shortcuts The regulation creates a pathway for temporary workers, international students, and visitors, but through formal exemption rather than casual access. That pathway includes: ministerial security assessment approval or denial of the exemption request a certificate stating validity period and conditions obligations to notify the Minister of relevant changes Exemptions are therefore a managed exception layer, not an escape hatch. 5. Suspension and revocation remain active controls The regulation does not treat authorization as permanent once granted. It allows suspension or revocation where there are reasonable grounds to believe an undue transfer risk exists, including cases involving misleading omissions or bankruptcy. This reinforces the idea that compliance status can degrade based on new information. Important examples / reference points The 20% owner disclosure requirement is a useful example of how organizational control and beneficial ownership matter to the regime. The designated official role is the strongest operational insight in the regulation because it localizes accountability. The exemption process for temporary workers, international students, and visitors shows that access for non standard personnel must still flow through formal risk review. The five business day change notification rules show how strongly the regime emphasizes current information rather than stale declarations. Failure modes / limitations Treating registration as the finish line The regulation clearly expects ongoing security and notification activity after registration. Weak designated official practice If the designated official is undertrained, passive, or detached from real access decisions, the control model weakens dramatically. Informal access for edge case personnel Temporary workers, students, and visitors still require structured exemption handling. Informal shortcuts would undercut the regime. Practical implications For organizations treat registration data as a live compliance record support designated officials as control owners, not admin staff keep security assessment inputs current formalize change notification and exemption processes For security design tie access rights to assessed scope, not broad status assumptions expect reassessment when new risk information appears ensure records and goods locations remain explicit and auditable Tensions / open questions How should organizations operationalize designated official judgment without creating bottlenecks? What internal monitoring best supports timely change notification? How can organizations keep exemption handling rigorous without making temporary access unworkably slow? Related Physical Security Zones Cybersecurity Boundaries AI Safety & Control Source notes raw/SOR 2001 32.pdf Controlled Goods Regulations, including eligibility, registration content, designated official duties, security assessments, exemptions, and suspension/revocation rules.",
+  "wordCount": 788,
+  "readingMinutes": 4,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/controlled-goods-compliance.svg",
+  "contentHash": "95eeb6aa45a5cc4ba129fbe23a8075eccbfd06ca6b5ff86a007552755f29cd17"
+}

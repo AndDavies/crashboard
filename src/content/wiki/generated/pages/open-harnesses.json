@@ -1,0 +1,177 @@
+{
+  "slug": "open-harnesses",
+  "title": "Open Harnesses",
+  "description": "Open harnesses matter because agent memory is not a detachable add-on. It is part of how the harness manages context, state, compaction, retrieval, and portability, which means closed harnesses can turn memory into platform lock-in.",
+  "role": "reference",
+  "cluster": "memory",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Open Harnesses",
+      "id": "open-harnesses"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. What a harness actually does",
+      "id": "1-what-a-harness-actually-does"
+    },
+    {
+      "level": 3,
+      "text": "2. Memory is a harness function, not a separable module",
+      "id": "2-memory-is-a-harness-function-not-a-separable-module"
+    },
+    {
+      "level": 3,
+      "text": "3. The lock-in ladder",
+      "id": "3-the-lock-in-ladder"
+    },
+    {
+      "level": 3,
+      "text": "4. Why model progress does not eliminate harnesses",
+      "id": "4-why-model-progress-does-not-eliminate-harnesses"
+    },
+    {
+      "level": 3,
+      "text": "5. Memory creates the product flywheel",
+      "id": "5-memory-creates-the-product-flywheel"
+    },
+    {
+      "level": 3,
+      "text": "6. Open harnesses preserve model optionality",
+      "id": "6-open-harnesses-preserve-model-optionality"
+    },
+    {
+      "level": 3,
+      "text": "7. Personal context portfolios are an open-harness primitive",
+      "id": "7-personal-context-portfolios-are-an-open-harness-primitive"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Confusing model capability with system ownership",
+      "id": "confusing-model-capability-with-system-ownership"
+    },
+    {
+      "level": 3,
+      "text": "Treating memory as a generic service",
+      "id": "treating-memory-as-a-generic-service"
+    },
+    {
+      "level": 3,
+      "text": "Accepting portability assumptions without testing them",
+      "id": "accepting-portability-assumptions-without-testing-them"
+    },
+    {
+      "level": 3,
+      "text": "Letting convenience hide strategic dependence",
+      "id": "letting-convenience-hide-strategic-dependence"
+    },
+    {
+      "level": 3,
+      "text": "Building personalization without clear ownership boundaries",
+      "id": "building-personalization-without-clear-ownership-boundaries"
+    },
+    {
+      "level": 3,
+      "text": "Overstating present memory maturity",
+      "id": "overstating-present-memory-maturity"
+    },
+    {
+      "level": 3,
+      "text": "Treating provider memory export as enough",
+      "id": "treating-provider-memory-export-as-enough"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For agent builders",
+      "id": "for-agent-builders"
+    },
+    {
+      "level": 3,
+      "text": "For product teams",
+      "id": "for-product-teams"
+    },
+    {
+      "level": 3,
+      "text": "For infrastructure decisions",
+      "id": "for-infrastructure-decisions"
+    },
+    {
+      "level": 3,
+      "text": "For wiki and agent-system design",
+      "id": "for-wiki-and-agent-system-design"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Agentic Engineering",
+    "LLM Memory",
+    "Agent Memory Architectures",
+    "AI Safety & Control",
+    "Second Brain Systems",
+    "AI-Native Organizations"
+  ],
+  "linkedSlugs": [
+    "agentic-engineering",
+    "llm-memory",
+    "agent-memory-architectures",
+    "ai-safety-and-control",
+    "second-brain-systems",
+    "ai-native-organizations"
+  ],
+  "sourceNotes": [
+    "`raw/Your harness, your memory.md` - argues that harnesses are the durable systems layer for agents, that memory is fundamentally a harness responsibility, and that closed or API-hosted harnesses create strategic lock-in by controlling state and memory portability.",
+    "`raw/How to Build a Personal Context MCP.md` - added personal context portfolios and MCP serving as a user-owned memory layer for identity, projects, tools, style, priorities, constraints, domain knowledge, and decision history."
+  ],
+  "markdown": "# Open Harnesses\n\n> Open harnesses matter because agent memory is not a detachable add-on. It is part of how the harness manages context, state, compaction, retrieval, and portability, which means closed harnesses can turn memory into platform lock-in.\n\n## Why this matters\n\nA lot of agent discussion still treats the model as the main product and the surrounding system as temporary scaffolding. This source argues the opposite. The harness is the durable execution layer that makes tool use, context management, and memory possible in practice.\n\nThat matters because memory is one of the main ways agentic products become sticky. Once a system accumulates user preferences, histories, habits, artifacts, and working patterns, the owner of that memory layer controls much of the user relationship. If the harness is closed, especially when it is hosted behind a proprietary API, then the developer may be yielding not only tooling convenience but also control over accumulated memory and future portability.\n\nThis makes harness design a strategic choice rather than only an implementation detail. It affects model optionality, product defensibility, migration cost, auditability, and whether a team can build on top of memory it actually owns.\n\nA newer personal-context MCP source sharpens the individual-user version of this problem: if personal context is trapped in ChatGPT, Claude, Cursor, Codex, or any other one harness, switching tools creates a context repetition tax. A portable markdown portfolio or MCP server turns personal memory into user-owned infrastructure.\n\n## Core thesis\n\nThe source makes four linked claims.\n\n- **Harnesses are the permanent layer of agent systems.** They are not disappearing as models improve. The old scaffolding fades, but new scaffolding replaces it because agents still need tools, context management, interfaces, and execution control.\n- **Memory is part of the harness, not a generic plugin.** Short-term context, long-term memory, compaction behavior, skill loading, working-directory exposure, and memory metadata presentation are all harness responsibilities.\n- **Closed harnesses create memory lock-in.** If memory lives inside a proprietary harness or a stateful API, then switching models or platforms becomes harder because the memory representation, behavior, and portability are controlled elsewhere.\n- **Open harnesses preserve optionality and ownership.** If teams control their harness and memory layer, they can move across models, inspect state behavior, choose storage backends, and keep the user-memory flywheel inside their own product boundary.\n- **Personal context should be portable.** User identity, preferences, projects, decisions, communication style, and domain knowledge are too valuable to exist only as opaque provider memory.\n\nThe durable lesson is that control over memory is often really control over the harness.\n\n## Framework / model\n\n### 1. What a harness actually does\n\nA harness is the system around the model that lets an agent operate in the world.\n\nTypical harness responsibilities include:\n\n- tool orchestration\n- context assembly\n- system-instruction loading\n- skill and metadata presentation\n- working-directory and filesystem exposure\n- compaction behavior\n- thread or session state management\n- retrieval calls into long-term memory\n- storage and recall of interaction artifacts\n\nThis matters because many things that look like model features from the outside are really harness behaviors.\n\n### 2. Memory is a harness function, not a separable module\n\nThe strongest concept in the source is that memory is not independent from context handling.\n\nThe harness decides questions such as:\n\n- what survives compaction and what gets dropped\n- how prior interactions are stored\n- whether those interactions are queryable\n- how memory metadata is shown back to the agent\n- how standing files like `AGENTS.md` or similar instruction surfaces enter context\n- how much local environment state is visible to the agent\n\nThat is why “plugging memory into a harness” is often the wrong mental model. The harness already defines the conditions under which memory can exist.\n\n### 3. The lock-in ladder\n\nThe source usefully distinguishes several degrees of dependence.\n\n#### Stateful API dependence\n\nA provider-managed API may store thread state or compaction summaries server-side.\n\nThis creates mild-to-serious lock-in because:\n\n- state portability becomes limited\n- thread continuity may depend on one provider\n- switching models can break historical continuity\n\n#### Closed local or hybrid harness dependence\n\nA closed harness may expose some artifacts while still hiding how memory is represented or used.\n\nThis creates deeper dependence because:\n\n- the memory shape is opaque\n- memory behavior is hard to inspect\n- portability to another harness is uncertain\n- teams may inherit memory semantics they did not choose\n\n#### Fully managed harness dependence\n\nThe strongest lock-in appears when the whole harness, including long-term memory, sits behind one API.\n\nIn that case:\n\n- storage behavior is opaque\n- memory ownership may be partial or nonexistent\n- portability is weak\n- product differentiation can become dependent on another company’s memory layer\n\nThis is the point where model dependence becomes platform dependence.\n\n### 4. Why model progress does not eliminate harnesses\n\nThe source pushes back on the idea that better models will absorb the harness.\n\nA better framing is:\n\n- some early scaffolding becomes unnecessary\n- newer, more capable systems demand different scaffolding\n- agents still need a runtime environment for tools, context, permissions, state, and control\n\nSo the harness persists even as its internal design evolves.\n\nThis aligns with the broader idea in [Agentic Engineering](/wiki/agentic-engineering) that capability is model-plus-environment, not model alone.\n\n### 5. Memory creates the product flywheel\n\nThe source argues that memory matters because it makes agents:\n\n- more personalized\n- harder to replicate\n- more useful over time\n- more differentiated for returning users\n\nWithout durable memory, many agents are interchangeable wrappers around the same tools and models. With memory, the system accumulates:\n\n- user preferences\n- tone and style patterns\n- historical context\n- recurring workflows\n- task-specific state\n- long-term behavioral data\n\nThis accumulated state becomes both product value and switching cost.\n\n### 6. Open harnesses preserve model optionality\n\nOpen harnesses do not eliminate complexity. They preserve control over it.\n\nThe source highlights several desirable properties:\n\n- open source implementation\n- model-agnostic execution\n- open instruction and skill standards\n- pluggable memory stores such as Mongo, Postgres, or Redis\n- deployability outside one provider’s platform\n\nThe broader principle is that memory should remain portable enough that a team can change models or infrastructure without forfeiting the accumulated memory layer that makes the product valuable.\n\n### 7. Personal context portfolios are an open-harness primitive\n\nThe personal context MCP source proposes a simple architecture:\n\n1. maintain context as modular markdown files\n2. keep the files inspectable and editable by the user\n3. expose only the relevant parts to each agent\n4. optionally serve them through MCP for tool-native access\n5. keep the source of truth outside any one model provider's hidden memory\n\nThis matters because personal context is becoming as important as project context. Agents need to know who the user is, what they are working on, what tools they use, what constraints they live under, and how prior decisions were made.\n\nThe open-harness test is simple: can the user bring that context to another agent without begging the old agent to summarize itself?\n\n## Important examples / reference points\n\n- The shift from simple RAG chains toward more elaborate agent harnesses is a useful historical marker for how the systems layer has thickened rather than disappeared.\n- Example harnesses named in the source include **Claude Code**, **Deep Agents**, **Pi**, **OpenCode**, **Codex**, and **Letta Code**.\n- The claim that Claude Code reportedly involved **hundreds of thousands of lines of harness code** is useful as a concrete signal that frontier-model products still depend heavily on external systems.\n- Provider-managed state examples such as **OpenAI Responses API** and **Anthropic server-side compaction** are useful reference points for stateful API lock-in.\n- **Claude Managed Agents** is a strong example of the fully managed-harness pattern, where execution and memory increasingly sit behind one platform boundary.\n- The note that Codex can emit an **encrypted compaction summary** is a useful example of partial openness paired with ecosystem-bounded state portability.\n- **Deep Agents** serves as the source’s positive example of an open harness approach built around model optionality and pluggable memory backends.\n- A **personal context portfolio** is useful because it turns user memory into explicit files that can be routed through projects, GitHub, MCP, or future agent systems.\n\n## Failure modes / limitations\n\n### Confusing model capability with system ownership\n\nA team may believe it owns its agent because it chose the prompt and model, while in practice the most valuable state is controlled by the harness provider.\n\n### Treating memory as a generic service\n\nIf memory is abstracted too loosely, teams can miss that context loading, compaction, retrieval timing, and environment visibility are all harness decisions.\n\n### Accepting portability assumptions without testing them\n\nA memory layer may appear exportable while still depending on hidden compaction rules, metadata formats, or session semantics that do not travel well.\n\n### Letting convenience hide strategic dependence\n\nManaged agents and stateful APIs can speed up initial development while quietly increasing future migration cost.\n\n### Building personalization without clear ownership boundaries\n\nIf user memory is the product moat, then unclear ownership of that memory becomes a strategic weakness.\n\n### Overstating present memory maturity\n\nThe source also makes an important cautionary point: memory is still early. Clean abstractions are immature, so some coupling between harness and memory is structurally unavoidable for now.\n\n### Treating provider memory export as enough\n\nAsking one chatbot to summarize what it knows may help during a switch, but it is weaker than maintaining a user-owned source of truth from the start.\n\n## Practical implications\n\n### For agent builders\n\n- choose harnesses with the same care as model providers\n- inspect how compaction, session state, and long-term memory actually work\n- assume memory portability is a product requirement, not a nice-to-have\n- treat stateful API convenience as a strategic trade-off, not just an implementation shortcut\n\n### For product teams\n\n- memory can become the main driver of stickiness and switching cost\n- owning the user-memory layer may matter more than owning the prompt layer\n- open harnesses preserve room to swap models without resetting product memory\n\n### For infrastructure decisions\n\n- separate model choice from memory ownership where possible\n- prefer inspectable memory backends and explicit storage choices\n- test whether threads, summaries, and artifacts remain usable outside one provider ecosystem\n- keep personal context in explicit files where possible, then expose it selectively through projects, MCP, or other controlled interfaces\n\n### For wiki and agent-system design\n\n- memory design should be documented alongside harness design, not underneath it\n- standing files, skills, retrieval, and compaction belong in one architectural picture\n- the right question is often not “does the agent have memory?” but “who controls the harness behavior that defines memory?”\n\n## Tensions / open questions\n\n- Will memory abstractions mature enough that more truly portable plug-in layers emerge?\n- Which parts of memory should remain harness-native versus standardized across ecosystems?\n- How much convenience should teams trade away in order to keep memory portable and inspectable?\n- Can managed-agent platforms offer real exportability, or does statefulness inevitably strengthen lock-in?\n- What personal context belongs in provider memory, and what should remain in user-owned files?\n\n## Related\n\n- [Agentic Engineering](/wiki/agentic-engineering)\n- [LLM Memory](/wiki/llm-memory)\n- [Agent Memory Architectures](/wiki/agent-memory-architectures)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Second Brain Systems](/wiki/second-brain-systems)\n- [AI-Native Organizations](/wiki/ai-native-organizations)\n\n## Source notes\n\n- `raw/Your harness, your memory.md` - argues that harnesses are the durable systems layer for agents, that memory is fundamentally a harness responsibility, and that closed or API-hosted harnesses create strategic lock-in by controlling state and memory portability.\n- `raw/How to Build a Personal Context MCP.md` - added personal context portfolios and MCP serving as a user-owned memory layer for identity, projects, tools, style, priorities, constraints, domain knowledge, and decision history.\n",
+  "plainText": "Open Harnesses Open harnesses matter because agent memory is not a detachable add on. It is part of how the harness manages context, state, compaction, retrieval, and portability, which means closed harnesses can turn memory into platform lock in. Why this matters A lot of agent discussion still treats the model as the main product and the surrounding system as temporary scaffolding. This source argues the opposite. The harness is the durable execution layer that makes tool use, context management, and memory possible in practice. That matters because memory is one of the main ways agentic products become sticky. Once a system accumulates user preferences, histories, habits, artifacts, and working patterns, the owner of that memory layer controls much of the user relationship. If the harness is closed, especially when it is hosted behind a proprietary API, then the developer may be yielding not only tooling convenience but also control over accumulated memory and future portability. This makes harness design a strategic choice rather than only an implementation detail. It affects model optionality, product defensibility, migration cost, auditability, and whether a team can build on top of memory it actually owns. A newer personal context MCP source sharpens the individual user version of this problem: if personal context is trapped in ChatGPT, Claude, Cursor, Codex, or any other one harness, switching tools creates a context repetition tax. A portable markdown portfolio or MCP server turns personal memory into user owned infrastructure. Core thesis The source makes four linked claims. Harnesses are the permanent layer of agent systems. They are not disappearing as models improve. The old scaffolding fades, but new scaffolding replaces it because agents still need tools, context management, interfaces, and execution control. Memory is part of the harness, not a generic plugin. Short term context, long term memory, compaction behavior, skill loading, working directory exposure, and memory metadata presentation are all harness responsibilities. Closed harnesses create memory lock in. If memory lives inside a proprietary harness or a stateful API, then switching models or platforms becomes harder because the memory representation, behavior, and portability are controlled elsewhere. Open harnesses preserve optionality and ownership. If teams control their harness and memory layer, they can move across models, inspect state behavior, choose storage backends, and keep the user memory flywheel inside their own product boundary. Personal context should be portable. User identity, preferences, projects, decisions, communication style, and domain knowledge are too valuable to exist only as opaque provider memory. The durable lesson is that control over memory is often really control over the harness. Framework / model 1. What a harness actually does A harness is the system around the model that lets an agent operate in the world. Typical harness responsibilities include: tool orchestration context assembly system instruction loading skill and metadata presentation working directory and filesystem exposure compaction behavior thread or session state management retrieval calls into long term memory storage and recall of interaction artifacts This matters because many things that look like model features from the outside are really harness behaviors. 2. Memory is a harness function, not a separable module The strongest concept in the source is that memory is not independent from context handling. The harness decides questions such as: what survives compaction and what gets dropped how prior interactions are stored whether those interactions are queryable how memory metadata is shown back to the agent how standing files like AGENTS.md or similar instruction surfaces enter context how much local environment state is visible to the agent That is why “plugging memory into a harness” is often the wrong mental model. The harness already defines the conditions under which memory can exist. 3. The lock in ladder The source usefully distinguishes several degrees of dependence. Stateful API dependence A provider managed API may store thread state or compaction summaries server side. This creates mild to serious lock in because: state portability becomes limited thread continuity may depend on one provider switching models can break historical continuity Closed local or hybrid harness dependence A closed harness may expose some artifacts while still hiding how memory is represented or used. This creates deeper dependence because: the memory shape is opaque memory behavior is hard to inspect portability to another harness is uncertain teams may inherit memory semantics they did not choose Fully managed harness dependence The strongest lock in appears when the whole harness, including long term memory, sits behind one API. In that case: storage behavior is opaque memory ownership may be partial or nonexistent portability is weak product differentiation can become dependent on another company’s memory layer This is the point where model dependence becomes platform dependence. 4. Why model progress does not eliminate harnesses The source pushes back on the idea that better models will absorb the harness. A better framing is: some early scaffolding becomes unnecessary newer, more capable systems demand different scaffolding agents still need a runtime environment for tools, context, permissions, state, and control So the harness persists even as its internal design evolves. This aligns with the broader idea in Agentic Engineering that capability is model plus environment, not model alone. 5. Memory creates the product flywheel The source argues that memory matters because it makes agents: more personalized harder to replicate more useful over time more differentiated for returning users Without durable memory, many agents are interchangeable wrappers around the same tools and models. With memory, the system accumulates: user preferences tone and style patterns historical context recurring workflows task specific state long term behavioral data This accumulated state becomes both product value and switching cost. 6. Open harnesses preserve model optionality Open harnesses do not eliminate complexity. They preserve control over it. The source highlights several desirable properties: open source implementation model agnostic execution open instruction and skill standards pluggable memory stores such as Mongo, Postgres, or Redis deployability outside one provider’s platform The broader principle is that memory should remain portable enough that a team can change models or infrastructure without forfeiting the accumulated memory layer that makes the product valuable. 7. Personal context portfolios are an open harness primitive The personal context MCP source proposes a simple architecture: 1. maintain context as modular markdown files 2. keep the files inspectable and editable by the user 3. expose only the relevant parts to each agent 4. optionally serve them through MCP for tool native access 5. keep the source of truth outside any one model provider's hidden memory This matters because personal context is becoming as important as project context. Agents need to know who the user is, what they are working on, what tools they use, what constraints they live under, and how prior decisions were made. The open harness test is simple: can the user bring that context to another agent without begging the old agent to summarize itself? Important examples / reference points The shift from simple RAG chains toward more elaborate agent harnesses is a useful historical marker for how the systems layer has thickened rather than disappeared. Example harnesses named in the source include Claude Code , Deep Agents , Pi , OpenCode , Codex , and Letta Code . The claim that Claude Code reportedly involved hundreds of thousands of lines of harness code is useful as a concrete signal that frontier model products still depend heavily on external systems. Provider managed state examples such as OpenAI Responses API and Anthropic server side compaction are useful reference points for stateful API lock in. Claude Managed Agents is a strong example of the fully managed harness pattern, where execution and memory increasingly sit behind one platform boundary. The note that Codex can emit an encrypted compaction summary is a useful example of partial openness paired with ecosystem bounded state portability. Deep Agents serves as the source’s positive example of an open harness approach built around model optionality and pluggable memory backends. A personal context portfolio is useful because it turns user memory into explicit files that can be routed through projects, GitHub, MCP, or future agent systems. Failure modes / limitations Confusing model capability with system ownership A team may believe it owns its agent because it chose the prompt and model, while in practice the most valuable state is controlled by the harness provider. Treating memory as a generic service If memory is abstracted too loosely, teams can miss that context loading, compaction, retrieval timing, and environment visibility are all harness decisions. Accepting portability assumptions without testing them A memory layer may appear exportable while still depending on hidden compaction rules, metadata formats, or session semantics that do not travel well. Letting convenience hide strategic dependence Managed agents and stateful APIs can speed up initial development while quietly increasing future migration cost. Building personalization without clear ownership boundaries If user memory is the product moat, then unclear ownership of that memory becomes a strategic weakness. Overstating present memory maturity The source also makes an important cautionary point: memory is still early. Clean abstractions are immature, so some coupling between harness and memory is structurally unavoidable for now. Treating provider memory export as enough Asking one chatbot to summarize what it knows may help during a switch, but it is weaker than maintaining a user owned source of truth from the start. Practical implications For agent builders choose harnesses with the same care as model providers inspect how compaction, session state, and long term memory actually work assume memory portability is a product requirement, not a nice to have treat stateful API convenience as a strategic trade off, not just an implementation shortcut For product teams memory can become the main driver of stickiness and switching cost owning the user memory layer may matter more than owning the prompt layer open harnesses preserve room to swap models without resetting product memory For infrastructure decisions separate model choice from memory ownership where possible prefer inspectable memory backends and explicit storage choices test whether threads, summaries, and artifacts remain usable outside one provider ecosystem keep personal context in explicit files where possible, then expose it selectively through projects, MCP, or other controlled interfaces For wiki and agent system design memory design should be documented alongside harness design, not underneath it standing files, skills, retrieval, and compaction belong in one architectural picture the right question is often not “does the agent have memory?” but “who controls the harness behavior that defines memory?” Tensions / open questions Will memory abstractions mature enough that more truly portable plug in layers emerge? Which parts of memory should remain harness native versus standardized across ecosystems? How much convenience should teams trade away in order to keep memory portable and inspectable? Can managed agent platforms offer real exportability, or does statefulness inevitably strengthen lock in? What personal context belongs in provider memory, and what should remain in user owned files? Related Agentic Engineering LLM Memory Agent Memory Architectures AI Safety & Control Second Brain Systems AI Native Organizations Source notes raw/Your harness, your memory.md argues that harnesses are the durable systems layer for agents, that memory is fundamentally a harness responsibility, and that closed or API hosted harnesses create strategic lock in by controlling state and memory portability. raw/How to Build a Personal Context MCP.md added personal context portfolios and MCP serving as a user owned memory layer for identity, projects, tools, style, priorities, constraints, domain knowledge, and decision history.",
+  "wordCount": 1892,
+  "readingMinutes": 8,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/open-harnesses.svg",
+  "contentHash": "dc76cf76369ffba84e2ffc0778692d42d0995fe420ccd343e66006082a19866c"
+}

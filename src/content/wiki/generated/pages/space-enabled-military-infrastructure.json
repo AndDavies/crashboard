@@ -1,0 +1,100 @@
+{
+  "slug": "space-enabled-military-infrastructure",
+  "title": "Space-Enabled Military Infrastructure",
+  "description": "Space is no longer a specialist layer above military operations. It is a hidden infrastructure layer beneath navigation, communications, targeting, weather awareness, missile warning, logistics, timing, and command coherence.",
+  "role": "reference",
+  "cluster": "sovereignty",
+  "visualStatus": "image",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Space-Enabled Military Infrastructure",
+      "id": "space-enabled-military-infrastructure"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Backbone Model",
+      "id": "backbone-model"
+    },
+    {
+      "level": 2,
+      "text": "Contested-Degradation Workflow",
+      "id": "contested-degradation-workflow"
+    },
+    {
+      "level": 2,
+      "text": "Trust Questions For Providers And Primes",
+      "id": "trust-questions-for-providers-and-primes"
+    },
+    {
+      "level": 2,
+      "text": "Practical Implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 2,
+      "text": "Failure Modes",
+      "id": "failure-modes"
+    },
+    {
+      "level": 3,
+      "text": "Stable Background Assumption",
+      "id": "stable-background-assumption"
+    },
+    {
+      "level": 3,
+      "text": "Satellite-Only Threat Model",
+      "id": "satellite-only-threat-model"
+    },
+    {
+      "level": 3,
+      "text": "Clean-Demo Procurement",
+      "id": "clean-demo-procurement"
+    },
+    {
+      "level": 3,
+      "text": "Dashboard Accretion",
+      "id": "dashboard-accretion"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Sovereignty & Critical Infrastructure",
+    "Military Cyber Operations",
+    "Search and Rescue Systems",
+    "Sovereign AI Compute",
+    "AI Safety & Control"
+  ],
+  "linkedSlugs": [
+    "sovereignty-and-critical-infrastructure",
+    "military-cyber-operations",
+    "search-and-rescue-systems",
+    "sovereign-ai-compute",
+    "ai-safety-and-control"
+  ],
+  "sourceNotes": [
+    "`raw/MDO From Domains to Delivery - Part 4 - Space The invisible backbone.md` - source for the backbone model, contested-degradation workflow, commercial-space dependency framing, trust questions for providers and primes, and the shift from strategic support to routine operational dependency.",
+    "`assets/sovereignty/space-operational-dependency-questions-2026-04-28.jpg` - local copy of the source article image used as a visual reference for the provider/commander question set."
+  ],
+  "markdown": "# Space-Enabled Military Infrastructure\n\n> Space is no longer a specialist layer above military operations. It is a hidden infrastructure layer beneath navigation, communications, targeting, weather awareness, missile warning, logistics, timing, and command coherence.\n\n## Why this matters\n\nModern forces often experience space as background reliability. GPS works. Satellite communications connect. Weather feeds arrive. Imagery updates. Timing signals synchronize systems. That apparent normality hides the strategic point: when space services degrade, the effect is not isolated to the space domain. It ripples through every domain that depends on positioning, timing, communications, observation, and trust in data.\n\nThe source reframes multi-domain operations around this dependency. The question is not whether space is a battlefield in a narrow sense. The question is whether forces can continue operating when the infrastructure they treat as invisible becomes contested, jammed, spoofed, disrupted, congested, politicized, or commercially constrained.\n\n![Space operational dependency questions](../assets/sovereignty/space-operational-dependency-questions-2026-04-28.jpg)\n\n## Backbone Model\n\n```mermaid\nflowchart TD\n  A[\"Space-enabled services\"] --> B[\"PNT and timing\"]\n  A --> C[\"SATCOM\"]\n  A --> D[\"ISR and commercial imagery\"]\n  A --> E[\"Weather and environmental sensing\"]\n  A --> F[\"Missile warning and strategic communications\"]\n\n  B --> G[\"Movement, targeting, synchronization, logistics\"]\n  C --> H[\"Command continuity across distance\"]\n  D --> I[\"Awareness, attribution, planning, targeting\"]\n  E --> J[\"Operational timing and survivability\"]\n  F --> K[\"Deterrence and crisis decision time\"]\n\n  G --> L[\"Multi-domain coherence\"]\n  H --> L\n  I --> L\n  J --> L\n  K --> L\n\n  M[\"Ground segment, terminals, software, identity, cloud, supply chain\"] --> A\n  N[\"Jamming, spoofing, cyber, counterspace, policy, congestion\"] --> A\n```\n\n## Contested-Degradation Workflow\n\n```mermaid\nflowchart TD\n  A[\"Space service appears normal\"] --> B[\"Operational dependency grows\"]\n  B --> C[\"Service is contested or degraded\"]\n  C --> D{\"Does the system fail gracefully?\"}\n  D -- \"No\" --> E[\"Operators receive confident but wrong, late, or missing data\"]\n  E --> F[\"Navigation, targeting, communications, or coordination degrade silently\"]\n  D -- \"Yes\" --> G[\"Confidence drops are visible\"]\n  G --> H[\"Fallback procedures activate\"]\n  H --> I[\"Local processing, cached data, alternate links, and manual procedures preserve essential function\"]\n  I --> J[\"Force retains coherence under pressure\"]\n```\n\n## Trust Questions For Providers And Primes\n\n| Question | Why it matters |\n| --- | --- |\n| How does the system degrade when GNSS, SATCOM, imagery, or cloud access fails? | The user needs predictable loss modes before crisis. |\n| Can it operate under jamming, spoofing, and electromagnetic interference? | Space services are often attacked through signals, not satellites. |\n| What cyber risks exist across the full service chain? | Ground stations, terminals, user accounts, APIs, updates, and cloud environments are easier targets than satellites. |\n| Who owns, stores, and can access the data? | Metadata can expose operational patterns, locations, and decisions. |\n| How interoperable is it with existing C2, ISR, maritime, air, land, and cyber systems? | An isolated feed adds workload instead of capability. |\n| What single-provider, orbit, cloud, terminal, or supply-chain dependencies are created? | Resilience requires concentration risk to be explicit. |\n| Can operational sovereignty be maintained in a crisis? | Commercial access can be shaped by corporate policy, export controls, regulation, or third-country pressure. |\n| Does the system reduce operator burden? | More feeds and dashboards can worsen command quality if they do not clarify decisions. |\n\n## Practical Implications\n\n- Treat PNT, SATCOM, ISR, weather, and warning as critical infrastructure, not specialist support.\n- Exercise degraded-space conditions instead of assuming clean demonstrations transfer to conflict.\n- Buy for interoperability, continuity, and graceful degradation, not only peak performance.\n- Include terminals, ground stations, cloud, identity, software updates, and support chains in threat models.\n- Treat commercial space dependence as a governable risk: contracts, priority access, political control, replenishment, and continuity rights matter.\n- Make confidence, uncertainty, and service degradation visible to operators before bad data becomes trusted data.\n\n## Failure Modes\n\n### Stable Background Assumption\n\nForces plan as if satellite services are always available, then discover under pressure that navigation, timing, and communications were single points of failure.\n\n### Satellite-Only Threat Model\n\nThe satellite remains intact while terminals, gateways, software updates, credentials, or cloud services fail.\n\n### Clean-Demo Procurement\n\nA system performs impressively in stable conditions but lacks evidence for contested electromagnetic, cyber, supply-chain, and policy conditions.\n\n### Dashboard Accretion\n\nA space-enabled service adds another feed without making decisions faster, clearer, or more trustworthy.\n\n## Related\n\n- [Sovereignty & Critical Infrastructure](/wiki/sovereignty-and-critical-infrastructure)\n- [Military Cyber Operations](/wiki/military-cyber-operations)\n- [Search and Rescue Systems](/wiki/search-and-rescue-systems)\n- [Sovereign AI Compute](/wiki/sovereign-ai-compute)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n\n## Source notes\n\n- `raw/MDO From Domains to Delivery - Part 4 - Space The invisible backbone.md` - source for the backbone model, contested-degradation workflow, commercial-space dependency framing, trust questions for providers and primes, and the shift from strategic support to routine operational dependency.\n- `assets/sovereignty/space-operational-dependency-questions-2026-04-28.jpg` - local copy of the source article image used as a visual reference for the provider/commander question set.\n",
+  "plainText": "Space Enabled Military Infrastructure Space is no longer a specialist layer above military operations. It is a hidden infrastructure layer beneath navigation, communications, targeting, weather awareness, missile warning, logistics, timing, and command coherence. Why this matters Modern forces often experience space as background reliability. GPS works. Satellite communications connect. Weather feeds arrive. Imagery updates. Timing signals synchronize systems. That apparent normality hides the strategic point: when space services degrade, the effect is not isolated to the space domain. It ripples through every domain that depends on positioning, timing, communications, observation, and trust in data. The source reframes multi domain operations around this dependency. The question is not whether space is a battlefield in a narrow sense. The question is whether forces can continue operating when the infrastructure they treat as invisible becomes contested, jammed, spoofed, disrupted, congested, politicized, or commercially constrained. Backbone Model Contested Degradation Workflow Trust Questions For Providers And Primes Question Why it matters How does the system degrade when GNSS, SATCOM, imagery, or cloud access fails? The user needs predictable loss modes before crisis. Can it operate under jamming, spoofing, and electromagnetic interference? Space services are often attacked through signals, not satellites. What cyber risks exist across the full service chain? Ground stations, terminals, user accounts, APIs, updates, and cloud environments are easier targets than satellites. Who owns, stores, and can access the data? Metadata can expose operational patterns, locations, and decisions. How interoperable is it with existing C2, ISR, maritime, air, land, and cyber systems? An isolated feed adds workload instead of capability. What single provider, orbit, cloud, terminal, or supply chain dependencies are created? Resilience requires concentration risk to be explicit. Can operational sovereignty be maintained in a crisis? Commercial access can be shaped by corporate policy, export controls, regulation, or third country pressure. Does the system reduce operator burden? More feeds and dashboards can worsen command quality if they do not clarify decisions. Practical Implications Treat PNT, SATCOM, ISR, weather, and warning as critical infrastructure, not specialist support. Exercise degraded space conditions instead of assuming clean demonstrations transfer to conflict. Buy for interoperability, continuity, and graceful degradation, not only peak performance. Include terminals, ground stations, cloud, identity, software updates, and support chains in threat models. Treat commercial space dependence as a governable risk: contracts, priority access, political control, replenishment, and continuity rights matter. Make confidence, uncertainty, and service degradation visible to operators before bad data becomes trusted data. Failure Modes Stable Background Assumption Forces plan as if satellite services are always available, then discover under pressure that navigation, timing, and communications were single points of failure. Satellite Only Threat Model The satellite remains intact while terminals, gateways, software updates, credentials, or cloud services fail. Clean Demo Procurement A system performs impressively in stable conditions but lacks evidence for contested electromagnetic, cyber, supply chain, and policy conditions. Dashboard Accretion A space enabled service adds another feed without making decisions faster, clearer, or more trustworthy. Related Sovereignty & Critical Infrastructure Military Cyber Operations Search and Rescue Systems Sovereign AI Compute AI Safety & Control Source notes raw/MDO From Domains to Delivery Part 4 Space The invisible backbone.md source for the backbone model, contested degradation workflow, commercial space dependency framing, trust questions for providers and primes, and the shift from strategic support to routine operational dependency. assets/sovereignty/space operational dependency questions 2026 04 28.jpg local copy of the source article image used as a visual reference for the provider/commander question set.",
+  "wordCount": 573,
+  "readingMinutes": 3,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/space-enabled-military-infrastructure.svg",
+  "contentHash": "3c8b8137f16a14f997d9c81629173be3b0552ca1e6a9749317eaba318a219a6a"
+}

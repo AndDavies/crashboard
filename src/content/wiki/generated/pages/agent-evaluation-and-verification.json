@@ -1,0 +1,200 @@
+{
+  "slug": "agent-evaluation-and-verification",
+  "title": "Agent Evaluation & Verification",
+  "description": "Agent evaluation is not just scoring outputs. It is the systems problem of deciding whether an agent actually succeeded, which evidence counts, how process and outcome should be judged, and how benchmark results avoid being distorted by compute, retrieval, or verifier failure.",
+  "role": "reference",
+  "cluster": "execution",
+  "visualStatus": "mermaid",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Agent Evaluation & Verification",
+      "id": "agent-evaluation-and-verification"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Evaluation has at least four layers",
+      "id": "1-evaluation-has-at-least-four-layers"
+    },
+    {
+      "level": 3,
+      "text": "2. Outcome-only verification is often too weak",
+      "id": "2-outcome-only-verification-is-often-too-weak"
+    },
+    {
+      "level": 3,
+      "text": "3. Good verifiers separate process and outcome",
+      "id": "3-good-verifiers-separate-process-and-outcome"
+    },
+    {
+      "level": 3,
+      "text": "4. Rubrics need non-overlapping criteria",
+      "id": "4-rubrics-need-non-overlapping-criteria"
+    },
+    {
+      "level": 3,
+      "text": "5. Context management is part of verification quality",
+      "id": "5-context-management-is-part-of-verification-quality"
+    },
+    {
+      "level": 3,
+      "text": "6. Compute must be controlled before architecture claims are trusted",
+      "id": "6-compute-must-be-controlled-before-architecture-claims-are-trusted"
+    },
+    {
+      "level": 3,
+      "text": "7. Skill systems need retrieval-realistic evaluation",
+      "id": "7-skill-systems-need-retrieval-realistic-evaluation"
+    },
+    {
+      "level": 3,
+      "text": "8. Composite-task success can hide weak primitives",
+      "id": "8-composite-task-success-can-hide-weak-primitives"
+    },
+    {
+      "level": 3,
+      "text": "9. Self-evolving systems need correctness-before-reward ordering",
+      "id": "9-self-evolving-systems-need-correctness-before-reward-ordering"
+    },
+    {
+      "level": 3,
+      "text": "10. Retrieval evaluation should diagnose failure type",
+      "id": "10-retrieval-evaluation-should-diagnose-failure-type"
+    },
+    {
+      "level": 2,
+      "text": "Important examples / reference points",
+      "id": "important-examples-reference-points"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "False-positive verifiers",
+      "id": "false-positive-verifiers"
+    },
+    {
+      "level": 3,
+      "text": "Architecture claims without compute controls",
+      "id": "architecture-claims-without-compute-controls"
+    },
+    {
+      "level": 3,
+      "text": "Idealized skill evaluation",
+      "id": "idealized-skill-evaluation"
+    },
+    {
+      "level": 3,
+      "text": "Composite-task overfitting",
+      "id": "composite-task-overfitting"
+    },
+    {
+      "level": 3,
+      "text": "Outcome-only judgment",
+      "id": "outcome-only-judgment"
+    },
+    {
+      "level": 3,
+      "text": "Incomplete trajectory visibility",
+      "id": "incomplete-trajectory-visibility"
+    },
+    {
+      "level": 3,
+      "text": "Benchmark artifacts mistaken for capability",
+      "id": "benchmark-artifacts-mistaken-for-capability"
+    },
+    {
+      "level": 3,
+      "text": "Reward before correctness",
+      "id": "reward-before-correctness"
+    },
+    {
+      "level": 3,
+      "text": "Generic retry loops",
+      "id": "generic-retry-loops"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 3,
+      "text": "For agent builders",
+      "id": "for-agent-builders"
+    },
+    {
+      "level": 3,
+      "text": "For benchmark designers",
+      "id": "for-benchmark-designers"
+    },
+    {
+      "level": 3,
+      "text": "For operators and buyers",
+      "id": "for-operators-and-buyers"
+    },
+    {
+      "level": 2,
+      "text": "Tensions / open questions",
+      "id": "tensions-open-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Context Compaction",
+    "Agent Memory Architectures",
+    "Agentic Engineering",
+    "AI Safety & Control",
+    "Agent Skills",
+    "Coding Agent Workflows",
+    "Agent Memory & Context Systems"
+  ],
+  "linkedSlugs": [
+    "context-compaction",
+    "agent-memory-architectures",
+    "agentic-engineering",
+    "ai-safety-and-control",
+    "agent-skills",
+    "coding-agent-workflows",
+    "agent-memory-and-context-systems"
+  ],
+  "sourceNotes": [
+    "`raw/Top AI Papers of the Week.md` - contributed the Universal Verifier design principles, the compute-controlled critique of multi-agent evaluation, atomic coding-skill decomposition, and the realistic skill-retrieval bottleneck framing.",
+    "`raw/Autonomous Evolution of EDA Tools Multi-Agent Self-Evolved ABC.md` - added correctness-before-reward ordering, formal equivalence checking, QoR metrics, rollback, and dense intermediate signals for autonomous code evolution.",
+    "`raw/Skill-RAG Failure-State-Aware Retrieval Augmentation via Hidden-State Probing and Skill Routing.md` - added failure-state-aware retrieval evaluation, typed recovery actions, and the warning that repeated retrieval can compound query drift."
+  ],
+  "markdown": "# Agent Evaluation & Verification\n\n> Agent evaluation is not just scoring outputs. It is the systems problem of deciding whether an agent actually succeeded, which evidence counts, how process and outcome should be judged, and how benchmark results avoid being distorted by compute, retrieval, or verifier failure.\n\n```mermaid\nflowchart TD\n    A[\"Task definition\"] --> B[\"Trajectory evidence\"]\n    B --> C[\"Verifier logic\"]\n    C --> D{\"Reliable result?\"}\n    D -->|No| E{\"Diagnose failure\"}\n    E --> F[\"Process or outcome\"]\n    E --> G[\"Budget or retrieval\"]\n    F --> A\n    G --> A\n    D -->|Yes| H[\"Trusted signal\"]\n```\n\n## Why this matters\n\nAgent systems are increasingly evaluated on long trajectories, tool use, browser actions, terminal work, coding tasks, and multi-step workflows. In these settings, evaluation becomes much harder than checking whether a final answer string matches a reference.\n\nThe durable lesson from the source cluster is that many apparent agent advances are confounded by weak evaluation:\n\n- a system may look strong because the verifier is too permissive\n- a multi-agent setup may look better only because it used more computation\n- a skill ecosystem may look effective in demos but collapse when retrieval becomes realistic\n- a coding agent may solve benchmark tasks while overfitting to composite-task distributions rather than learning transferable primitives\n- a self-evolving code agent may appear to improve quality while silently breaking semantics unless correctness is checked before reward evaluation\n- a retrieval agent may fail repeatedly not because evidence is absent, but because the query, evidence, and reasoning state are misaligned\n\nThis means evaluation is part of the agent stack, not a downstream reporting layer.\n\n## Core thesis\n\nReliable agent evaluation requires four things at once:\n\n- **correct success criteria** so the system is judged on the right target\n- **good evidence coverage** so the verifier sees enough of the trajectory to make the judgment\n- **confound control** so reported gains are not secretly caused by extra compute, narrower task framing, or benchmark artifacts\n- **decomposition-aware testing** so builders can tell whether improvement came from real capability, verifier weakness, or task-specific overfitting\n- **failure diagnosis** so retries choose the right corrective action instead of repeating the same failed retrieval, tool call, or edit loop\n\nThe source cluster adds a strong corrective to casual benchmark reading: if verification is weak, false positives corrupt both leaderboard interpretation and RL reward signals.\n\n## Framework / model\n\n### 1. Evaluation has at least four layers\n\nA useful synthesis from the source cluster is that agent evaluation sits across four layers:\n\n1. **task definition** - what counts as success\n2. **trajectory evidence** - what observations, screenshots, logs, tests, or artifacts are available\n3. **verifier logic** - how success or failure is judged\n4. **experimental controls** - whether compute, retrieval difficulty, and comparison setup are held constant\n\nMost evaluation failures come from getting one of these layers wrong while assuming the others can compensate.\n\nThis is also why the page belongs inside the execution cluster rather than floating as a generic research note: verifier design shapes whether an execution system can be trusted at all.\n\n### 2. Outcome-only verification is often too weak\n\nThe Universal Verifier material adds a durable point: many computer-use trajectories cannot be judged reliably from a shallow final-state inspection.\n\nA stronger verifier may need to distinguish:\n\n- whether the final state is correct\n- whether the process showed controllable mistakes\n- whether external conditions blocked success\n- whether the system only appeared successful because the rubric was too loose\n\nThis matters because weak verifiers create false positives that poison both benchmarks and training loops.\n\n### 3. Good verifiers separate process and outcome\n\nOne of the strongest design ideas in the source is to separate:\n\n- **outcome reward** - did the agent complete the task?\n- **process reward** - did the agent behave competently and causally along the way?\n\nThese are not interchangeable.\n\nA system can:\n\n- reach the right outcome through a brittle or accidental path\n- fail the outcome while still demonstrating a mostly correct process under uncontrollable conditions\n- look plausible in process while never actually completing the task\n\nSerious evaluation needs both views.\n\n### 4. Rubrics need non-overlapping criteria\n\nThe verifier source emphasizes non-overlapping rubric criteria as a way to reduce scoring noise.\n\nThat principle generalizes well:\n\n- avoid duplicate rubric dimensions that silently count the same failure twice\n- make criteria legible enough that disagreement can be debugged\n- distinguish controllable errors from environment or benchmark issues\n\nThis makes evaluation more auditable and more useful as a training signal.\n\n### 5. Context management is part of verification quality\n\nA durable insight from the Universal Verifier work is that evaluation quality depends on whether the verifier attends to the full relevant trajectory.\n\nIn screenshot-heavy or browser-heavy tasks, divide-and-conquer context management becomes essential. Otherwise the verifier misses decisive evidence.\n\nThis creates a parallel with [Context Compaction](/wiki/context-compaction) and [Agent Memory Architectures](/wiki/agent-memory-architectures): evaluation systems face their own memory and context bottlenecks.\n\n### 6. Compute must be controlled before architecture claims are trusted\n\nThe single-agent versus multi-agent paper contributes one of the strongest evaluation corrections in the current source cluster.\n\nReported multi-agent gains are often confounded by:\n\n- larger token budgets\n- duplicated reasoning branches\n- hidden coordination overhead not properly priced\n- benchmark structures that favor decomposition\n\nUnder fixed reasoning-token budgets, the apparent architectural advantage may disappear or reverse.\n\nThis implies a durable experimental rule:\n\n- do not compare single-agent and multi-agent systems without explicit compute normalization\n\nOtherwise the benchmark is partly measuring budget inflation rather than design superiority.\n\n### 7. Skill systems need retrieval-realistic evaluation\n\nThe skill-utility study adds another major correction.\n\nSkill systems should not only be tested under idealized conditions where:\n\n- the right skill is hand-selected\n- the task is narrowly matched\n- the library is small and curated\n\nThey also need realistic evaluation where:\n\n- the agent retrieves from a large skill library\n- descriptions are noisy or overlapping\n- selection errors cascade into execution failure\n\nThis matters because production skill systems often fail at retrieval, not at the body instructions themselves.\n\n### 8. Composite-task success can hide weak primitives\n\nThe atomic coding-skills paper adds a complementary lesson.\n\nTraining and evaluation should distinguish between:\n\n- **atomic skills** such as localization, editing, test generation, reproduction, and review\n- **composite tasks** such as end-to-end issue resolution\n\nA system that is trained only on composite tasks may overfit to benchmark shapes and transfer poorly. A system that improves its atomic skills may generalize more effectively to unseen composite tasks.\n\nThis creates a useful evaluation rule: benchmark both the primitives and the composed workflows.\n\n### 9. Self-evolving systems need correctness-before-reward ordering\n\nThe self-evolved ABC paper adds a concrete evaluation pattern for autonomous code improvement.\n\nThe important ordering is:\n\n1. generate a code change inside a bounded subsystem\n2. compile the integrated binary\n3. run formal correctness checks\n4. only then evaluate quality-of-result metrics\n5. keep improvements and roll back regressions\n\nThis matters because an agent optimizing area, delay, speed, or any other scalar reward can find invalid shortcuts if semantic correctness is not enforced first.\n\nFor code-evolution systems, useful metrics are also richer than one final score. The ABC example uses both end-of-flow outcomes and intermediate structural signals, such as node count, depth, mapper estimates, cut statistics, and per-pass deltas. Those intermediate signals help the planner distinguish real improvement from noisy or local trade-offs.\n\n### 10. Retrieval evaluation should diagnose failure type\n\nThe Skill-RAG paper adds a useful retrieval-specific evaluation lesson.\n\nRepeated retrieval is not always the right response to failure. A failed answer may reflect different causes:\n\n| Failure type | Better corrective action |\n| --- | --- |\n| Query surface mismatch | Rewrite the query to match corpus language. |\n| Entangled multi-hop question | Decompose into sub-questions. |\n| Broad or under-specified evidence | Focus on the missing evidence slot. |\n| Missing knowledge or model limit | Exit rather than keep spending retrieval rounds. |\n\nThe durable insight is that post-retrieval failure can be typed. A retrieval system should measure whether its recovery strategy matched the failure, not only whether it retrieved again.\n\n## Important examples / reference points\n\n- **Universal Verifier** is important because it turns verifier design into an explicit engineering problem rather than assuming task success is obvious.\n- The verifier's four principles are durable beyond browser benchmarks: non-overlapping criteria, process/outcome separation, controllable-vs-uncontrollable error handling, and context coverage across full trajectories.\n- The **single-agent vs multi-agent** result is valuable less as an anti-multi-agent slogan and more as an evaluation warning about compute confounds.\n- The **atomic coding skills** result matters because it proposes a more transferable unit of both training and measurement.\n- The **skills-in-the-wild** result matters because it shows demo gains can collapse once retrieval becomes realistic.\n- The source's meta-finding that an auto-research agent reached much of expert verifier quality but missed the key structural design decisions is a useful reminder that automated search can optimize inside a frame without discovering the right frame.\n- **Formal equivalence checking in self-evolved ABC** matters because it shows correctness gating before reward evaluation in an autonomous code-evolution loop.\n- **Skill-RAG** matters because it treats retrieval failure as diagnosable structure rather than a generic signal to try again.\n\n## Failure modes / limitations\n\n### False-positive verifiers\n\nA verifier that regularly marks failed runs as successful corrupts the benchmark and any downstream RL training.\n\n### Architecture claims without compute controls\n\nIf multi-agent systems get more total reasoning budget, the comparison is partly invalid.\n\n### Idealized skill evaluation\n\nBenchmarks that hand the agent the correct skill overstate real-world utility.\n\n### Composite-task overfitting\n\nStrong scores on end-to-end tasks may reflect narrow distribution fit rather than transferable skill.\n\n### Outcome-only judgment\n\nLooking only at final state can miss brittle or unsafe intermediate behavior.\n\n### Incomplete trajectory visibility\n\nIf the verifier does not see the relevant screenshots, logs, or tool traces, its judgment is under-informed.\n\n### Benchmark artifacts mistaken for capability\n\nTask formatting, API controls, and rubric quirks can inflate reported gains.\n\n### Reward before correctness\n\nIf an autonomous code-evolution loop evaluates optimization metrics before proving semantic equivalence, it can reward broken tools.\n\n### Generic retry loops\n\nIf retrieval systems treat every failure as “retrieve more,” they can amplify query drift and waste inference instead of fixing the actual alignment problem.\n\n## Practical implications\n\n### For agent builders\n\n- treat evaluation design as part of the product, not an afterthought\n- normalize compute before making architecture claims\n- benchmark skill retrieval, not only skill execution\n- test both atomic capabilities and composite workflows\n- use verifiers that can inspect enough of the trajectory to judge success reliably\n- put correctness gates before optimization rewards in self-improving code systems\n- track retrieval recovery by failure type, not just by number of retrieval rounds\n\n### For benchmark designers\n\n- separate process and outcome signals\n- make rubric criteria non-overlapping and inspectable\n- distinguish controllable from uncontrollable failures\n- reduce false positives aggressively, even at some cost in simplicity\n- expose where compute budgets differ across compared systems\n\n### For operators and buyers\n\n- distrust headline gains without clear verifier design\n- ask whether success is measured on final text, full trajectory, or real-world evidence\n- ask whether reported gains survive realistic retrieval conditions and fixed compute budgets\n\n## Tensions / open questions\n\n- When should a verifier prioritize outcome over process, or vice versa?\n- How much human judgment is still required for reliable evaluation of open-ended agent work?\n- What is the right unit of measurement for coding agents: atomic skills, composite tasks, or production workflows?\n- How should benchmarks price coordination overhead in multi-agent systems?\n- Can evaluation systems remain reliable as agent trajectories become longer, more multimodal, and more tool-heavy?\n- Which failure taxonomies are stable enough to route recovery actions across domains, and which are benchmark-specific?\n\n## Related\n\n- [Agentic Engineering](/wiki/agentic-engineering)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Agent Skills](/wiki/agent-skills)\n- [Coding Agent Workflows](/wiki/coding-agent-workflows)\n- [Agent Memory Architectures](/wiki/agent-memory-architectures)\n- [Context Compaction](/wiki/context-compaction)\n- [Agent Memory & Context Systems](/wiki/agent-memory-and-context-systems)\n\n## Source notes\n\n- `raw/Top AI Papers of the Week.md` - contributed the Universal Verifier design principles, the compute-controlled critique of multi-agent evaluation, atomic coding-skill decomposition, and the realistic skill-retrieval bottleneck framing.\n- `raw/Autonomous Evolution of EDA Tools Multi-Agent Self-Evolved ABC.md` - added correctness-before-reward ordering, formal equivalence checking, QoR metrics, rollback, and dense intermediate signals for autonomous code evolution.\n- `raw/Skill-RAG Failure-State-Aware Retrieval Augmentation via Hidden-State Probing and Skill Routing.md` - added failure-state-aware retrieval evaluation, typed recovery actions, and the warning that repeated retrieval can compound query drift.\n",
+  "plainText": "Agent Evaluation & Verification Agent evaluation is not just scoring outputs. It is the systems problem of deciding whether an agent actually succeeded, which evidence counts, how process and outcome should be judged, and how benchmark results avoid being distorted by compute, retrieval, or verifier failure. Why this matters Agent systems are increasingly evaluated on long trajectories, tool use, browser actions, terminal work, coding tasks, and multi step workflows. In these settings, evaluation becomes much harder than checking whether a final answer string matches a reference. The durable lesson from the source cluster is that many apparent agent advances are confounded by weak evaluation: a system may look strong because the verifier is too permissive a multi agent setup may look better only because it used more computation a skill ecosystem may look effective in demos but collapse when retrieval becomes realistic a coding agent may solve benchmark tasks while overfitting to composite task distributions rather than learning transferable primitives a self evolving code agent may appear to improve quality while silently breaking semantics unless correctness is checked before reward evaluation a retrieval agent may fail repeatedly not because evidence is absent, but because the query, evidence, and reasoning state are misaligned This means evaluation is part of the agent stack, not a downstream reporting layer. Core thesis Reliable agent evaluation requires four things at once: correct success criteria so the system is judged on the right target good evidence coverage so the verifier sees enough of the trajectory to make the judgment confound control so reported gains are not secretly caused by extra compute, narrower task framing, or benchmark artifacts decomposition aware testing so builders can tell whether improvement came from real capability, verifier weakness, or task specific overfitting failure diagnosis so retries choose the right corrective action instead of repeating the same failed retrieval, tool call, or edit loop The source cluster adds a strong corrective to casual benchmark reading: if verification is weak, false positives corrupt both leaderboard interpretation and RL reward signals. Framework / model 1. Evaluation has at least four layers A useful synthesis from the source cluster is that agent evaluation sits across four layers: 1. task definition what counts as success 2. trajectory evidence what observations, screenshots, logs, tests, or artifacts are available 3. verifier logic how success or failure is judged 4. experimental controls whether compute, retrieval difficulty, and comparison setup are held constant Most evaluation failures come from getting one of these layers wrong while assuming the others can compensate. This is also why the page belongs inside the execution cluster rather than floating as a generic research note: verifier design shapes whether an execution system can be trusted at all. 2. Outcome only verification is often too weak The Universal Verifier material adds a durable point: many computer use trajectories cannot be judged reliably from a shallow final state inspection. A stronger verifier may need to distinguish: whether the final state is correct whether the process showed controllable mistakes whether external conditions blocked success whether the system only appeared successful because the rubric was too loose This matters because weak verifiers create false positives that poison both benchmarks and training loops. 3. Good verifiers separate process and outcome One of the strongest design ideas in the source is to separate: outcome reward did the agent complete the task? process reward did the agent behave competently and causally along the way? These are not interchangeable. A system can: reach the right outcome through a brittle or accidental path fail the outcome while still demonstrating a mostly correct process under uncontrollable conditions look plausible in process while never actually completing the task Serious evaluation needs both views. 4. Rubrics need non overlapping criteria The verifier source emphasizes non overlapping rubric criteria as a way to reduce scoring noise. That principle generalizes well: avoid duplicate rubric dimensions that silently count the same failure twice make criteria legible enough that disagreement can be debugged distinguish controllable errors from environment or benchmark issues This makes evaluation more auditable and more useful as a training signal. 5. Context management is part of verification quality A durable insight from the Universal Verifier work is that evaluation quality depends on whether the verifier attends to the full relevant trajectory. In screenshot heavy or browser heavy tasks, divide and conquer context management becomes essential. Otherwise the verifier misses decisive evidence. This creates a parallel with Context Compaction and Agent Memory Architectures: evaluation systems face their own memory and context bottlenecks. 6. Compute must be controlled before architecture claims are trusted The single agent versus multi agent paper contributes one of the strongest evaluation corrections in the current source cluster. Reported multi agent gains are often confounded by: larger token budgets duplicated reasoning branches hidden coordination overhead not properly priced benchmark structures that favor decomposition Under fixed reasoning token budgets, the apparent architectural advantage may disappear or reverse. This implies a durable experimental rule: do not compare single agent and multi agent systems without explicit compute normalization Otherwise the benchmark is partly measuring budget inflation rather than design superiority. 7. Skill systems need retrieval realistic evaluation The skill utility study adds another major correction. Skill systems should not only be tested under idealized conditions where: the right skill is hand selected the task is narrowly matched the library is small and curated They also need realistic evaluation where: the agent retrieves from a large skill library descriptions are noisy or overlapping selection errors cascade into execution failure This matters because production skill systems often fail at retrieval, not at the body instructions themselves. 8. Composite task success can hide weak primitives The atomic coding skills paper adds a complementary lesson. Training and evaluation should distinguish between: atomic skills such as localization, editing, test generation, reproduction, and review composite tasks such as end to end issue resolution A system that is trained only on composite tasks may overfit to benchmark shapes and transfer poorly. A system that improves its atomic skills may generalize more effectively to unseen composite tasks. This creates a useful evaluation rule: benchmark both the primitives and the composed workflows. 9. Self evolving systems need correctness before reward ordering The self evolved ABC paper adds a concrete evaluation pattern for autonomous code improvement. The important ordering is: 1. generate a code change inside a bounded subsystem 2. compile the integrated binary 3. run formal correctness checks 4. only then evaluate quality of result metrics 5. keep improvements and roll back regressions This matters because an agent optimizing area, delay, speed, or any other scalar reward can find invalid shortcuts if semantic correctness is not enforced first. For code evolution systems, useful metrics are also richer than one final score. The ABC example uses both end of flow outcomes and intermediate structural signals, such as node count, depth, mapper estimates, cut statistics, and per pass deltas. Those intermediate signals help the planner distinguish real improvement from noisy or local trade offs. 10. Retrieval evaluation should diagnose failure type The Skill RAG paper adds a useful retrieval specific evaluation lesson. Repeated retrieval is not always the right response to failure. A failed answer may reflect different causes: Failure type Better corrective action Query surface mismatch Rewrite the query to match corpus language. Entangled multi hop question Decompose into sub questions. Broad or under specified evidence Focus on the missing evidence slot. Missing knowledge or model limit Exit rather than keep spending retrieval rounds. The durable insight is that post retrieval failure can be typed. A retrieval system should measure whether its recovery strategy matched the failure, not only whether it retrieved again. Important examples / reference points Universal Verifier is important because it turns verifier design into an explicit engineering problem rather than assuming task success is obvious. The verifier's four principles are durable beyond browser benchmarks: non overlapping criteria, process/outcome separation, controllable vs uncontrollable error handling, and context coverage across full trajectories. The single agent vs multi agent result is valuable less as an anti multi agent slogan and more as an evaluation warning about compute confounds. The atomic coding skills result matters because it proposes a more transferable unit of both training and measurement. The skills in the wild result matters because it shows demo gains can collapse once retrieval becomes realistic. The source's meta finding that an auto research agent reached much of expert verifier quality but missed the key structural design decisions is a useful reminder that automated search can optimize inside a frame without discovering the right frame. Formal equivalence checking in self evolved ABC matters because it shows correctness gating before reward evaluation in an autonomous code evolution loop. Skill RAG matters because it treats retrieval failure as diagnosable structure rather than a generic signal to try again. Failure modes / limitations False positive verifiers A verifier that regularly marks failed runs as successful corrupts the benchmark and any downstream RL training. Architecture claims without compute controls If multi agent systems get more total reasoning budget, the comparison is partly invalid. Idealized skill evaluation Benchmarks that hand the agent the correct skill overstate real world utility. Composite task overfitting Strong scores on end to end tasks may reflect narrow distribution fit rather than transferable skill. Outcome only judgment Looking only at final state can miss brittle or unsafe intermediate behavior. Incomplete trajectory visibility If the verifier does not see the relevant screenshots, logs, or tool traces, its judgment is under informed. Benchmark artifacts mistaken for capability Task formatting, API controls, and rubric quirks can inflate reported gains. Reward before correctness If an autonomous code evolution loop evaluates optimization metrics before proving semantic equivalence, it can reward broken tools. Generic retry loops If retrieval systems treat every failure as “retrieve more,” they can amplify query drift and waste inference instead of fixing the actual alignment problem. Practical implications For agent builders treat evaluation design as part of the product, not an afterthought normalize compute before making architecture claims benchmark skill retrieval, not only skill execution test both atomic capabilities and composite workflows use verifiers that can inspect enough of the trajectory to judge success reliably put correctness gates before optimization rewards in self improving code systems track retrieval recovery by failure type, not just by number of retrieval rounds For benchmark designers separate process and outcome signals make rubric criteria non overlapping and inspectable distinguish controllable from uncontrollable failures reduce false positives aggressively, even at some cost in simplicity expose where compute budgets differ across compared systems For operators and buyers distrust headline gains without clear verifier design ask whether success is measured on final text, full trajectory, or real world evidence ask whether reported gains survive realistic retrieval conditions and fixed compute budgets Tensions / open questions When should a verifier prioritize outcome over process, or vice versa? How much human judgment is still required for reliable evaluation of open ended agent work? What is the right unit of measurement for coding agents: atomic skills, composite tasks, or production workflows? How should benchmarks price coordination overhead in multi agent systems? Can evaluation systems remain reliable as agent trajectories become longer, more multimodal, and more tool heavy? Which failure taxonomies are stable enough to route recovery actions across domains, and which are benchmark specific? Related Agentic Engineering AI Safety & Control Agent Skills Coding Agent Workflows Agent Memory Architectures Context Compaction Agent Memory & Context Systems Source notes raw/Top AI Papers of the Week.md contributed the Universal Verifier design principles, the compute controlled critique of multi agent evaluation, atomic coding skill decomposition, and the realistic skill retrieval bottleneck framing. raw/Autonomous Evolution of EDA Tools Multi Agent Self Evolved ABC.md added correctness before reward ordering, formal equivalence checking, QoR metrics, rollback, and dense intermediate signals for autonomous code evolution. raw/Skill RAG Failure State Aware Retrieval Augmentation via Hidden State Probing and Skill Routing.md added failure state aware retrieval evaluation, typed recovery actions, and the warning that repeated retrieval can compound query drift.",
+  "wordCount": 1996,
+  "readingMinutes": 9,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/agent-evaluation-and-verification.svg",
+  "contentHash": "19b57116428bb2a7a2138af66ad7c6823eda53028d72d79535ba9cb0c915f725"
+}
