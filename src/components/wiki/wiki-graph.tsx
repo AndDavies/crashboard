@@ -65,6 +65,8 @@ export function WikiGraph({
   focusedNodeId,
   onNodeHover,
   onNodeSelect,
+  showSelectedPanel = true,
+  showNodeList = true,
 }: {
   nodes: Node[];
   edges: Edge[];
@@ -74,6 +76,8 @@ export function WikiGraph({
   focusedNodeId?: string | null;
   onNodeHover?: (nodeId: string | null) => void;
   onNodeSelect?: (nodeId: string | null) => void;
+  showSelectedPanel?: boolean;
+  showNodeList?: boolean;
 }) {
   const [internalActiveNodeId, setInternalActiveNodeId] = useState<string | null>(null);
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
@@ -300,7 +304,7 @@ export function WikiGraph({
         </svg>
       </div>
 
-      {selectedNode ? (
+      {showSelectedPanel && selectedNode ? (
         <div className="border-t border-border/70 bg-background/55 p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -339,30 +343,32 @@ export function WikiGraph({
         </div>
       ) : null}
 
-      <div className="grid max-h-60 gap-1 overflow-y-auto border-t border-border/70 p-3 sm:grid-cols-2">
-        {visibleNodes.map((node) => {
-          const active = activeNodeId === node.id;
-          const connected = activeNodeId ? activeNeighbors.has(node.id) : false;
-          return (
-            <Link
-              key={node.id}
-              href={node.href}
-              onMouseEnter={() => setHover(node.id)}
-              onMouseLeave={() => setHover(null)}
-              className={cn(
-                "group rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                (active || connected) && "bg-muted/60 text-foreground",
-              )}
-            >
-              <span
-                className="mr-2 inline-block size-2 rounded-full transition-transform group-hover:scale-125"
-                style={{ backgroundColor: getClusterColor(node.cluster) }}
-              />
-              {node.title}
-            </Link>
-          );
-        })}
-      </div>
+      {showNodeList ? (
+        <div className="grid max-h-60 gap-1 overflow-y-auto border-t border-border/70 p-3 sm:grid-cols-2">
+          {visibleNodes.map((node) => {
+            const active = activeNodeId === node.id;
+            const connected = activeNodeId ? activeNeighbors.has(node.id) : false;
+            return (
+              <Link
+                key={node.id}
+                href={node.href}
+                onMouseEnter={() => setHover(node.id)}
+                onMouseLeave={() => setHover(null)}
+                className={cn(
+                  "group rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  (active || connected) && "bg-muted/60 text-foreground",
+                )}
+              >
+                <span
+                  className="mr-2 inline-block size-2 rounded-full transition-transform group-hover:scale-125"
+                  style={{ backgroundColor: getClusterColor(node.cluster) }}
+                />
+                {node.title}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

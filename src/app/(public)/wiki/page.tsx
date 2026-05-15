@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { WikiExplorer } from "@/components/wiki/wiki-explorer";
-import { WikiGraph } from "@/components/wiki/wiki-graph";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import { StructuredData } from "@/components/seo/structured-data";
 import {
@@ -82,29 +81,8 @@ export default function WikiPage() {
         </div>
       </section>
 
-      <section className="grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="space-y-6">
-          <h2 className="font-heading text-3xl font-light text-foreground">
-            Browse the graph
-          </h2>
-          <WikiExplorer index={index} />
-        </div>
-        <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
-          <WikiGraph nodes={index.graph.nodes} edges={index.graph.edges} compact />
-          <div className="border-y border-border/80 bg-card/70 py-4">
-            <p className="font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
-              Clusters
-            </p>
-            <div className="mt-3 space-y-2">
-              {index.clusters.map((cluster) => (
-                <div key={cluster.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="capitalize text-muted-foreground">{cluster.label}</span>
-                  <span className="font-medium tabular-nums text-foreground">{cluster.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
+      <section className="py-10">
+        <WikiExplorer index={index} />
       </section>
     </div>
   );
