@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon, BookOpenIcon } from "lucide-react";
-import { siteConfig, signalBlocks } from "@/lib/marketing/site-config";
+import { ArrowRightIcon, BookOpenIcon, NetworkIcon } from "lucide-react";
+import { homeLinks, siteConfig } from "@/lib/marketing/site-config";
 import { Button } from "@/components/ui/button";
 
 export function MarketingHero() {
@@ -36,34 +36,46 @@ export function MarketingHero() {
               nativeButton={false}
               size="lg"
               className="bg-background text-foreground hover:bg-background/90"
-              render={<Link href="/blog" />}
+              render={<Link href="/wiki" />}
             >
-              <BookOpenIcon className="size-4" aria-hidden />
-              Read the notes
+              <NetworkIcon className="size-4" aria-hidden />
+              Browse the wiki
             </Button>
             <Button
               nativeButton={false}
               size="lg"
               variant="outline"
               className="border-background/35 bg-background/10 text-background hover:bg-background/18 hover:text-background"
-              render={<Link href="/work" />}
+              render={<Link href="/blog" />}
             >
-              View the work
+              <BookOpenIcon className="size-4" aria-hidden />
+              Blog roadmap
               <ArrowRightIcon className="size-4" aria-hidden />
             </Button>
           </div>
         </div>
 
         <div className="grid gap-px overflow-hidden border border-background/18 bg-background/18 md:grid-cols-3">
-          {signalBlocks.map((block) => (
-            <div key={block.title} className="bg-foreground/70 p-5 backdrop-blur">
+          {homeLinks.map((block) => (
+            <Link
+              key={block.href}
+              href={block.href}
+              className="group bg-foreground/70 p-5 backdrop-blur outline-none transition-colors hover:bg-foreground/82 focus-visible:ring-2 focus-visible:ring-background"
+            >
               <h2 className="text-sm font-semibold text-background">
                 {block.title}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-background/68">
                 {block.body}
               </p>
-            </div>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-background">
+                {block.label}
+                <ArrowRightIcon
+                  className="size-4 transition-transform group-hover:translate-x-1"
+                  aria-hidden
+                />
+              </span>
+            </Link>
           ))}
         </div>
       </div>

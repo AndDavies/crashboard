@@ -14,7 +14,6 @@ export default function WhoopPrivacyPolicyPage() {
   const effectiveDate = "March 21, 2026";
   const operator = siteConfig.publicName;
   const product = siteConfig.brandWordmark;
-  const contactEmail = siteConfig.email;
 
   return (
     <MarketingPageFrame>
@@ -228,14 +227,7 @@ export default function WhoopPrivacyPolicyPage() {
           </h2>
           <p>
             For privacy questions or requests regarding this policy or the WHOOP
-            Integration, contact us at{" "}
-            <a
-              href={`mailto:${contactEmail}`}
-              className="font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              {contactEmail}
-            </a>
-            .
+            Integration, use the contact method configured for this deployment.
           </p>
         </section>
       </article>

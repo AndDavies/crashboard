@@ -1,50 +1,48 @@
 import Link from "next/link";
-import { ArrowUpRightIcon } from "lucide-react";
-import { featuredProjects } from "@/lib/marketing/site-config";
+import { ArrowRightIcon } from "lucide-react";
+import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
 
-const preview = featuredProjects.slice(0, 3);
-
 export function ProjectsSection() {
+  const index = getPublicWikiIndex();
+  const featuredPages = index.pages.slice(0, 6);
+
   return (
-    <SectionShell id="work" className="border-y border-border/70 bg-muted/25">
+    <SectionShell id="wiki" className="border-y border-border/70 bg-muted/25">
       <SectionHeading
-        eyebrow="Work surface"
-        title="Projects shaped as useful records, not portfolio theatre."
-        description="Each section can become a case study, build log, or public summary as the site grows."
+        eyebrow="Wiki"
+        title="The real public content lives in the wiki."
+        description="These pages are generated from the compiled knowledge base and link to real public routes."
       />
-      <div className="grid gap-px overflow-hidden border border-border/80 bg-border/80 md:grid-cols-3">
-        {preview.map((project) => (
+      <div className="grid gap-px overflow-hidden border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3">
+        {featuredPages.map((page) => (
           <Link
-            key={project.title}
-            href={project.href ?? "/work"}
+            key={page.slug}
+            href={`/wiki/${page.slug}`}
             className="group bg-background p-6 outline-none transition-colors hover:bg-muted/35 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex items-start justify-between gap-4">
               <h3 className="font-heading text-lg font-semibold text-foreground">
-                {project.title}
+                {page.title}
               </h3>
-              <ArrowUpRightIcon
-                className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              <ArrowRightIcon
+                className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1"
                 aria-hidden
               />
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              {project.description}
+            <p className="mt-4 line-clamp-4 text-sm leading-relaxed text-muted-foreground">
+              {page.description}
             </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {project.stack.map((item) => (
-                <span
-                  key={item}
-                  className="border border-border/80 bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
           </Link>
         ))}
       </div>
+      <Link
+        href="/wiki"
+        className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+      >
+        Browse all {index.pages.length} wiki pages
+        <ArrowRightIcon className="size-4" aria-hidden />
+      </Link>
     </SectionShell>
   );
 }

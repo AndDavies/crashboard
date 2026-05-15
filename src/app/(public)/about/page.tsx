@@ -23,21 +23,20 @@ export default function AboutPage() {
         About
       </p>
       <h1 className="mt-4 max-w-3xl font-heading text-4xl font-semibold text-foreground md:text-5xl md:leading-[1.08]">
-        A personal site for the thinking, tools, and records I want to keep
-        improving.
+        A personal site for the public parts of Crashboard.
       </h1>
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_22rem]">
         <div className="max-w-3xl space-y-6 text-base leading-relaxed text-muted-foreground">
           <p>{siteConfig.shortBio}</p>
           <p>
             The through-line is practical judgment: separating signal from
-            noise, designing tools that support real review habits, and writing
-            down the parts of the work that are easy to forget later.
+            noise, preserving useful source trails, and turning rough thinking
+            into pages that can be revisited.
           </p>
           <p>
-            Some of this is public writing. Some is project documentation. Some
-            stays inside the dashboard until it is ready to become useful in
-            public.
+            Today, the wiki is the real public corpus. The blog is the next
+            publishing surface, and it should stay clean until the CMS can feed
+            it real posts.
           </p>
         </div>
         <aside className="border-l border-border/80 pl-6">
@@ -63,9 +62,9 @@ export default function AboutPage() {
         <Button
           nativeButton={false}
           variant="outline"
-          render={<Link href="/work" />}
+          render={<Link href="/wiki" />}
         >
-          View work
+          Browse wiki
         </Button>
       </div>
     </MarketingPageFrame>

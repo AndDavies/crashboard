@@ -6,12 +6,9 @@ import { MobileNav, type NavItem } from "@/components/marketing/mobile-nav";
 
 const mainNav: NavItem[] = [
   { href: "/", label: "Home" },
+  { href: "/blog", label: "Blog" },
   { href: "/wiki", label: "Wiki" },
-  { href: "/blog", label: "Writing" },
-  { href: "/work", label: "Work" },
-  { href: "/links", label: "Links" },
   { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
 ];
 
 export async function SiteHeader() {

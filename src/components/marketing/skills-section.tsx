@@ -1,22 +1,22 @@
-import { capabilityBlocks } from "@/lib/marketing/site-config";
+import { blogContentModel } from "@/lib/marketing/site-config";
 import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
 
 export function SkillsSection() {
   return (
-    <SectionShell id="systems" dense className="bg-background">
+    <SectionShell id="blog-model" dense className="bg-background">
       <SectionHeading
-        eyebrow="Sections to grow"
-        title="A scaffold for the parts of a personal site that should compound."
-        description="The site now has clean places for essays, field notes, links, projects, and private dashboard access."
+        eyebrow="Blog CMS"
+        title="The blog is scaffolded around the fields the CMS needs next."
+        description="This is structure, not pretend content. Published posts will replace the empty state once the CMS exists."
       />
-      <ul className="grid gap-x-12 gap-y-10 sm:grid-cols-2">
-        {capabilityBlocks.map((block) => (
-          <li key={block.title} className="border-t border-border/80 pt-5">
+      <ul className="grid gap-x-12 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        {blogContentModel.map((field) => (
+          <li key={field.field} className="border-t border-border/80 pt-5">
             <h3 className="font-heading text-base font-semibold text-foreground">
-              {block.title}
+              {field.field}
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-[0.9375rem]">
-              {block.body}
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {field.description}
             </p>
           </li>
         ))}

@@ -1,13 +1,6 @@
 import Link from "next/link";
-import { siteConfig } from "@/lib/marketing/site-config";
+import { operatingNotes, siteConfig } from "@/lib/marketing/site-config";
 import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
-
-const operatingNotes = [
-  "Prefer evidence over enthusiasm.",
-  "Keep the workflow small enough to use.",
-  "Write the decision, not just the summary.",
-  "Preserve the source trail.",
-];
 
 export function AboutSection() {
   return (
@@ -21,14 +14,13 @@ export function AboutSection() {
           />
           <div className="max-w-3xl space-y-5 text-base leading-relaxed text-muted-foreground">
             <p>
-              Crashboard is where I want the public layer of my work to live:
-              writing, projects, useful links, and the occasional field note
-              from tools or workflows that are worth keeping.
+              Crashboard currently has one real public content surface: the
+              wiki. It is the compiled, browseable layer of source-backed notes
+              and concept pages.
             </p>
             <p>
-              The style direction borrows from intelligence briefs: clear
-              sections, plain labels, source-aware claims, and enough visual
-              restraint that the writing can carry the page.
+              The blog is being prepared as the next layer, but it should stay
+              structurally honest until the CMS and actual posts exist.
             </p>
           </div>
         </div>

@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/marketing/site-config";
 import { Separator } from "@/components/ui/separator";
-import { GithubIcon, LinkedinIcon } from "lucide-react";
 
 const footerNav = [
   { href: "/", label: "Home" },
-  { href: "/blog", label: "Writing" },
-  { href: "/articles", label: "Articles" },
-  { href: "/links", label: "Links" },
+  { href: "/blog", label: "Blog" },
+  { href: "/wiki", label: "Wiki" },
   { href: "/about", label: "About" },
-  { href: "/work", label: "Work" },
-  { href: "/contact", label: "Contact" },
 ] as const;
 
 export function SiteFooter() {
@@ -27,22 +23,6 @@ export function SiteFooter() {
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
               {siteConfig.shortBio}
             </p>
-            <div className="mt-4 flex gap-3">
-              <a
-                href={siteConfig.social.github}
-                className="rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="GitHub"
-              >
-                <GithubIcon className="size-5" />
-              </a>
-              <a
-                href={siteConfig.social.linkedin}
-                className="rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="LinkedIn"
-              >
-                <LinkedinIcon className="size-5" />
-              </a>
-            </div>
           </div>
           <nav aria-label="Footer">
             <ul className="flex flex-wrap gap-x-6 gap-y-2">

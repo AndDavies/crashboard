@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · Crashboard",
   },
   description:
-    "Product design, frontend engineering, and writing — with a private Supabase-backed dashboard.",
+    "Andrew Davies' Crashboard: a public wiki, future blog, and private dashboard.",
 };
 
 export default function RootLayout({
