@@ -27,7 +27,7 @@ import {
   UnderlineIcon,
   Undo2Icon,
 } from "lucide-react";
-import { saveBlogPostAction } from "@/lib/blog/actions";
+import { createBlogPostAction, saveBlogPostAction } from "@/lib/blog/actions";
 import type { BlogPostDetail, BlogPostRevision } from "@/lib/blog/data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,25 +68,45 @@ function ToolbarButton({
 
 export function BlogPostEditor({
   post,
-  revisions,
+  revisions = [],
 }: {
-  post: BlogPostDetail;
-  revisions: BlogPostRevision[];
+  post?: BlogPostDetail;
+  revisions?: BlogPostRevision[];
 }) {
+  const isEditing = Boolean(post);
+  const editorPost = post ?? {
+    id: "new",
+    title: "",
+    slug: "",
+    excerpt: "",
+    status: "draft",
+    contentJson: EMPTY_DOC,
+    contentHtml: "",
+    coverImagePath: null,
+    coverImageUrl: null,
+    publishedAt: null,
+    scheduledAt: null,
+    deletedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } satisfies BlogPostDetail;
+
   const [contentJson, setContentJson] = useState(() =>
-    JSON.stringify(post.contentJson ?? EMPTY_DOC),
+    JSON.stringify(editorPost.contentJson ?? EMPTY_DOC),
   );
-  const [contentHtml, setContentHtml] = useState(post.contentHtml ?? "");
-  const [coverImagePath, setCoverImagePath] = useState(post.coverImagePath ?? "");
-  const [coverImageUrl, setCoverImageUrl] = useState(post.coverImageUrl ?? "");
+  const [contentHtml, setContentHtml] = useState(editorPost.contentHtml ?? "");
+  const [coverImagePath, setCoverImagePath] = useState(editorPost.coverImagePath ?? "");
+  const [coverImageUrl, setCoverImageUrl] = useState(editorPost.coverImageUrl ?? "");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const initialContent = useMemo(() => {
-    return Object.keys(post.contentJson).length > 0 ? post.contentJson : EMPTY_DOC;
-  }, [post.contentJson]);
+    return Object.keys(editorPost.contentJson).length > 0
+      ? editorPost.contentJson
+      : EMPTY_DOC;
+  }, [editorPost.contentJson]);
 
   const editor = useEditor({
     extensions: [
@@ -131,7 +151,7 @@ export function BlogPostEditor({
     setUploadError(null);
     const formData = new FormData();
     formData.set("file", file);
-    formData.set("postId", post.id);
+    formData.set("postId", editorPost.id);
 
     try {
       const response = await fetch("/dashboard/content/blog/media", {
@@ -187,8 +207,8 @@ export function BlogPostEditor({
   }
 
   return (
-    <form action={saveBlogPostAction} className="space-y-8">
-      <input type="hidden" name="postId" value={post.id} />
+    <form action={isEditing ? saveBlogPostAction : createBlogPostAction} className="space-y-8">
+      {isEditing ? <input type="hidden" name="postId" value={editorPost.id} /> : null}
       <input type="hidden" name="contentJson" value={contentJson} />
       <input type="hidden" name="contentHtml" value={contentHtml} />
       <input type="hidden" name="coverImagePath" value={coverImagePath} />
@@ -197,19 +217,19 @@ export function BlogPostEditor({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
-            <Input id="title" name="title" defaultValue={post.title} />
+            <Input id="title" name="title" defaultValue={editorPost.title} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="slug">Slug</Label>
-              <Input id="slug" name="slug" defaultValue={post.slug} />
+              <Input id="slug" name="slug" defaultValue={editorPost.slug} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <select
                 id="status"
                 name="status"
-                defaultValue={post.status}
+                defaultValue={editorPost.status}
                 className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <option value="draft">Draft</option>
@@ -224,7 +244,7 @@ export function BlogPostEditor({
             <textarea
               id="excerpt"
               name="excerpt"
-              defaultValue={post.excerpt}
+              defaultValue={editorPost.excerpt}
               rows={3}
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
@@ -236,8 +256,8 @@ export function BlogPostEditor({
               name="scheduledAt"
               type="datetime-local"
               defaultValue={
-                post.scheduledAt
-                  ? new Date(post.scheduledAt).toISOString().slice(0, 16)
+                editorPost.scheduledAt
+                  ? new Date(editorPost.scheduledAt).toISOString().slice(0, 16)
                   : ""
               }
             />
@@ -389,16 +409,20 @@ export function BlogPostEditor({
 
       <section className="flex flex-col gap-3 rounded-xl border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
-          Last updated {new Date(post.updatedAt).toLocaleString()}
+          {isEditing
+            ? `Last updated ${new Date(editorPost.updatedAt).toLocaleString()}`
+            : "New post"}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            nativeButton={false}
-            variant="outline"
-            render={<Link href={`/dashboard/content/blog/${post.id}/preview`} />}
-          >
-            Preview
-          </Button>
+          {isEditing ? (
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={<Link href={`/dashboard/content/blog/${editorPost.id}/preview`} />}
+            >
+              Preview
+            </Button>
+          ) : null}
           <Button type="submit" name="intent" value="save" variant="outline">
             <SaveIcon className="size-4" />
             Save draft
@@ -410,19 +434,23 @@ export function BlogPostEditor({
             <SendIcon className="size-4" />
             Publish
           </Button>
-          <Button type="submit" name="intent" value="archive" variant="outline">
-            Archive
-          </Button>
-          {post.deletedAt ? (
-            <Button type="submit" name="intent" value="restore" variant="outline">
-              Restore
-            </Button>
-          ) : (
-            <Button type="submit" name="intent" value="delete" variant="destructive">
-              <Trash2Icon className="size-4" />
-              Delete
-            </Button>
-          )}
+          {isEditing ? (
+            <>
+              <Button type="submit" name="intent" value="archive" variant="outline">
+                Archive
+              </Button>
+              {editorPost.deletedAt ? (
+                <Button type="submit" name="intent" value="restore" variant="outline">
+                  Restore
+                </Button>
+              ) : (
+                <Button type="submit" name="intent" value="delete" variant="destructive">
+                  <Trash2Icon className="size-4" />
+                  Delete
+                </Button>
+              )}
+            </>
+          ) : null}
         </div>
       </section>
 

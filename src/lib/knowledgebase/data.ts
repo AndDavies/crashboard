@@ -400,6 +400,5 @@ export async function updateKnowledgebaseReviewStatus(formData: FormData) {
     .eq("id", documentId);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/dashboard/knowledgebase");
-  revalidatePath(`/dashboard/knowledgebase/${documentId}`);
+  revalidatePath("/wiki");
 }

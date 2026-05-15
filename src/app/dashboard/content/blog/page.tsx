@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
-import { createBlogPostAction } from "@/lib/blog/actions";
 import { getDashboardBlogPosts } from "@/lib/blog/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,7 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col gap-4 rounded-xl border border-border/80 bg-muted/25 p-5 lg:flex-row lg:items-start lg:justify-between">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase text-muted-foreground">
             CMS
@@ -36,25 +35,18 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
             Blog posts
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Create, edit, schedule, publish, archive, and delete public blog posts.
-            Published posts feed the public /blog routes.
+            Manage the posts that feed the public blog. Drafts stay private until
+            you publish them.
           </p>
         </div>
-        <form action={createBlogPostAction} className="flex gap-2">
-          <Input
-            name="title"
-            placeholder="New post title"
-            className="min-w-0 sm:w-64"
-          />
-          <Button type="submit">
-            <PlusIcon className="size-4" />
-            New
-          </Button>
-        </form>
+        <Button nativeButton={false} render={<Link href="/dashboard/content/blog/new" />}>
+          <PlusIcon className="size-4" />
+          Add New Post
+        </Button>
       </section>
 
       <form className="grid gap-3 rounded-xl border border-border/80 bg-background p-4 md:grid-cols-[1fr_12rem_auto]">
-        <Input name="q" placeholder="Search posts" defaultValue={filters.q ?? ""} />
+        <Input name="q" placeholder="Search articles" defaultValue={filters.q ?? ""} />
         <select
           name="status"
           defaultValue={filters.status ?? "all"}
@@ -71,48 +63,68 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
         </Button>
       </form>
 
-      <div className="divide-y divide-border/80 border-y border-border/80">
-        {posts.length > 0 ? (
-          posts.map((post) => (
-            <Link
+      {posts.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {posts.map((post) => (
+            <article
               key={post.id}
-              href={`/dashboard/content/blog/${post.id}`}
-              className="grid gap-4 py-5 outline-none hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[1fr_9rem_12rem]"
+              className="flex min-h-56 flex-col justify-between rounded-xl border border-border/80 bg-background p-5 shadow-sm"
             >
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-heading text-lg font-semibold text-foreground">
-                    {post.title}
-                  </h3>
+                  <Badge variant="outline" className="font-normal capitalize">
+                    {post.status}
+                  </Badge>
                   {post.deletedAt ? (
                     <Badge variant="destructive" className="font-normal">
                       deleted
                     </Badge>
                   ) : null}
                 </div>
+                <h3 className="mt-4 font-heading text-xl font-semibold tracking-tight text-foreground">
+                  {post.title}
+                </h3>
                 <p className="mt-1 text-sm text-muted-foreground">/{post.slug}</p>
                 {post.excerpt ? (
-                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                     {post.excerpt}
                   </p>
                 ) : null}
               </div>
-              <div>
-                <Badge variant="outline" className="font-normal capitalize">
-                  {post.status}
-                </Badge>
+              <div className="mt-6 flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Updated {new Date(post.updatedAt).toLocaleDateString()}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={`/dashboard/content/blog/${post.id}`} />}
+                >
+                  Edit
+                </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Updated {new Date(post.updatedAt).toLocaleDateString()}
-              </p>
-            </Link>
-          ))
-        ) : (
-          <div className="py-10 text-sm text-muted-foreground">
-            No posts match this view.
-          </div>
-        )}
-      </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-border/80 bg-muted/15 px-5 py-10 text-center">
+          <h3 className="font-heading text-lg font-semibold text-foreground">
+            No articles yet
+          </h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Add a post to start building the blog.
+          </p>
+          <Button
+            className="mt-5"
+            nativeButton={false}
+            render={<Link href="/dashboard/content/blog/new" />}
+          >
+            <PlusIcon className="size-4" />
+            Add New Post
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

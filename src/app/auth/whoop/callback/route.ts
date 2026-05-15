@@ -32,10 +32,10 @@ export async function GET(request: Request) {
   const errorDescription = searchParams.get("error_description");
   const code = searchParams.get("code");
 
-  const redirectBase = `${origin}/dashboard/whoop`;
+  const redirectBase = `${origin}/dashboard/content/blog`;
   const loginWhoopFinish = () => {
     const url = new URL("/login", origin);
-    url.searchParams.set("next", "/dashboard/whoop");
+    url.searchParams.set("next", "/dashboard/content/blog");
     url.searchParams.set("error", "whoop_session");
     return url;
   };

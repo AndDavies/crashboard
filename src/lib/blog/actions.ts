@@ -76,15 +76,53 @@ async function insertRevision(postId: string, userId: string | null) {
 export async function createBlogPostAction(formData: FormData) {
   const user = await requireDashboardUser();
   const admin = createAdminClient();
-  const rawTitle = stringField(formData, "title");
-  const title = rawTitle || "Untitled post";
-  const slug = await getUniqueBlogSlug(title);
+  const intent = stringField(formData, "intent") || "save";
+
+  const title = stringField(formData, "title") || "Untitled post";
+  const requestedSlug = normalizeBlogSlug(stringField(formData, "slug") || title);
+  const slug = await getUniqueBlogSlug(requestedSlug);
+  const excerpt = stringField(formData, "excerpt");
+  const coverImagePath = nullableStringField(formData, "coverImagePath");
+  const contentJson = parseContentJson(stringField(formData, "contentJson"));
+  const contentHtml = sanitizeBlogHtml(stringField(formData, "contentHtml"));
+  const scheduledAt = isoOrNull(nullableStringField(formData, "scheduledAt"));
+
+  let status = stringField(formData, "status") as BlogPostStatus;
+  if (!VALID_STATUSES.includes(status)) status = "draft";
+
+  let publishedAt: string | null = null;
+  let nextScheduledAt: string | null = null;
+
+  if (intent === "publish") {
+    status = "published";
+    publishedAt = new Date().toISOString();
+  } else if (intent === "schedule") {
+    if (!scheduledAt) throw new Error("Choose a scheduled publish date.");
+    status = "scheduled";
+    publishedAt = scheduledAt;
+    nextScheduledAt = scheduledAt;
+  } else if (status === "published") {
+    publishedAt = new Date().toISOString();
+  } else if (status === "scheduled") {
+    if (!scheduledAt) throw new Error("Choose a scheduled publish date.");
+    publishedAt = scheduledAt;
+    nextScheduledAt = scheduledAt;
+  } else {
+    status = "draft";
+  }
 
   const { data, error } = await admin
     .from("blog_posts")
     .insert({
       title,
       slug,
+      excerpt,
+      status,
+      content_json: contentJson,
+      content_html: contentHtml,
+      cover_image_path: coverImagePath,
+      published_at: publishedAt,
+      scheduled_at: nextScheduledAt,
       created_by: user.id,
       updated_by: user.id,
     })

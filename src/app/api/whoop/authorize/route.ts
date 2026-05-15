@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   if (!user) {
     const login = new URL("/login", origin);
-    login.searchParams.set("next", "/dashboard/whoop");
+    login.searchParams.set("next", "/dashboard/content/blog");
     return NextResponse.redirect(login);
   }
 
