@@ -18,12 +18,12 @@ import {
 export const metadata: Metadata = {
   title: "Blog",
   description:
-    "Essays and field notes from Andrew Davies on AI workflows, knowledge systems, defence strategy, and source-backed research.",
+    "Field notes from Andrew Davies on AI workflows, research systems, knowledge management, defence strategy, and the source trails behind the wiki.",
   alternates: { canonical: canonicalUrl("/blog") },
   openGraph: {
     title: "Blog · Crashboard",
     description:
-      "Essays and field notes from Andrew Davies on AI workflows, knowledge systems, defence strategy, and source-backed research.",
+      "Field notes from Andrew Davies on AI workflows, research systems, knowledge management, defence strategy, and the source trails behind the wiki.",
     url: canonicalUrl("/blog"),
     images: [{ url: SEO_DEFAULT_IMAGE, width: 1200, height: 630 }],
   },
@@ -59,7 +59,7 @@ export default async function BlogPage({ searchParams }: Props) {
           name: "Crashboard Blog",
           url: absoluteSiteUrl("/blog"),
           description:
-            "Essays and field notes from Andrew Davies on AI workflows, knowledge systems, defence strategy, and source-backed research.",
+            "Field notes from Andrew Davies on AI workflows, research systems, knowledge management, defence strategy, and the source trails behind the wiki.",
           author: { "@type": "Person", name: SEO_AUTHOR_NAME },
           publisher: { "@type": "Person", name: SEO_AUTHOR_NAME },
           isPartOf: {
@@ -85,13 +85,13 @@ export default async function BlogPage({ searchParams }: Props) {
             Blog
           </p>
           <h1 className="mt-8 font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
-            Essays and field notes on AI workflows, knowledge systems, and strategy.
+            Notes on AI work, source-backed research, and strategy.
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
-            Published posts from Andrew Davies on practical research systems,
-            source-backed thinking, defence strategy, and the operating patterns
-            behind Crashboard.
+            Longer pieces will live here: how I use AI, keep research
+            traceable, build knowledge systems, and turn messy judgment into
+            pages someone else can inspect.
           </p>
         </div>
       </section>
@@ -103,7 +103,7 @@ export default async function BlogPage({ searchParams }: Props) {
               Posts
             </p>
             <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
-              {selectedTag ? `Tagged ${selectedTag}` : "Published articles"}
+              {selectedTag ? `Tagged ${selectedTag}` : "Published notes"}
             </h2>
             {allTags.length > 0 ? (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -166,10 +166,11 @@ export default async function BlogPage({ searchParams }: Props) {
           ) : (
             <div className="border-y border-border/80 py-10">
               <h3 className="font-heading text-2xl font-light text-foreground">
-                No posts are published yet.
+                No public posts yet.
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                The CMS is ready; published posts will appear here automatically.
+                I am keeping the archive empty until the CMS is publishing real
+                work. Start with the wiki; it already has the compiled notes.
               </p>
             </div>
           )}
@@ -177,10 +178,10 @@ export default async function BlogPage({ searchParams }: Props) {
 
         <aside className="border-y border-border/80 py-6 lg:border-l lg:border-y-0 lg:pl-6">
           <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-            Live corpus
+            Start here
           </p>
           <h2 className="mt-3 font-heading text-2xl font-light text-foreground">
-            Read the wiki now
+            Current public corpus
           </h2>
           <div className="mt-5 space-y-4">
             {relatedWikiPages.map((page) => (
@@ -193,7 +194,7 @@ export default async function BlogPage({ searchParams }: Props) {
                   {page.title}
                 </span>
                 <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">
-                  {page.role}
+                  {page.description}
                 </span>
               </Link>
             ))}

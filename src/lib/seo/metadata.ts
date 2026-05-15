@@ -4,7 +4,7 @@ export const SEO_AUTHOR_NAME = "Andrew Davies";
 export const SEO_SITE_NAME = "Crashboard";
 export const SEO_DEFAULT_IMAGE = "/images/marketing/crashboard-hero.png";
 export const SEO_DEFAULT_DESCRIPTION =
-  "Andrew Davies' public wiki and blog on AI workflows, knowledge systems, defence strategy, and source-backed research notes.";
+  "Andrew Davies' public notebook on AI workflows, source-backed research, knowledge-system design, and strategic judgment.";
 
 export function absoluteSiteUrl(path = "/") {
   const origin = getPublicSiteOrigin();

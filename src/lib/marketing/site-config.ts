@@ -1,8 +1,8 @@
 export const siteConfig = {
   publicName: "Andrew Davies",
-  title: "Personal website, public wiki, and research blog",
+  title: "A public notebook on AI work, research systems, and strategic judgment.",
   shortBio:
-    "I use Crashboard as the public edge of my working system: a place for source-backed wiki pages, AI workflow notes, knowledge-system thinking, and longer strategy writing.",
+    "I publish the parts of my working notes that are useful outside the notebook: AI workflows, source-backed research methods, knowledge-system design, and strategy writing from Halifax.",
   location: "Halifax, Canada",
   brandWordmark: "Crashboard",
 } as const;
@@ -35,29 +35,29 @@ export type BlogPostSummary = {
 export const homeLinks: HomeLink[] = [
   {
     title: "Public wiki",
-    body: "The live body of compiled pages: concepts, workflows, source-backed synthesis, and links between ideas.",
+    body: "Compiled notes that have survived a second pass: concepts, workflows, source trails, and links between related ideas.",
     href: "/wiki",
     label: "Browse wiki",
   },
   {
     title: "Blog",
-    body: "Essays and field notes on AI workflows, practical research systems, defence strategy, and how ideas turn into working surfaces.",
+    body: "Longer field notes on using AI, organizing research, and turning loose judgment into reusable systems.",
     href: "/blog",
     label: "Open blog",
   },
   {
     title: "Private dashboard",
-    body: "The authenticated side of Crashboard for private notes, tools, ingestion, and working surfaces.",
+    body: "The private side for drafts, ingestion, and the machinery behind the public pages.",
     href: "/dashboard",
     label: "Go to dashboard",
   },
 ];
 
 export const operatingNotes = [
-  "Public pages should link somewhere real.",
-  "The wiki carries the current content surface.",
-  "The blog should answer one clear question at a time.",
-  "The CMS should make publishing citeable without becoming heavy.",
+  "Name the question before publishing.",
+  "Show the source trail when it matters.",
+  "Prefer durable notes over daily takes.",
+  "Keep the dashboard private; make the synthesis public.",
 ];
 
 export const blogPosts: BlogPostSummary[] = [];
@@ -65,26 +65,26 @@ export const blogPosts: BlogPostSummary[] = [];
 export const blogContentModel = [
   {
     field: "Title and slug",
-    description: "The public URL, page title, and social preview title.",
+    description: "The public handle for a post: clear enough to cite and stable enough to keep.",
   },
   {
     field: "Summary",
-    description: "A short answer and meta description for readers, search snippets, and answer systems.",
+    description: "The answer a reader should understand before deciding whether to read the whole piece.",
   },
   {
     field: "Status",
-    description: "Draft, review, or published state before the post appears.",
+    description: "Draft, scheduled, published, or archived without exposing unfinished work.",
   },
   {
     field: "Body",
-    description: "The article content, eventually stored as rich text or MDX.",
+    description: "The argument, examples, caveats, and source trail in a format that can be edited cleanly.",
   },
   {
     field: "Tags",
-    description: "Topic labels and focus terms that connect posts back to wiki clusters.",
+    description: "Topic labels that connect essays back to the wiki instead of becoming loose keywords.",
   },
   {
     field: "Sources and related pages",
-    description: "References to supporting URLs and related wiki pages for context and citation.",
+    description: "Supporting links and wiki pages that make the post easier to verify, reuse, and extend.",
   },
 ];

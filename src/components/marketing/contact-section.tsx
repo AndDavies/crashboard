@@ -14,11 +14,11 @@ export function ContactSection() {
             Next
           </p>
           <h2 className="font-heading text-4xl leading-[1.02] font-light text-background md:text-6xl">
-            The next build step is publishing.
+            Start with the material that already has weight.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-background/65 md:text-lg">
-            The public site now points at real wiki content and keeps the blog
-            ready for the CMS.
+            The wiki is live now. The blog will follow as the CMS starts
+            publishing real essays, not filler.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -28,7 +28,7 @@ export function ContactSection() {
             className="rounded-full bg-accent px-6 text-accent-foreground hover:bg-accent/85"
             render={<Link href="/blog" />}
           >
-            Blog scaffold
+            Open blog
           </Button>
           <Button
             nativeButton={false}

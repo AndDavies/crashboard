@@ -9,18 +9,19 @@ export function AboutSection() {
         <div>
           <SectionHeading
             eyebrow="Personal site"
-            title="A quieter home base for the work behind the work."
+            title="A public notebook for the work that survives the first draft."
             description={siteConfig.title}
           />
           <div className="max-w-3xl space-y-5 text-base leading-relaxed text-muted-foreground md:text-lg">
             <p>
-              Crashboard currently has one real public content surface: the
-              wiki. It is the compiled, browseable layer of source-backed notes
-              and concept pages.
+              Crashboard is where finished-enough thinking leaves the private
+              notebook. The wiki holds the current corpus: source-backed pages,
+              recurring concepts, and the connective tissue between them.
             </p>
             <p>
-              The blog is being prepared as the next layer, but it should stay
-              structurally honest until the CMS and actual posts exist.
+              The blog is for questions that need a fuller answer than a wiki
+              page can carry: how a workflow works, what a source trail proves,
+              and where the judgment is still uncertain.
             </p>
           </div>
         </div>

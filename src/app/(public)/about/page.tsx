@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { siteConfig } from "@/lib/marketing/site-config";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { Button } from "@/components/ui/button";
 import { canonicalUrl } from "@/lib/seo/metadata";
@@ -8,15 +7,15 @@ import { canonicalUrl } from "@/lib/seo/metadata";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "About Andrew Davies, Crashboard, and the public wiki and blog behind his AI workflow, knowledge-system, and strategy research.",
+    "About Andrew Davies, Crashboard, and the public notebook behind his AI workflow, research-system, and strategy writing.",
   alternates: { canonical: canonicalUrl("/about") },
 };
 
 const principles = [
-  "Make the evidence visible enough that a decision can be challenged.",
-  "Keep systems boring until boring stops working.",
-  "Write in a way that helps the next pass start smarter.",
-  "Treat dashboards as review surfaces, not decoration.",
+  "Write from evidence, not posture.",
+  "Give readers the trail: sources, decisions, and caveats.",
+  "Make the wiki useful before making the blog busy.",
+  "Build tools that improve judgment, not dashboards that decorate it.",
 ];
 
 export default function AboutPage() {
@@ -27,20 +26,24 @@ export default function AboutPage() {
         About
       </p>
       <h1 className="mt-8 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
-        A personal site for the public parts of Crashboard.
+        I use Crashboard to turn private research into public working notes.
       </h1>
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_22rem]">
         <div className="max-w-3xl space-y-6 text-base leading-relaxed text-muted-foreground md:text-lg">
-          <p>{siteConfig.shortBio}</p>
           <p>
-            The through-line is practical judgment: separating signal from
-            noise, preserving useful source trails, and turning rough thinking
-            into pages that can be revisited.
+            I am Andrew Davies, based in Halifax. I work on practical AI
+            workflows, research systems, defence and strategy questions, and
+            the knowledge infrastructure that holds those threads together.
           </p>
           <p>
-            Today, the wiki is the real public corpus. The blog is the next
-            publishing surface, and it should stay clean until the CMS can feed
-            it real posts.
+            Crashboard is where finished-enough thinking leaves the private
+            notebook: source-backed wiki pages first, then essays when a
+            question deserves a longer answer.
+          </p>
+          <p>
+            Most of the raw material stays private. What appears here should
+            help a reader understand the question, follow the evidence, and
+            reuse the pattern.
           </p>
         </div>
         <aside className="border-t border-border/80 pt-6 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">

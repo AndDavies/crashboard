@@ -13,8 +13,8 @@ export function WritingSection() {
         <div>
           <SectionHeading
             eyebrow="Blog"
-            title="The next content surface is the blog."
-            description="This section points to the scaffold that the CMS will populate once publishing is connected."
+            title="The blog is for questions that need more than a note."
+            description="Posts will connect field notes, source trails, and working examples back to the wiki."
           />
           <div className="technical-grid relative aspect-[4/3] overflow-hidden border-y border-foreground/10 bg-background">
             <Image
@@ -57,18 +57,18 @@ export function WritingSection() {
                 Awaiting CMS content
               </p>
               <h3 className="mt-3 font-heading text-3xl leading-tight font-light text-foreground">
-                Blog posts will appear here once they exist.
+                The archive starts when there is something worth publishing.
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                The route and data shape are ready for dynamic posts. Until the
-                CMS is added, the public site should direct readers to the wiki
-                instead of listing draft titles as public content.
+                Until the CMS is feeding real essays, this section stays quiet.
+                The wiki already has the source-backed notes that future posts
+                will build from.
               </p>
               <Link
                 href="/blog"
                 className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
-                Review the blog scaffold
+                Open the blog
                 <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             </div>
