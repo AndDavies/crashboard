@@ -7,6 +7,8 @@ import {
   SEO_SITE_NAME,
   absoluteSiteUrl,
 } from "@/lib/seo/metadata";
+import { getGoogleSiteVerification } from "@/lib/analytics/google";
+import { GoogleConsentDefaultScript } from "@/components/analytics/google-tracking";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +20,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const googleSiteVerification = getGoogleSiteVerification();
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicSiteOrigin()),
@@ -40,6 +44,11 @@ export const metadata: Metadata = {
     description: SEO_DEFAULT_DESCRIPTION,
     images: [SEO_DEFAULT_IMAGE],
   },
+  verification: googleSiteVerification
+    ? {
+        google: googleSiteVerification,
+      }
+    : undefined,
 };
 
 export default function RootLayout({
@@ -52,7 +61,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <GoogleConsentDefaultScript />
+        {children}
+      </body>
     </html>
   );
 }

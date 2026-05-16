@@ -25,6 +25,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Auth callback route: `/auth/callback`.
 
+6. Optional Google tracking: see
+   [`docs/SEO_ANALYTICS_TRACKING.md`](docs/SEO_ANALYTICS_TRACKING.md) for GA4,
+   Google Tag Manager, Search Console verification, consent mode, and the current
+   public-site event taxonomy.
+
 ## Project layout
 
 This repo uses the **Next.js App Router only** (`src/app`). There is no `pages/` directory. Route groups like `(public)` organize files without changing URLs.
