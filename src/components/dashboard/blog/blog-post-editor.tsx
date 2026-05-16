@@ -19,10 +19,12 @@ import {
   LinkIcon,
   ListIcon,
   ListOrderedIcon,
+  Loader2Icon,
   QuoteIcon,
   Redo2Icon,
   SaveIcon,
   SendIcon,
+  SparklesIcon,
   Trash2Icon,
   UnderlineIcon,
   Undo2Icon,
@@ -41,6 +43,7 @@ import type {
   BlogPostRevision,
   BlogSourceLink,
 } from "@/lib/blog/data";
+import type { BlogEnrichmentResult } from "@/lib/blog/enrichment-types";
 import type { BlogPostStarter } from "@/lib/blog/starter-posts";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -60,6 +63,20 @@ function sourceLinksToText(links: BlogSourceLink[]) {
 
 function slugLooksValid(input: string) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.trim());
+}
+
+function tagsTextToArray(input: string) {
+  const seen = new Set<string>();
+  return input
+    .split(/[,\n]/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const normalized = item.toLowerCase();
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
 }
 
 function ToolbarButton({
@@ -86,6 +103,47 @@ function ToolbarButton({
     >
       {children}
     </button>
+  );
+}
+
+function PreviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/80 bg-muted/10 p-3">
+      <p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function GeneratedPromptCard({
+  prompt,
+  copied,
+  onCopy,
+}: {
+  prompt: BlogEnrichmentResult["imagePrompts"]["cover"];
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border/80 bg-muted/10 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-foreground">{prompt.label}</p>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
+            {prompt.dimensions} / {prompt.ratio}
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onCopy}>
+          <CopyIcon className="size-3.5" />
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap rounded-md border border-border/70 bg-background p-3 text-xs leading-5 text-muted-foreground">
+        {prompt.prompt}
+      </pre>
+    </div>
   );
 }
 
@@ -157,6 +215,12 @@ export function BlogPostEditor({
   );
   const [noindexValue, setNoindexValue] = useState(editorPost.noindex);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [enrichment, setEnrichment] = useState<BlogEnrichmentResult | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
+  const [copiedGeneratedPrompt, setCopiedGeneratedPrompt] = useState<string | null>(
+    null,
+  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -279,6 +343,87 @@ export function BlogPostEditor({
     }
   }
 
+  async function runAiEnrichment() {
+    setEnriching(true);
+    setEnrichmentError(null);
+
+    try {
+      const activeHtml = editor?.getHTML() ?? contentHtml;
+      const activeJson = editor ? JSON.stringify(editor.getJSON()) : contentJson;
+      const response = await fetch("/dashboard/content/blog/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentHtml: activeHtml,
+          contentJson: activeJson,
+          title: titleValue,
+          slug: slugValue,
+          excerpt: excerptValue,
+          seoTitle: seoTitleValue,
+          metaDescription: metaDescriptionValue,
+          focusTopic: focusTopicValue,
+          tags: tagsTextToArray(tagsValue),
+          answerSummary: answerSummaryValue,
+          relatedWikiSlugs: tagsTextToArray(relatedWikiSlugsValue),
+        }),
+      });
+      const payload = (await response.json()) as {
+        enrichment?: BlogEnrichmentResult;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.enrichment) {
+        throw new Error(payload.error ?? "AI enrichment failed.");
+      }
+
+      setEnrichment(payload.enrichment);
+    } catch (error) {
+      setEnrichmentError(
+        error instanceof Error ? error.message : "AI enrichment failed.",
+      );
+    } finally {
+      setEnriching(false);
+    }
+  }
+
+  function applyEnrichment() {
+    if (!enrichment) return;
+    setTitleValue(enrichment.title);
+    setSlugValue(enrichment.slug);
+    setExcerptValue(enrichment.excerpt);
+    setSeoTitleValue(enrichment.seoTitle);
+    setMetaDescriptionValue(enrichment.metaDescription);
+    setFocusTopicValue(enrichment.focusTopic);
+    setTagsValue(enrichment.tags.join(", "));
+    setAnswerSummaryValue(enrichment.answerSummary);
+    setRelatedWikiSlugsValue(enrichment.relatedWikiSlugs.join(", "));
+  }
+
+  async function copyGeneratedPrompt(key: string, text: string) {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedGeneratedPrompt(key);
+      window.setTimeout(() => setCopiedGeneratedPrompt(null), 1800);
+    } catch {
+      setCopiedGeneratedPrompt(null);
+    }
+  }
+
+  function generatedPromptText() {
+    if (!enrichment) return "";
+    return [
+      enrichment.imagePrompts.cover,
+      enrichment.imagePrompts.inlineWide,
+      enrichment.imagePrompts.inlineSquare,
+    ]
+      .map(
+        (prompt) =>
+          `${prompt.label} (${prompt.dimensions} / ${prompt.ratio})\n\n${prompt.prompt}`,
+      )
+      .join("\n\n---\n\n");
+  }
+
   const seoWarnings = [
     !metaDescriptionValue.trim()
       ? "Add a meta description for snippets and link previews."
@@ -320,108 +465,238 @@ export function BlogPostEditor({
       <input type="hidden" name="coverImagePath" value={coverImagePath} />
       <input type="hidden" name="ogImagePath" value={ogImagePath} />
 
-      <section className="grid gap-5 rounded-xl border border-border/80 bg-muted/20 p-5 lg:grid-cols-[1fr_18rem]">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              name="title"
-              value={titleValue}
-              onChange={(event) => setTitleValue(event.target.value)}
-            />
+      <section className="rounded-xl border border-border/80 bg-muted/20 p-5">
+        <div className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Post setup</p>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Draft the body first, then generate SEO/AEO metadata and image
+              prompts without changing the article content.
+            </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="slug">Slug</Label>
-              <Input
-                id="slug"
-                name="slug"
-                value={slugValue}
-                onChange={(event) => setSlugValue(event.target.value)}
-                placeholder="lowercase-hyphenated-url"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <select
-                id="status"
-                name="status"
-                defaultValue={editorPost.status}
-                className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="excerpt">Excerpt</Label>
-            <textarea
-              id="excerpt"
-              name="excerpt"
-              value={excerptValue}
-              onChange={(event) => setExcerptValue(event.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="scheduledAt">Scheduled publish time</Label>
-            <Input
-              id="scheduledAt"
-              name="scheduledAt"
-              type="datetime-local"
-              defaultValue={
-                editorPost.scheduledAt
-                  ? new Date(editorPost.scheduledAt).toISOString().slice(0, 16)
-                  : ""
-              }
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-foreground">Cover image</p>
-          <div className="relative aspect-[1200/630] overflow-hidden rounded-lg border border-border/80 bg-background">
-            {coverImageUrl ? (
-              <Image
-                src={coverImageUrl}
-                alt=""
-                fill
-                sizes="18rem"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                No cover image
-              </div>
-            )}
-          </div>
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => {
-              void onCoverImageSelected(event.target.files?.[0]);
-            }}
-          />
           <Button
             type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => coverInputRef.current?.click()}
-            disabled={uploading}
+            onClick={() => void runAiEnrichment()}
+            disabled={enriching}
           >
-            Upload cover
+            {enriching ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <SparklesIcon className="size-4" />
+            )}
+            {enriching ? "Enriching" : "AI Enrichment"}
           </Button>
-          {uploadError ? (
-            <p className="text-sm text-destructive">{uploadError}</p>
-          ) : null}
+        </div>
+
+        {enrichmentError ? (
+          <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {enrichmentError}
+          </div>
+        ) : null}
+
+        {enrichment ? (
+          <div className="mb-5 rounded-lg border border-border/80 bg-background p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="font-heading text-base font-semibold text-foreground">
+                  AI enrichment draft
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Review the generated fields before applying them to the CMS.
+                  Image prompts are copy-only.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={applyEnrichment}>
+                  Apply metadata
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    void copyGeneratedPrompt("all", generatedPromptText())
+                  }
+                >
+                  <CopyIcon className="size-4" />
+                  {copiedGeneratedPrompt === "all" ? "Copied" : "Copy all prompts"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <PreviewField label="Title" value={enrichment.title} />
+              <PreviewField label="Slug" value={enrichment.slug} />
+              <PreviewField label="Excerpt" value={enrichment.excerpt} />
+              <PreviewField label="SEO title" value={enrichment.seoTitle} />
+              <PreviewField
+                label="Meta description"
+                value={enrichment.metaDescription}
+              />
+              <PreviewField label="Focus topic" value={enrichment.focusTopic} />
+              <PreviewField label="Keywords" value={enrichment.tags.join(", ")} />
+              <PreviewField
+                label="Related wiki slugs"
+                value={enrichment.relatedWikiSlugs.join(", ") || "None"}
+              />
+              <div className="md:col-span-2">
+                <PreviewField
+                  label="Answer summary"
+                  value={enrichment.answerSummary}
+                />
+              </div>
+            </div>
+
+            {enrichment.warnings.length > 0 ? (
+              <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-sm font-medium text-foreground">
+                  Review notes
+                </p>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
+                  {enrichment.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              <GeneratedPromptCard
+                prompt={enrichment.imagePrompts.cover}
+                copied={copiedGeneratedPrompt === "cover"}
+                onCopy={() =>
+                  void copyGeneratedPrompt(
+                    "cover",
+                    enrichment.imagePrompts.cover.prompt,
+                  )
+                }
+              />
+              <GeneratedPromptCard
+                prompt={enrichment.imagePrompts.inlineWide}
+                copied={copiedGeneratedPrompt === "inlineWide"}
+                onCopy={() =>
+                  void copyGeneratedPrompt(
+                    "inlineWide",
+                    enrichment.imagePrompts.inlineWide.prompt,
+                  )
+                }
+              />
+              <GeneratedPromptCard
+                prompt={enrichment.imagePrompts.inlineSquare}
+                copied={copiedGeneratedPrompt === "inlineSquare"}
+                onCopy={() =>
+                  void copyGeneratedPrompt(
+                    "inlineSquare",
+                    enrichment.imagePrompts.inlineSquare.prompt,
+                  )
+                }
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={titleValue}
+                onChange={(event) => setTitleValue(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug</Label>
+                <Input
+                  id="slug"
+                  name="slug"
+                  value={slugValue}
+                  onChange={(event) => setSlugValue(event.target.value)}
+                  placeholder="lowercase-hyphenated-url"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  name="status"
+                  defaultValue={editorPost.status}
+                  className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="excerpt">Excerpt</Label>
+              <textarea
+                id="excerpt"
+                name="excerpt"
+                value={excerptValue}
+                onChange={(event) => setExcerptValue(event.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="scheduledAt">Scheduled publish time</Label>
+              <Input
+                id="scheduledAt"
+                name="scheduledAt"
+                type="datetime-local"
+                defaultValue={
+                  editorPost.scheduledAt
+                    ? new Date(editorPost.scheduledAt).toISOString().slice(0, 16)
+                    : ""
+                }
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-foreground">Cover image</p>
+            <div className="relative aspect-[1200/630] overflow-hidden rounded-lg border border-border/80 bg-background">
+              {coverImageUrl ? (
+                <Image
+                  src={coverImageUrl}
+                  alt=""
+                  fill
+                  sizes="18rem"
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
+                  No cover image
+                </div>
+              )}
+            </div>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                void onCoverImageSelected(event.target.files?.[0]);
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploading}
+            >
+              Upload cover
+            </Button>
+            {uploadError ? (
+              <p className="text-sm text-destructive">{uploadError}</p>
+            ) : null}
+          </div>
         </div>
       </section>
 
