@@ -58,6 +58,41 @@ Use either direct GA4 or GTM as the primary collection path:
    `google-site-verification`.
 4. Submit `https://crashboard.dev/sitemap.xml`.
 
+## SEO/AEO Publishing Workflow
+
+Use the Blog CMS as the publishing checkpoint for answer-shaped content.
+
+1. Start from a CMS starter draft when the post maps to a wiki cluster.
+2. Keep one clear question per post.
+3. Fill the answer summary before publishing; it should be the paragraph a
+   reader or answer system can safely quote in summary.
+4. Add a focus topic, tags, related wiki slugs, and at least one internal link
+   in the body.
+5. Publish only when the post has a real title, clean slug, body content, and a
+   public reason to exist. SEO/AEO warnings are advisory, not hard blockers.
+
+Current priority answer targets:
+
+- What is an AI automation builder?
+- How should personal knowledge systems support AI workflows?
+- What makes agent memory useful?
+- How should AI workflows separate rules from judgment?
+- What is source-backed research in an AI workflow?
+
+## Monitoring Cadence
+
+Review this monthly while the site is still a learning exercise.
+
+- Search Console: indexed pages, sitemap status, crawl errors, and queries that
+  actually show impressions.
+- GA4: blog/wiki page views, `select_content` events, outbound clicks, and
+  whether readers move from wiki pages into related blog posts.
+- Content quality: pages with impressions but low engagement should get clearer
+  titles, stronger summaries, and better internal links before adding more posts.
+- Technical health: rerun `npm run build`, fetch `/robots.txt` and
+  `/sitemap.xml`, and spot-check one blog post plus one wiki page for structured
+  data after larger content releases.
+
 ## Tracking Policy
 
 Keep the analytics model simple:
@@ -76,4 +111,3 @@ Keep the analytics model simple:
 - Google Analytics: enhanced measurement events and duplicate-page-view caution.
 - Google Search Console: HTML tag ownership verification.
 - Google Tag Manager: install one web container across public pages.
-

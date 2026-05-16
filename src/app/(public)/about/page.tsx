@@ -2,13 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { Button } from "@/components/ui/button";
-import { canonicalUrl } from "@/lib/seo/metadata";
+import { StructuredData } from "@/components/seo/structured-data";
+import {
+  SEO_AUTHOR_NAME,
+  SEO_DEFAULT_IMAGE,
+  SEO_DEFAULT_DESCRIPTION,
+  SEO_SITE_NAME,
+  absoluteSiteUrl,
+  canonicalUrl,
+} from "@/lib/seo/metadata";
 
 export const metadata: Metadata = {
   title: "About",
   description:
     "About Andrew Davies, Crashboard, and the public notebook behind his AI workflow, research-system, and strategy writing.",
   alternates: { canonical: canonicalUrl("/about") },
+  openGraph: {
+    title: "About Andrew Davies · Crashboard",
+    description:
+      "About Andrew Davies, Crashboard, and the public notebook behind his AI workflow, research-system, and strategy writing.",
+    url: canonicalUrl("/about"),
+    images: [{ url: SEO_DEFAULT_IMAGE, width: 1200, height: 630 }],
+  },
 };
 
 const principles = [
@@ -21,6 +36,36 @@ const principles = [
 export default function AboutPage() {
   return (
     <MarketingPageFrame>
+      <StructuredData
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          name: "About Andrew Davies",
+          url: absoluteSiteUrl("/about"),
+          description: SEO_DEFAULT_DESCRIPTION,
+          isPartOf: {
+            "@type": "WebSite",
+            name: SEO_SITE_NAME,
+            url: absoluteSiteUrl("/"),
+          },
+          mainEntity: {
+            "@type": "Person",
+            name: SEO_AUTHOR_NAME,
+            url: absoluteSiteUrl("/about"),
+            homeLocation: {
+              "@type": "Place",
+              name: "Halifax, Nova Scotia",
+            },
+            knowsAbout: [
+              "AI workflows",
+              "source-backed research",
+              "personal knowledge systems",
+              "defence strategy",
+              "knowledge management",
+            ],
+          },
+        }}
+      />
       <p className="flex items-center gap-3 font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
         <span className="h-1 w-10 bg-accent" aria-hidden />
         About

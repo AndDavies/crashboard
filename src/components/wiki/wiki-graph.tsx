@@ -160,7 +160,7 @@ export function WikiGraph({
   }
 
   return (
-    <div className="overflow-hidden border-y border-border/80 bg-card/75">
+    <div className="min-w-0 max-w-full overflow-hidden border-y border-border/80 bg-card/75">
       <div className="flex flex-col gap-3 border-b border-border/70 px-4 py-3">
         <div>
           <p className="font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
@@ -206,7 +206,7 @@ export function WikiGraph({
         </div>
       </div>
 
-      <div className="relative overflow-x-auto">
+      <div className="relative min-w-0 overflow-x-auto">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="wiki-graph min-h-[20rem] w-full min-w-[44rem]"

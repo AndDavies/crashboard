@@ -26,9 +26,7 @@ export type PublicWikiPage = {
   contentHash: string;
 };
 
-export type PublicWikiIndexPage = Omit<PublicWikiPage, "markdown"> & {
-  markdown?: string;
-};
+export type PublicWikiIndexPage = Omit<PublicWikiPage, "markdown" | "plainText">;
 
 export type PublicWikiIndex = {
   generatedAt: string;

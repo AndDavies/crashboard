@@ -1,10 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SeoBreadcrumbs } from "@/components/seo/breadcrumbs";
 import { WikiGraph } from "@/components/wiki/wiki-graph";
 import { WikiMarkdown } from "@/components/wiki/wiki-markdown";
 import { WikiPageToc, WikiReadingProgress } from "@/components/wiki/wiki-page-toc";
+import {
+  getPageAnswerQuestion,
+  getWikiAeoTargetsForPage,
+} from "@/lib/public-wiki/aeo";
 import type { PublicWikiIndex, PublicWikiPage } from "@/lib/public-wiki/types";
 
 function label(input: string) {
@@ -30,36 +35,36 @@ export function WikiPageView({
       (edge) => connectedIds.has(edge.source) && connectedIds.has(edge.target),
     ),
   };
+  const answerQuestion = getPageAnswerQuestion(page);
+  const answerTargets = getWikiAeoTargetsForPage(page).slice(0, 3);
 
   return (
-    <article data-wiki-article className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14">
+    <article data-wiki-article className="mx-auto w-full min-w-0 max-w-7xl px-4 py-10 sm:px-6 md:py-14">
       <WikiReadingProgress />
-      <div className="mb-8">
-        <Link
-          href="/wiki"
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeftIcon className="size-4" aria-hidden />
-          Wiki
-        </Link>
-      </div>
+      <SeoBreadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Wiki", href: "/wiki" },
+          { label: page.title, href: `/wiki/${page.slug}` },
+        ]}
+      />
 
-      <header className="grid gap-8 border-b border-border/80 pb-10 lg:grid-cols-[1fr_24rem] lg:items-end">
-        <div>
+      <header className="grid min-w-0 gap-8 border-b border-border/80 pb-10 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-end">
+        <div className="min-w-0">
           <div className="mb-5 flex flex-wrap gap-2">
             <Badge variant="secondary">{label(page.cluster)}</Badge>
             <Badge variant="outline">{label(page.role)}</Badge>
             <Badge variant="outline">{page.readingMinutes} min read</Badge>
             <Badge variant="outline">{page.sourceNotes.length} source notes</Badge>
           </div>
-          <h1 className="max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="max-w-4xl break-words font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
             {page.title}
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
             {page.description}
           </p>
         </div>
-        <div className="group/image technical-grid overflow-hidden border-y border-border/80 bg-card">
+        <div className="group/image technical-grid min-w-0 overflow-hidden border-y border-border/80 bg-card">
           <Image
             src={page.heroImage}
             alt=""
@@ -72,8 +77,44 @@ export function WikiPageView({
         </div>
       </header>
 
-      <div className="grid gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+      <div className="grid min-w-0 gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
+          <section
+            className={`mb-10 grid gap-px border-y border-border/80 bg-border/80 ${
+              answerTargets.length > 0 ? "md:grid-cols-[minmax(0,1fr)_20rem]" : ""
+            }`}
+          >
+            <div className="bg-card p-5">
+              <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                Short answer
+              </p>
+              <h2 className="mt-3 font-heading text-2xl font-light text-foreground">
+                {answerQuestion}
+              </h2>
+              <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+                {page.description}
+              </p>
+            </div>
+            {answerTargets.length > 0 ? (
+              <div className="bg-card p-5">
+                <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                  Supports
+                </p>
+                <div className="mt-3 space-y-3">
+                  {answerTargets.map((target) => (
+                    <Link
+                      key={target.question}
+                      href={`/wiki/${target.primarySlug}`}
+                      className="block text-sm leading-relaxed text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {target.question}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+
           <WikiMarkdown markdown={page.markdown} charts={page.charts} />
 
           {related.length > 0 ? (
@@ -123,7 +164,7 @@ export function WikiPageView({
           ) : null}
         </div>
 
-        <aside className="space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
           <div className="border-y border-border/80 bg-card/70 py-4">
             <p className="font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
               Contents
@@ -132,7 +173,14 @@ export function WikiPageView({
           </div>
 
           {graph.nodes.length > 1 ? (
-            <WikiGraph nodes={graph.nodes} edges={graph.edges} compact focusedNodeId={page.slug} />
+            <WikiGraph
+              nodes={graph.nodes}
+              edges={graph.edges}
+              compact
+              focusedNodeId={page.slug}
+              showSelectedPanel={false}
+              showNodeList={false}
+            />
           ) : null}
 
           <Link

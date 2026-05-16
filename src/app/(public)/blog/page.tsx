@@ -71,7 +71,7 @@ export default async function BlogPage({ searchParams }: Props) {
       />
       <section className="technical-grid relative overflow-hidden border-b border-border/80 py-20 md:py-28">
         <Image
-          src="/images/marketing/crashboard-writing.png"
+          src="/images/marketing/crashboard-writing.jpg"
           alt=""
           fill
           sizes="100vw"

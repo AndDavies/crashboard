@@ -28,13 +28,20 @@ import {
   Undo2Icon,
   AlertCircleIcon,
   CheckCircle2Icon,
+  CopyIcon,
 } from "lucide-react";
 import { createBlogPostAction, saveBlogPostAction } from "@/lib/blog/actions";
+import {
+  BLOG_IMAGE_FORMATS,
+  BLOG_IMAGE_PROMPT_TEMPLATE,
+  BLOG_IMAGE_STYLE_RULES,
+} from "@/lib/blog/image-guidelines";
 import type {
   BlogPostDetail,
   BlogPostRevision,
   BlogSourceLink,
 } from "@/lib/blog/data";
+import type { BlogPostStarter } from "@/lib/blog/starter-posts";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,32 +92,34 @@ function ToolbarButton({
 export function BlogPostEditor({
   post,
   revisions = [],
+  starterPost,
 }: {
   post?: BlogPostDetail;
   revisions?: BlogPostRevision[];
+  starterPost?: BlogPostStarter;
 }) {
   const isEditing = Boolean(post);
   const editorPost = post ?? {
     id: "new",
-    title: "",
-    slug: "",
-    excerpt: "",
+    title: starterPost?.title ?? "",
+    slug: starterPost?.slug ?? "",
+    excerpt: starterPost?.excerpt ?? "",
     status: "draft",
-    contentJson: EMPTY_DOC,
-    contentHtml: "",
+    contentJson: starterPost?.contentJson ?? EMPTY_DOC,
+    contentHtml: starterPost?.contentHtml ?? "",
     coverImagePath: null,
     coverImageUrl: null,
-    seoTitle: "",
-    metaDescription: "",
+    seoTitle: starterPost?.seoTitle ?? "",
+    metaDescription: starterPost?.metaDescription ?? "",
     canonicalUrl: null,
     ogImagePath: null,
     ogImageUrl: null,
     noindex: false,
-    focusTopic: "",
-    tags: [],
-    answerSummary: "",
-    sourceLinks: [],
-    relatedWikiSlugs: [],
+    focusTopic: starterPost?.focusTopic ?? "",
+    tags: starterPost?.tags ?? [],
+    answerSummary: starterPost?.answerSummary ?? "",
+    sourceLinks: starterPost?.sourceLinks ?? [],
+    relatedWikiSlugs: starterPost?.relatedWikiSlugs ?? [],
     publishedAt: null,
     scheduledAt: null,
     deletedAt: null,
@@ -147,6 +156,7 @@ export function BlogPostEditor({
     sourceLinksToText(editorPost.sourceLinks),
   );
   const [noindexValue, setNoindexValue] = useState(editorPost.noindex);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -258,6 +268,17 @@ export function BlogPostEditor({
     editor.chain().focus().setLink({ href: url.trim() }).run();
   }
 
+  async function copyImagePrompt() {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(BLOG_IMAGE_PROMPT_TEMPLATE);
+      setCopiedPrompt(true);
+      window.setTimeout(() => setCopiedPrompt(false), 1800);
+    } catch {
+      setCopiedPrompt(false);
+    }
+  }
+
   const seoWarnings = [
     !metaDescriptionValue.trim()
       ? "Add a meta description for snippets and link previews."
@@ -364,7 +385,7 @@ export function BlogPostEditor({
 
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Cover image</p>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border/80 bg-background">
+          <div className="relative aspect-[1200/630] overflow-hidden rounded-lg border border-border/80 bg-background">
             {coverImageUrl ? (
               <Image
                 src={coverImageUrl}
@@ -708,6 +729,63 @@ export function BlogPostEditor({
             ) : null}
           </div>
         ) : null}
+      </section>
+
+      <section className="rounded-xl border border-border/80 bg-background p-5">
+        <div className="flex flex-col gap-3 border-b border-border/70 pb-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="font-heading text-base font-semibold text-foreground">
+              Image system
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Use the same visual language for covers and article images so the
+              blog reads as one connected research system.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void copyImagePrompt()}
+          >
+            <CopyIcon className="size-4" />
+            {copiedPrompt ? "Copied" : "Copy prompt"}
+          </Button>
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          {BLOG_IMAGE_FORMATS.map((format) => (
+            <div
+              key={format.id}
+              className="rounded-lg border border-border/80 bg-muted/15 p-4"
+            >
+              <p className="text-sm font-medium text-foreground">{format.label}</p>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
+                {format.dimensions} / {format.ratio}
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {format.use}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div>
+            <p className="text-sm font-medium text-foreground">Prompt template</p>
+            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-border/80 bg-muted/20 p-4 text-xs leading-6 text-muted-foreground">{BLOG_IMAGE_PROMPT_TEMPLATE}</pre>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">Style rules</p>
+            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground">
+              {BLOG_IMAGE_STYLE_RULES.map((rule) => (
+                <li key={rule} className="flex gap-2">
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" />
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </section>
 
       {revisions.length > 0 ? (

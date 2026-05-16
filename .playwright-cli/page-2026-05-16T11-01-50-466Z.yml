@@ -1,0 +1,59 @@
+- generic [ref=e2]:
+  - banner:
+    - generic [ref=e3]:
+      - link "Skip to Content" [ref=e4] [cursor=pointer]:
+        - /url: "#page"
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - navigation [ref=e11]:
+            - link "ABOUT RRL" [ref=e13] [cursor=pointer]:
+              - /url: /aboutrrl
+            - link "THE CREW" [ref=e15] [cursor=pointer]:
+              - /url: /crew
+            - link "STORE" [ref=e17] [cursor=pointer]:
+              - /url: /store
+            - link "INSIDE 2025 FINALS" [ref=e19] [cursor=pointer]:
+              - /url: /insidefinals
+            - link "2026 SEASON" [ref=e21] [cursor=pointer]:
+              - /url: /season
+            - link "Leaderboard" [ref=e23] [cursor=pointer]:
+              - /url: /leaderboard
+          - link "RUCK RACE LEAGUE" [ref=e26] [cursor=pointer]:
+            - /url: /
+            - img "RUCK RACE LEAGUE" [ref=e27]
+        - generic [ref=e28]:
+          - link "0 items in cart" [ref=e31] [cursor=pointer]:
+            - /url: /cart
+            - text: Cart
+            - generic [ref=e32]: (0)
+          - link "REGISTER" [ref=e34] [cursor=pointer]:
+            - /url: /season
+  - main [ref=e35]:
+    - article [ref=e36]:
+      - generic [ref=e37]:
+        - generic:
+          - img
+          - img
+      - generic [ref=e53]:
+        - generic [ref=e56]:
+          - heading "rucking as a sport is here." [level=2] [ref=e62]
+          - generic [ref=e67]:
+            - heading "ruck race league is the first and only global rucking league." [level=3] [ref=e68]:
+              - strong [ref=e69]: ruck race league is the first and only
+              - strong [ref=e71]: global
+              - strong [ref=e73]: rucking league.
+            - heading "training for rucking as a sport is highly accessible, benefits your physical and mental health and connects you with others in an uplifting way." [level=3] [ref=e74]:
+              - strong [ref=e75]: training for rucking as a sport is highly accessible, benefits your physical and mental health and connects you with others in an uplifting way.
+            - heading "our season steps off march 2026 and we hope to strive in common with you." [level=3] [ref=e76]
+          - link "register" [ref=e81] [cursor=pointer]:
+            - /url: /season
+        - button "Pause Background" [ref=e82] [cursor=pointer]
+  - contentinfo [ref=e83]:
+    - generic [ref=e94]:
+      - generic [ref=e95]:
+        - heading "STAY INFORMED" [level=2] [ref=e96]
+        - paragraph [ref=e98]: SIGN UP FOR UPDATES ABOUT THE 2026 SEASON
+      - generic [ref=e99]:
+        - textbox "Email Address" [ref=e102]
+        - button "Sign Up" [ref=e104] [cursor=pointer]: Sign Up
+      - paragraph [ref=e106]: We may put shit in our bags, but we aren’t shitbags - we’ll respect your privacy.

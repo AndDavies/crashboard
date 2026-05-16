@@ -95,7 +95,9 @@ function matches(page: PublicWikiIndexPage, query: string) {
     page.description,
     page.cluster,
     page.role,
-    page.plainText,
+    page.headings.map((heading) => heading.text).join(" "),
+    page.sourceNotes.join(" "),
+    page.linkedSlugs.join(" "),
   ]
     .join(" ")
     .toLowerCase();

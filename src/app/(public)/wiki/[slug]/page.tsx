@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { WikiPageView } from "@/components/wiki/wiki-page-view";
 import { StructuredData } from "@/components/seo/structured-data";
+import { getPageAnswerQuestion, getWikiAeoTargetsForPage } from "@/lib/public-wiki/aeo";
 import {
   getPublicWikiIndex,
   getPublicWikiPage,
@@ -63,6 +64,7 @@ export default async function PublicWikiDetailPage({
   ]);
 
   if (!page) notFound();
+  const answerTargets = getWikiAeoTargetsForPage(page);
 
   return (
     <>
@@ -85,8 +87,24 @@ export default async function PublicWikiDetailPage({
             url: absoluteSiteUrl("/"),
           },
           mainEntityOfPage: canonicalUrl(`/wiki/${page.slug}`),
-          keywords: [page.cluster, page.role],
+          articleSection: page.cluster,
+          about: {
+            "@type": "Thing",
+            name: getPageAnswerQuestion(page),
+            description: page.description,
+          },
+          mentions: answerTargets.map((target) => ({
+            "@type": "Thing",
+            name: target.topic,
+            description: target.question,
+          })),
+          keywords: [
+            page.cluster,
+            page.role,
+            ...answerTargets.map((target) => target.topic),
+          ],
           wordCount: page.wordCount,
+          dateModified: index.generatedAt,
         }}
       />
       <WikiPageView page={page} index={index} />

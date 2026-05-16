@@ -18,7 +18,7 @@ export function WritingSection() {
           />
           <div className="technical-grid relative aspect-[4/3] overflow-hidden border-y border-foreground/10 bg-background">
             <Image
-              src="/images/marketing/crashboard-writing.png"
+              src="/images/marketing/crashboard-writing.jpg"
               alt="Editorial desk with research notes and writing materials"
               fill
               sizes="(min-width: 1024px) 40vw, 100vw"

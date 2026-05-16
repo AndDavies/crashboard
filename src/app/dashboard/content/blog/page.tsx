@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusIcon } from "lucide-react";
+import { ArrowRightIcon, PlusIcon } from "lucide-react";
 import { getDashboardBlogPosts } from "@/lib/blog/data";
+import { blogStarterPosts } from "@/lib/blog/starter-posts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,46 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
           Filter
         </Button>
       </form>
+
+      <section className="rounded-xl border border-border/80 bg-muted/15 p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="font-heading text-lg font-semibold text-foreground">
+              Starter drafts
+            </h3>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Answer-shaped post templates drawn from the strongest wiki
+              clusters. Open one, edit it, then save or publish through the CMS.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          {blogStarterPosts.map((starter) => (
+            <Link
+              key={starter.id}
+              href={`/dashboard/content/blog/new?starter=${encodeURIComponent(starter.id)}`}
+              className="group rounded-lg border border-border/80 bg-background p-4 transition-colors hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Badge variant="outline" className="font-normal">
+                {starter.focusTopic}
+              </Badge>
+              <h4 className="mt-3 font-heading text-base font-semibold leading-tight text-foreground">
+                {starter.title}
+              </h4>
+              <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                {starter.answerSummary}
+              </p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                Use template
+                <ArrowRightIcon
+                  className="size-4 transition-transform group-hover:translate-x-1"
+                  aria-hidden
+                />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {posts.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2">

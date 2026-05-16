@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import { BlogPostEditor } from "@/components/dashboard/blog/blog-post-editor";
+import { getBlogStarterPost } from "@/lib/blog/starter-posts";
 
 export const metadata: Metadata = { title: "New blog post" };
 
-export default function NewBlogPostPage() {
+type Props = {
+  searchParams: Promise<{ starter?: string }>;
+};
+
+export default async function NewBlogPostPage({ searchParams }: Props) {
+  const { starter } = await searchParams;
+  const starterPost = getBlogStarterPost(starter);
+
   return (
     <div className="space-y-8">
       <section>
@@ -17,7 +25,7 @@ export default function NewBlogPostPage() {
           Write, format, add images, and save the post when it is ready.
         </p>
       </section>
-      <BlogPostEditor />
+      <BlogPostEditor starterPost={starterPost} />
     </div>
   );
 }

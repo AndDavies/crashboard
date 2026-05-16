@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
 import {
   getPublishedBlogPostBySlug,
   getPublishedBlogPosts,
@@ -11,6 +10,7 @@ import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { BlogPostBody } from "@/components/blog/blog-post-body";
 import { Badge } from "@/components/ui/badge";
+import { SeoBreadcrumbs } from "@/components/seo/breadcrumbs";
 import { StructuredData } from "@/components/seo/structured-data";
 import {
   SEO_AUTHOR_NAME,
@@ -119,13 +119,13 @@ export default async function BlogPostPage({ params }: Props) {
           keywords: post.tags,
         }}
       />
-      <Link
-        href="/blog"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-      >
-        <ArrowLeftIcon className="size-4" aria-hidden />
-        Blog
-      </Link>
+      <SeoBreadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Blog", href: "/blog" },
+          { label: post.title, href: `/blog/${post.slug}` },
+        ]}
+      />
 
       <article className="mt-10">
         <header className="max-w-4xl">
@@ -155,7 +155,7 @@ export default async function BlogPostPage({ params }: Props) {
         </header>
 
         {post.coverImageUrl ? (
-          <div className="relative mt-10 aspect-[16/8] overflow-hidden border border-border/80">
+          <div className="relative mt-10 aspect-[1200/630] overflow-hidden border border-border/80">
             <Image
               src={post.coverImageUrl}
               alt=""

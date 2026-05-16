@@ -45,7 +45,7 @@ export default async function BlogPreviewPage({ params }: Props) {
       </section>
 
       {post.coverImageUrl ? (
-        <div className="relative aspect-[16/8] overflow-hidden rounded-xl border border-border/80">
+        <div className="relative aspect-[1200/630] overflow-hidden rounded-xl border border-border/80">
           <Image
             src={post.coverImageUrl}
             alt=""

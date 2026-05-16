@@ -43,18 +43,27 @@ export function AnalyticsConsentBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/95 px-4 py-4 shadow-[0_-18px_60px_rgba(0,0,0,0.12)] backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          This site uses privacy-light Google Analytics to understand which public
-          wiki and blog pages are useful. Advertising storage stays off.
+    <div className="fixed right-4 bottom-4 left-4 z-50 sm:left-auto sm:max-w-sm">
+      <div className="border border-border/80 bg-background/95 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.12)] backdrop-blur">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Help improve the public notes with lightweight analytics. No ads.
         </p>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => saveConsent("denied")}>
-            Keep off
+        <div className="mt-3 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => saveConsent("denied")}
+          >
+            No thanks
           </Button>
-          <Button type="button" size="sm" onClick={() => saveConsent("granted")}>
-            Allow analytics
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => saveConsent("granted")}
+          >
+            OK
           </Button>
         </div>
       </div>

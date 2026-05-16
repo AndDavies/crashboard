@@ -9,7 +9,7 @@ export function MarketingHero() {
     <section className="technical-grid relative overflow-hidden border-b border-border/80 bg-card text-foreground">
       <div className="absolute inset-0">
         <Image
-          src="/images/marketing/crashboard-hero.png"
+          src="/images/marketing/crashboard-hero.jpg"
           alt=""
           fill
           priority

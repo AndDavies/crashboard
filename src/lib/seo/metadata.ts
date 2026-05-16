@@ -2,7 +2,7 @@ import { getPublicSiteOrigin } from "@/lib/site-url";
 
 export const SEO_AUTHOR_NAME = "Andrew Davies";
 export const SEO_SITE_NAME = "Crashboard";
-export const SEO_DEFAULT_IMAGE = "/images/marketing/crashboard-hero.png";
+export const SEO_DEFAULT_IMAGE = "/images/marketing/crashboard-hero.jpg";
 export const SEO_DEFAULT_DESCRIPTION =
   "Andrew Davies' public notebook on AI workflows, source-backed research, knowledge-system design, and strategic judgment.";
 
