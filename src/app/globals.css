@@ -204,6 +204,15 @@
     padding: 1rem;
   }
 
+  .blog-editor .tiptap :not(pre) > code,
+  .blog-content :not(pre) > code {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    font-size: 0.9em;
+    padding: 0.1rem 0.35rem;
+  }
+
   .blog-editor .tiptap img,
   .blog-content img {
     border: 1px solid var(--border);

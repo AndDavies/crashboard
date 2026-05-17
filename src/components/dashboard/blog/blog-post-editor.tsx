@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
+import {
+  EditorContent,
+  useEditor,
+  type Editor,
+  type JSONContent,
+} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import LinkExtension from "@tiptap/extension-link";
 import ImageExtension from "@tiptap/extension-image";
@@ -38,6 +43,10 @@ import {
   BLOG_IMAGE_PROMPT_TEMPLATE,
   BLOG_IMAGE_STYLE_RULES,
 } from "@/lib/blog/image-guidelines";
+import {
+  looksLikeMarkdownContent,
+  markdownToBlogHtml,
+} from "@/lib/blog/markdown";
 import type {
   BlogPostDetail,
   BlogPostRevision,
@@ -223,6 +232,7 @@ export function BlogPostEditor({
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const editorRef = useRef<Editor | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -257,6 +267,22 @@ export function BlogPostEditor({
         class:
           "min-h-[28rem] px-4 py-4 text-base leading-8 outline-none md:px-5",
       },
+      handlePaste(_view, event) {
+        const text = event.clipboardData?.getData("text/plain") ?? "";
+        const html = event.clipboardData?.getData("text/html") ?? "";
+        const activeEditor = editorRef.current;
+
+        if (!activeEditor || html || !looksLikeMarkdownContent(text)) {
+          return false;
+        }
+
+        const nextHtml = markdownToBlogHtml(text);
+        if (!nextHtml) return false;
+
+        event.preventDefault();
+        activeEditor.chain().focus().insertContent(nextHtml).run();
+        return true;
+      },
     },
     onUpdate({ editor: activeEditor }) {
       setContentJson(JSON.stringify(activeEditor.getJSON()));
@@ -266,8 +292,12 @@ export function BlogPostEditor({
 
   useEffect(() => {
     if (!editor) return;
+    editorRef.current = editor;
     setContentJson(JSON.stringify(editor.getJSON()));
     setContentHtml(editor.getHTML());
+    return () => {
+      if (editorRef.current === editor) editorRef.current = null;
+    };
   }, [editor]);
 
   async function uploadImage(file: File) {
