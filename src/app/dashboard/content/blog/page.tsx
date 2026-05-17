@@ -46,12 +46,12 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
         </Button>
       </section>
 
-      <form className="grid gap-3 rounded-xl border border-border/80 bg-background p-4 md:grid-cols-[1fr_12rem_auto]">
+      <form className="grid gap-3 rounded-xl border border-foreground/15 bg-card p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] md:grid-cols-[1fr_12rem_auto]">
         <Input name="q" placeholder="Search articles" defaultValue={filters.q ?? ""} />
         <select
           name="status"
           defaultValue={filters.status ?? "all"}
-          className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-8 rounded-lg border border-foreground/20 bg-white px-2.5 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
@@ -59,12 +59,12 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
           <option value="scheduled">Scheduled</option>
           <option value="archived">Archived</option>
         </select>
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="outline" className="bg-white">
           Filter
         </Button>
       </form>
 
-      <section className="rounded-xl border border-border/80 bg-muted/15 p-5">
+      <section className="rounded-xl border border-foreground/15 bg-card p-5 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <h3 className="font-heading text-lg font-semibold text-foreground">
@@ -81,7 +81,7 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
             <Link
               key={starter.id}
               href={`/dashboard/content/blog/new?starter=${encodeURIComponent(starter.id)}`}
-              className="group rounded-lg border border-border/80 bg-background p-4 transition-colors hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group rounded-lg border border-foreground/15 bg-white p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Badge variant="outline" className="font-normal">
                 {starter.focusTopic}
@@ -109,7 +109,7 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
           {posts.map((post) => (
             <article
               key={post.id}
-              className="flex min-h-56 flex-col justify-between rounded-xl border border-border/80 bg-background p-5 shadow-sm"
+              className="flex min-h-56 flex-col justify-between rounded-xl border border-foreground/15 bg-card p-5 shadow-[0_14px_40px_rgba(15,23,42,0.05)]"
             >
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -139,6 +139,7 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="bg-white"
                   nativeButton={false}
                   render={<Link href={`/dashboard/content/blog/${post.id}`} />}
                 >
