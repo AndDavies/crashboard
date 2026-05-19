@@ -50,8 +50,6 @@ type ExportIndex = {
   };
 };
 
-const DEFAULT_SOURCE =
-  "/Users/andrewdavies/Library/Mobile Documents/iCloud~md~obsidian/Documents/Andrew's Vault/Knowledge Base";
 const DEFAULT_OUT = "src/content/wiki/generated";
 const DEFAULT_IMAGE_OUT = "public/wiki/generated-images";
 
@@ -107,6 +105,20 @@ function parseFrontmatter(raw: string): { frontmatter: Frontmatter; body: string
     }
   }
   return { frontmatter, body: raw.slice(end + 4).trimStart() };
+}
+
+function isFalseFlag(value: Frontmatter[string] | undefined) {
+  if (value === false) return true;
+  if (typeof value === "string") return value.trim().toLowerCase() === "false";
+  return false;
+}
+
+function isPublicPage(frontmatter: Frontmatter) {
+  return !(
+    isFalseFlag(frontmatter.public) ||
+    isFalseFlag(frontmatter.kb_public) ||
+    isFalseFlag(frontmatter.publish)
+  );
 }
 
 function firstHeading(body: string) {
@@ -296,7 +308,11 @@ function ensureCleanDir(dir: string) {
 }
 
 function main() {
-  const sourceRoot = path.resolve(argValue("--source", process.env.WIKI_ROOT || DEFAULT_SOURCE));
+  const sourceArg = argValue("--source", process.env.WIKI_ROOT || "");
+  if (!sourceArg) {
+    throw new Error("Wiki source root is required. Pass --source <wiki-root> or set WIKI_ROOT.");
+  }
+  const sourceRoot = path.resolve(sourceArg);
   const wikiDir = path.join(sourceRoot, "wiki");
   const outDir = path.resolve(argValue("--out", DEFAULT_OUT));
   const pageDir = path.join(outDir, "pages");
@@ -315,13 +331,17 @@ function main() {
     .filter((file) => !["index.md", "log.md"].includes(file))
     .sort();
 
-  const rawPages = sourceFiles.map((file) => {
+  const parsedPages = sourceFiles.map((file) => {
     const fullPath = path.join(wikiDir, file);
     const raw = fs.readFileSync(fullPath, "utf8");
     const { frontmatter, body } = parseFrontmatter(raw);
     const title = firstHeading(body) || titleFromFilename(file);
     return { file, fullPath, raw, frontmatter, body, title, slug: slugify(title) };
   });
+  const skippedPrivatePages = parsedPages
+    .filter((page) => !isPublicPage(page.frontmatter))
+    .map((page) => page.file);
+  const rawPages = parsedPages.filter((page) => isPublicPage(page.frontmatter));
 
   const titleToSlug = new Map(rawPages.map((page) => [page.title, page.slug]));
   const exportedPages: ExportedPage[] = rawPages.map((page) => {
@@ -429,6 +449,7 @@ function main() {
       {
         sourceRoot,
         pages: exportedPages.length,
+        skippedPrivatePages: skippedPrivatePages.length,
         clusters: clusters.length,
         roles: roles.length,
         outDir,

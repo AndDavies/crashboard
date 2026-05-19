@@ -4,3 +4,7 @@
 [     773ms] [WARNING] yui: NOT loaded: squarespace-common_vendors @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-b8d716935110c7b2-min.en-US.js:7
 [     776ms] [WARNING] yui: NOT loaded: squarespace-user_account_core @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-b8d716935110c7b2-min.en-US.js:7
 [     776ms] [WARNING] yui: NOT loaded: squarespace-performance @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-b8d716935110c7b2-min.en-US.js:7
+[122416747ms] [ERROR] Framing 'https://www.google.com/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'". The violation has been logged, but no further action has been taken.
+ @ :0
+[216027549ms] [ERROR] Framing 'https://www.google.com/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'". The violation has been logged, but no further action has been taken.
+ @ :0

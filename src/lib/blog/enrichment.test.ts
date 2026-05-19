@@ -22,18 +22,18 @@ const modelOutput = BlogEnrichmentModelOutputSchema.parse({
   relatedWikiSlugs: ["agent-memory", "missing-page"],
   imageBriefs: {
     cover: {
-      idea: "Memory as an operating record under pressure",
-      objects: ["ruck", "field notebook", "taped map", "timing tag"],
+      idea: "Memory as a selective operating record on a source-backed paper grid",
+      objects: ["field notebook", "index cards", "printed report", "black tape"],
       text: "",
     },
     inlineWide: {
-      idea: "A field map of durable context",
-      objects: ["muddy boots", "folded map", "notebook", "index cards"],
+      idea: "A mapped trail of durable context across linked source packets",
+      objects: ["marked source packets", "cables", "index cards", "concrete"],
       text: "",
     },
     inlineSquare: {
-      idea: "A compact checkpoint for repeatable memory",
-      objects: ["stopwatch", "checklist", "field notebook", "black tape"],
+      idea: "A compact checkpoint for repeatable memory handoff",
+      objects: ["access checklist", "field notebook", "acid-lime tape edge", "black tape"],
       text: "CHECKPOINT",
     },
   },
@@ -66,11 +66,14 @@ describe("blog enrichment helpers", () => {
       "knowledge systems",
     ]);
     expect(result.imagePrompts.cover.dimensions).toBe("1200 x 630 px");
-    expect(result.imagePrompts.cover.prompt).toContain("near-black #050505");
-    expect(result.imagePrompts.cover.prompt).toContain("race gold #F7C600");
+    expect(result.imagePrompts.cover.prompt).toContain("warm off-white #FAF9F6");
     expect(result.imagePrompts.cover.prompt).toContain(
-      "Do not copy Ruck Race League names",
+      "Crashboard acid-lime accent #E5FC00",
     );
+    expect(result.imagePrompts.cover.prompt).toContain(
+      "Crashboard minimalist street/Bauhaus editorial style",
+    );
+    expect(result.imagePrompts.cover.prompt).not.toContain("Ruck Race League");
   });
 
   it("builds prompts that follow the Crashboard image skill style", () => {
@@ -79,13 +82,14 @@ describe("blog enrichment helpers", () => {
       title: "Trust Boundaries and Assurance",
       topic: "AI assurance",
       idea: "Boundaries shown as physical inspection lines",
-      objects: ["clipboard", "evidence tags", "gravel", "sealed case"],
+      objects: ["access checklist", "taped boundary line", "network cable", "source packet"],
     });
 
     expect(prompt).toContain("1200 x 675 px");
-    expect(prompt).toContain("70-85% of the image black");
-    expect(prompt).toContain("Black-and-white documentary field photography");
-    expect(prompt).toContain("Avoid:");
-    expect(prompt).not.toContain("Use a Ruck Race League-inspired visual");
+    expect(prompt).toContain("Use case: photorealistic-editorial");
+    expect(prompt).toContain("Crashboard minimalist street/Bauhaus editorial style");
+    expect(prompt).toContain("2-6% of the image");
+    expect(prompt).toContain("No action-event aesthetics");
+    expect(prompt).not.toContain("race gold");
   });
 });

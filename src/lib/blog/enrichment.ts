@@ -134,7 +134,7 @@ function normalizeObjects(objects: string[]) {
   const normalized = normalizeList(objects, 5);
   return normalized.length > 0
     ? normalized
-    : ["ruck", "field notebook", "taped map", "timing tag"];
+    : ["field notebook", "index cards", "printed report", "black tape"];
 }
 
 function imagePromptFor(
@@ -217,8 +217,10 @@ Rules:
 - Tags are the CMS keywords. Use 2-8 short topic phrases.
 - Answer summary should directly answer what the article helps the reader understand.
 - Related wiki slugs must be chosen only from the supplied wiki page list. Return an empty array if none fit.
-- For image briefs, propose only the visual thesis and 3-5 concrete objects. Prefer this object vocabulary: ${BLOG_IMAGE_APPROVED_OBJECTS.join(", ")}.
-- Image briefs must avoid fake logos, brand marks, robots, neon sci-fi, floating UI panels, cartoon styles, soft gradients, broad yellow backgrounds, and dense text.`;
+- Image briefs become inputs for the crashboard-blog-images prompt builder: return only a one-sentence visual thesis, 3-5 concrete scene objects, and optional exact short display text.
+- Keep image ideas aligned to minimalist street/Bauhaus editorial imagery: public notebook artifacts, source-backed operating records, paper grids, taped documents, cables, concrete/asphalt texture, and sparse crop-safe compositions.
+- Prefer this object vocabulary for image briefs: ${BLOG_IMAGE_APPROVED_OBJECTS.join(", ")}.
+- Image briefs must avoid action-event aesthetics, numbered event props, skulls, lightning marks, fake logos, brand marks, glossy robots, neon sci-fi, floating UI panels, cartoon styles, generic stock-office imagery, soft gradients, bokeh, decorative orbs, broad accent-color fields, dense text, and watermarks.`;
 }
 
 function buildUserPayload(input: GenerateBlogEnrichmentInput, articleText: string) {
