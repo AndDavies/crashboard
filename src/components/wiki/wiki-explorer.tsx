@@ -3,24 +3,30 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
+  ArrowUpDownIcon,
   BookOpenIcon,
-  ExternalLinkIcon,
   ListIcon,
   MapIcon,
   SearchIcon,
-  SlidersHorizontalIcon,
   XIcon,
 } from "lucide-react";
 import {
   useDeferredValue,
+  useEffect,
   useMemo,
   useState,
   type ComponentType,
   type ReactNode,
 } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { WikiGraph } from "@/components/wiki/wiki-graph";
 import {
   clusterLabel,
@@ -28,7 +34,10 @@ import {
   type WikiReaderPath,
 } from "@/lib/public-wiki/reader-paths";
 import { cn } from "@/lib/utils";
-import type { PublicWikiIndex, PublicWikiIndexPage } from "@/lib/public-wiki/types";
+import type {
+  PublicWikiIndex,
+  PublicWikiIndexPage,
+} from "@/lib/public-wiki/types";
 
 type ExplorerMode = "paths" | "all-pages" | "map";
 type SortOption = "cluster" | "title" | "sources" | "reading" | "links";
@@ -63,6 +72,14 @@ const modeOptions: Array<{
   { id: "paths", label: "Paths", icon: BookOpenIcon },
   { id: "all-pages", label: "All pages", icon: ListIcon },
   { id: "map", label: "Map", icon: MapIcon },
+];
+
+const sortOptions: Array<{ value: SortOption; label: string }> = [
+  { value: "cluster", label: "Cluster" },
+  { value: "links", label: "Relationship count" },
+  { value: "sources", label: "Source notes" },
+  { value: "reading", label: "Reading time" },
+  { value: "title", label: "Title" },
 ];
 
 function label(input: string) {
@@ -151,6 +168,18 @@ function makeRelationMaps(index: PublicWikiIndex): RelationMaps {
   return { backlinks, outbound, neighbors, degree };
 }
 
+function groupPagesByCluster(pages: PublicWikiIndexPage[]) {
+  const groups = new Map<string, PublicWikiIndexPage[]>();
+  for (const page of pages) {
+    const existing = groups.get(page.cluster) ?? [];
+    existing.push(page);
+    groups.set(page.cluster, existing);
+  }
+  return Array.from(groups.entries()).toSorted(([a], [b]) =>
+    clusterSortKey(a).localeCompare(clusterSortKey(b)),
+  );
+}
+
 export function WikiExplorer({
   index,
   readerPaths,
@@ -199,7 +228,7 @@ export function WikiExplorer({
         return {
           id: item.id,
           title: `${clusterLabel(item.label)} trail`,
-          description: `A route through ${trailPages.length} ${clusterLabel(item.label).toLowerCase()} pages with ${sourceCount} source notes and ${linkCount} relationships.`,
+          description: `${trailPages.length} ${clusterLabel(item.label).toLowerCase()} pages · ${sourceCount} sources · ${linkCount} links`,
           clusterId: item.id,
           pages: trailPages,
           sourceCount,
@@ -239,10 +268,18 @@ export function WikiExplorer({
       ]);
     }
     if (cluster !== "all") {
-      return new Set(index.pages.filter((page) => page.cluster === cluster).map((page) => page.slug));
+      return new Set(
+        index.pages
+          .filter((page) => page.cluster === cluster)
+          .map((page) => page.slug),
+      );
     }
-    const pathSlugs = readerPaths.flatMap((path) => path.pages.map((page) => page.slug));
-    return new Set(pathSlugs.length > 0 ? pathSlugs : entryPages.map((page) => page.slug));
+    const pathSlugs = readerPaths.flatMap((path) =>
+      path.pages.map((page) => page.slug),
+    );
+    return new Set(
+      pathSlugs.length > 0 ? pathSlugs : entryPages.map((page) => page.slug),
+    );
   }, [
     cluster,
     entryPages,
@@ -264,6 +301,20 @@ export function WikiExplorer({
 
   const selectedPage = selectedNodeId ? pageBySlug.get(selectedNodeId) ?? null : null;
   const focusedNodeId = selectedNodeId ?? activeNodeId;
+  const filtersDirty =
+    Boolean(query) || cluster !== "all" || role !== "all" || sort !== "cluster";
+
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedNodeId(null);
+        setActiveNodeId(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedNodeId]);
 
   function setClusterFilter(nextCluster: string) {
     setCluster(nextCluster);
@@ -292,17 +343,16 @@ export function WikiExplorer({
   }
 
   function followTrail(trail: ReadingTrail) {
-    setMode("paths");
+    setMode("all-pages");
     setClusterFilter(trail.clusterId);
     selectPage(trail.pages[0]?.slug ?? null);
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <ExplorerControls
-        activeNodeId={focusedNodeId}
         cluster={cluster}
-        graphEdgeCount={mapGraph.edges.length}
+        filtersDirty={filtersDirty}
         index={index}
         mode={mode}
         pageCount={pages.length}
@@ -315,9 +365,6 @@ export function WikiExplorer({
         setSort={setSort}
         sort={sort}
         resetFilters={resetFilters}
-        relationCount={
-          focusedNodeId ? relationCount(focusedNodeId, relationMaps) : null
-        }
       />
 
       {mode === "paths" ? (
@@ -349,7 +396,7 @@ export function WikiExplorer({
 
       {mode === "map" ? (
         <MapMode
-          activeNodeId={activeNodeId}
+          activeNodeId={focusedNodeId}
           entryPages={entryPages}
           graph={mapGraph}
           mapContext={
@@ -378,14 +425,12 @@ export function WikiExplorer({
 }
 
 function ExplorerControls({
-  activeNodeId,
   cluster,
-  graphEdgeCount,
+  filtersDirty,
   index,
   mode,
   pageCount,
   query,
-  relationCount,
   resetFilters,
   role,
   setClusterFilter,
@@ -395,14 +440,12 @@ function ExplorerControls({
   setSort,
   sort,
 }: {
-  activeNodeId: string | null;
   cluster: string;
-  graphEdgeCount: number;
+  filtersDirty: boolean;
   index: PublicWikiIndex;
   mode: ExplorerMode;
   pageCount: number;
   query: string;
-  relationCount: number | null;
   resetFilters: () => void;
   role: string;
   setClusterFilter: (cluster: string) => void;
@@ -415,26 +458,52 @@ function ExplorerControls({
   const showAllPageFilters = mode === "all-pages";
   const showMapFilter = mode === "map";
 
+  const clusterOptions = [
+    { value: "all", label: "All clusters" },
+    ...sortClustersForReaders(index).map((item) => ({
+      value: item.id,
+      label: `${clusterLabel(item.label)} (${item.count})`,
+    })),
+  ];
+  const roleOptions = [
+    { value: "all", label: "All roles" },
+    ...index.roles.map((item) => ({
+      value: item.id,
+      label: `${label(item.label)} (${item.count})`,
+    })),
+  ];
+
   return (
-    <section className="border-y border-border/80 bg-card/70 py-4">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <section
+      className="border border-border/80 bg-card/70"
+      aria-label="Explorer controls"
+    >
+      <div className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Reader view
           </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {modeOptions.map((item) => {
+          <div
+            className="mt-2 inline-flex border border-border/80 bg-background"
+            role="tablist"
+            aria-label="Reader view"
+          >
+            {modeOptions.map((item, itemIndex) => {
               const Icon = item.icon;
+              const active = mode === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setMode(item.id)}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    mode === item.id
-                      ? "border-primary/50 bg-primary text-primary-foreground"
-                      : "border-border/80 bg-background/70 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                    "inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    itemIndex > 0 && "border-l border-border/80",
+                    active
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
                   )}
                 >
                   <Icon className="size-4" aria-hidden />
@@ -445,17 +514,23 @@ function ExplorerControls({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{pageCount} pages</Badge>
-          {mode === "map" ? (
-            <Badge variant="outline">{graphEdgeCount} visible map links</Badge>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <span className="font-mono uppercase tracking-[0.16em]">
+            {pageCount.toLocaleString()} pages
+          </span>
+          {!showAllPageFilters && filtersDirty ? (
+            <span className="font-mono uppercase tracking-[0.16em] text-foreground">
+              Filtered · {clusterLabel(cluster)}
+              {role !== "all" ? ` · ${label(role)}` : ""}
+            </span>
           ) : null}
-          <Badge variant="outline">{index.generatedAt.slice(0, 10)} export</Badge>
-          {activeNodeId && relationCount !== null ? (
-            <Badge variant="secondary">{relationCount} focused relationships</Badge>
-          ) : null}
-          {(query || cluster !== "all" || role !== "all" || sort !== "cluster") ? (
-            <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
+          {filtersDirty ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={resetFilters}
+            >
               Reset
             </Button>
           ) : null}
@@ -463,10 +538,10 @@ function ExplorerControls({
       </div>
 
       {showAllPageFilters || showMapFilter ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end">
+        <div className="grid gap-4 border-t border-border/80 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem] lg:items-end">
           {showAllPageFilters ? (
             <label className="space-y-2">
-              <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 <SearchIcon className="size-3.5" aria-hidden />
                 Search
               </span>
@@ -474,26 +549,21 @@ function ExplorerControls({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search concepts, workflows, source notes..."
-                className="h-10 rounded-none bg-background/80"
+                className="h-10 rounded-none border-border/80 bg-background"
               />
             </label>
           ) : (
-            <div className="text-sm leading-relaxed text-muted-foreground">
-              Scope the map by cluster, select a page, or reveal the whole vault.
-            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground lg:max-w-md">
+              Scope the map by cluster, click a node to focus a neighborhood, or
+              reveal the whole vault.
+            </p>
           )}
 
           <FilterSelect
             labelText="Cluster"
             value={cluster}
-            onChange={setClusterFilter}
-            options={[
-              { value: "all", label: "All clusters" },
-              ...sortClustersForReaders(index).map((item) => ({
-                value: item.id,
-                label: `${clusterLabel(item.label)} (${item.count})`,
-              })),
-            ]}
+            onValueChange={setClusterFilter}
+            options={clusterOptions}
           />
 
           {showAllPageFilters ? (
@@ -501,35 +571,24 @@ function ExplorerControls({
               <FilterSelect
                 labelText="Role"
                 value={role}
-                onChange={setRoleFilter}
-                options={[
-                  { value: "all", label: "All roles" },
-                  ...index.roles.map((item) => ({
-                    value: item.id,
-                    label: `${label(item.label)} (${item.count})`,
-                  })),
-                ]}
+                onValueChange={setRoleFilter}
+                options={roleOptions}
               />
 
-              <label className="space-y-2">
-                <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-                  <SlidersHorizontalIcon className="size-3.5" aria-hidden />
-                  Sort
-                </span>
-                <select
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as SortOption)}
-                  className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="cluster">Cluster</option>
-                  <option value="links">Relationship count</option>
-                  <option value="sources">Source notes</option>
-                  <option value="reading">Reading time</option>
-                  <option value="title">Title</option>
-                </select>
-              </label>
+              <FilterSelect
+                labelText="Sort"
+                icon={<ArrowUpDownIcon className="size-3.5" aria-hidden />}
+                value={sort}
+                onValueChange={(next) => setSort(next as SortOption)}
+                options={sortOptions.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+              />
             </>
-          ) : null}
+          ) : (
+            <div className="hidden lg:block lg:col-span-2" />
+          )}
         </div>
       ) : null}
     </section>
@@ -538,31 +597,42 @@ function ExplorerControls({
 
 function FilterSelect({
   labelText,
-  onChange,
+  icon,
   options,
   value,
+  onValueChange,
 }: {
   labelText: string;
-  onChange: (value: string) => void;
+  icon?: ReactNode;
   options: Array<{ label: string; value: string }>;
   value: string;
+  onValueChange: (value: string) => void;
 }) {
+  const valueLabel =
+    options.find((option) => option.value === value)?.label ?? labelText;
   return (
     <label className="space-y-2">
-      <span className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+      <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        {icon}
         {labelText}
       </span>
-      <select
+      <Select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onValueChange={(next) => {
+          if (typeof next === "string") onValueChange(next);
+        }}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label={labelText}>
+          <SelectValue>{valueLabel}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   );
 }
@@ -591,27 +661,18 @@ function PathsMode({
   return (
     <div
       className={cn(
-        "grid min-w-0 gap-8",
-        selectedPage && "xl:grid-cols-[minmax(0,1fr)_24rem]",
+        "grid min-w-0 gap-10",
+        selectedPage && "xl:grid-cols-[minmax(0,1fr)_22rem]",
       )}
     >
-      <div className="min-w-0 space-y-8">
+      <div className="min-w-0 space-y-12">
         <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-                Start here
-              </p>
-              <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
-                Pick the door closest to what you need.
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                Each path opens a main page first, then points to supporting notes
-                once the topic has a clear shape.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <SectionHeader
+            eyebrow="Start here"
+            title="Pick the door closest to what you need."
+            description="Each path opens a primary page, then points to supporting notes once the topic has a clear shape."
+          />
+          <div className="wiki-stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
             {readerPaths.map((path) => (
               <ReaderPathCard
                 key={path.id}
@@ -625,22 +686,18 @@ function PathsMode({
         </section>
 
         <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-                Reading trails
-              </p>
-              <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
-                Then branch into a cluster.
-              </h2>
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {readingTrails.map((trail, index) => (
+          <SectionHeader
+            eyebrow="Reading trails"
+            title="Then branch into a cluster."
+            description="Auto-generated routes through the highest-linked pages in each cluster."
+          />
+          <div className="wiki-stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2">
+            {readingTrails.map((trail, trailIndex) => (
               <ReadingTrailCard
                 key={trail.id}
                 className={
-                  index === readingTrails.length - 1 && readingTrails.length % 2 === 1
+                  trailIndex === readingTrails.length - 1 &&
+                  readingTrails.length % 2 === 1
                     ? "md:col-span-2"
                     : ""
                 }
@@ -670,6 +727,37 @@ function PathsMode({
   );
 }
 
+function SectionHeader({
+  description,
+  eyebrow,
+  title,
+  actions,
+}: {
+  description?: string;
+  eyebrow: string;
+  title: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="max-w-2xl">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          {eyebrow}
+        </p>
+        <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+          {title}
+        </h2>
+        {description ? (
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      {actions}
+    </div>
+  );
+}
+
 function ReaderPathCard({
   onHover,
   onSelect,
@@ -682,101 +770,79 @@ function ReaderPathCard({
   relationMaps: RelationMaps;
 }) {
   const primary = path.primaryPage;
+  const supporting = path.pages.slice(1);
+  const visibleSupporting = supporting.slice(0, 3);
+  const remaining = supporting.length - visibleSupporting.length;
 
   return (
     <article
-      className="group/path relative flex min-h-80 flex-col border-y border-border/80 bg-card/75 transition-colors hover:border-foreground/35 hover:bg-background focus-within:border-foreground/35"
+      className="group/path flex h-full flex-col bg-card/70 motion-safe:transition-colors hover:bg-card focus-within:bg-card"
       onMouseEnter={() => {
         if (primary) onHover(primary.slug);
       }}
       onMouseLeave={() => onHover(null)}
     >
-      <span
-        className="pointer-events-none absolute left-0 top-0 h-full w-px bg-accent opacity-0 transition-opacity duration-200 group-hover/path:opacity-100 group-focus-within/path:opacity-100"
-        aria-hidden
-      />
-      {primary ? (
-        <Link
-          href={`/wiki/${primary.slug}`}
-          className="absolute inset-0 z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onFocus={() => onHover(primary.slug)}
-          onBlur={() => onHover(null)}
-          aria-label={`Start with ${primary.title}`}
-        >
-          <span className="sr-only">Start with {primary.title}</span>
-        </Link>
-      ) : null}
-
-      <div className="relative z-0 flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-              Start here
-            </p>
-            <h3 className="mt-3 font-heading text-2xl leading-tight font-light text-foreground">
-              {path.title}
-            </h3>
-          </div>
-          <MiniPathMap />
-        </div>
-
-        <p className="mt-4 text-base leading-relaxed text-foreground">
-          {path.promise}
+      <div className="flex flex-1 flex-col gap-4 p-5">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Start here
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        <h3 className="font-heading text-2xl font-light leading-tight text-foreground">
+          {path.title}
+        </h3>
+        <p className="text-base leading-relaxed text-foreground">{path.promise}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
           {path.description}
         </p>
-      </div>
 
-      <div className="px-5 pb-5">
-        {path.pages.length > 1 ? (
-          <div className="relative z-30 mb-4">
-            <p className="mb-2 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+        {visibleSupporting.length > 0 ? (
+          <div className="mt-auto pt-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               Related pages
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {path.pages.slice(1, 4).map((page) => (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {visibleSupporting.map((page) => (
                 <PreviewChip
                   key={page.slug}
-                  backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
+                  backlinksCount={
+                    relationMaps.backlinks.get(page.slug)?.length ?? 0
+                  }
                   outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
                   page={page}
                   onHover={onHover}
                   onSelect={onSelect}
                 />
               ))}
+              {remaining > 0 ? (
+                <span className="border border-border/80 bg-background/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  +{remaining} more
+                </span>
+              ) : null}
             </div>
           </div>
         ) : null}
-
-        {primary ? (
-          <div className="pointer-events-none -mx-5 -mb-5 border-t border-border/80 px-5 py-4 text-sm font-semibold text-foreground transition-colors group-hover/path:border-foreground/30 group-hover/path:bg-muted/35">
-            <span className="inline-flex items-center gap-2">
-              Start with {primary.title}
-              <ArrowRightIcon
-                className="size-4 transition-transform duration-200 motion-safe:group-hover/path:translate-x-1"
-                aria-hidden
-              />
-            </span>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Path page unavailable.</p>
-        )}
       </div>
-    </article>
-  );
-}
 
-function MiniPathMap() {
-  return (
-    <div className="relative mt-1 h-10 w-24 shrink-0 text-border" aria-hidden>
-      <span className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-current" />
-      <span className="absolute left-3 right-3 top-1/2 h-px origin-left -translate-y-1/2 scale-x-0 bg-accent transition-transform duration-300 motion-safe:group-hover/path:scale-x-100 motion-safe:group-focus-within/path:scale-x-100" />
-      <span className="absolute left-2 top-1/2 size-3 -translate-y-1/2 bg-foreground transition-transform duration-200 motion-safe:group-hover/path:scale-110" />
-      <span className="absolute left-[35%] top-1/2 size-2 -translate-y-1/2 bg-muted-foreground/65 transition-colors duration-200 group-hover/path:bg-accent" />
-      <span className="absolute left-[59%] top-1/2 size-2 -translate-y-1/2 bg-muted-foreground/65 transition-colors duration-200 group-hover/path:bg-accent" />
-      <span className="absolute right-2 top-1/2 size-2 -translate-y-1/2 bg-muted-foreground/65 transition-colors duration-200 group-hover/path:bg-accent" />
-    </div>
+      {primary ? (
+        <Link
+          href={`/wiki/${primary.slug}`}
+          className="flex items-center justify-between border-t border-border/80 bg-card/40 px-5 py-4 text-sm font-medium text-foreground motion-safe:transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          onFocus={() => onHover(primary.slug)}
+          onBlur={() => onHover(null)}
+        >
+          <span className="inline-flex items-center gap-2">
+            Start with {primary.title}
+          </span>
+          <ArrowRightIcon
+            className="size-4 shrink-0 motion-safe:transition-transform motion-safe:group-hover/path:translate-x-1"
+            aria-hidden
+          />
+        </Link>
+      ) : (
+        <p className="border-t border-border/80 bg-card/40 px-5 py-4 text-sm text-muted-foreground">
+          Path page unavailable.
+        </p>
+      )}
+    </article>
   );
 }
 
@@ -812,45 +878,44 @@ function MapMode({
   showWholeVaultMap: boolean;
 }) {
   return (
-    <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <section className="min-w-0 space-y-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-              Map view
-            </p>
-            <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
-              {mapContext}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              The graph is scoped by default so it explains the current path,
-              cluster, or selected page before exposing the whole vault.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            onClick={onShowWholeVaultMap}
-          >
-            {showWholeVaultMap ? "Show contextual map" : "Show whole vault map"}
-          </Button>
-        </div>
+    <div className="grid min-w-0 gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section className="min-w-0 space-y-5">
+        <SectionHeader
+          eyebrow="Map view"
+          title={mapContext}
+          description="The graph is scoped by default so it explains the current path, cluster, or selected page before exposing the whole vault."
+          actions={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onShowWholeVaultMap}
+            >
+              {showWholeVaultMap ? "Show contextual map" : "Show whole vault map"}
+            </Button>
+          }
+        />
 
         <div className="md:hidden">
           {!showMobileMap ? (
             <button
               type="button"
               onClick={onRevealMobileMap}
-              className="w-full border-y border-border/80 bg-card/75 p-5 text-left transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-full items-center justify-between border border-border/80 bg-card/70 p-5 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="font-heading text-2xl font-light text-foreground">
-                Reveal map
+              <span>
+                <span className="block font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Tap to reveal
+                </span>
+                <span className="mt-2 block font-heading text-2xl font-light text-foreground">
+                  Map
+                </span>
+                <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">
+                  Graphs are dense on mobile, so the map stays hidden until you
+                  ask for it.
+                </span>
               </span>
-              <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">
-                Graphs are dense on mobile, so the map stays hidden until you ask
-                for it.
-              </span>
+              <ArrowRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             </button>
           ) : null}
         </div>
@@ -900,50 +965,47 @@ function ReadingTrailCard({
   return (
     <article
       className={cn(
-        "group/trail flex min-h-72 flex-col border-y border-border/80 bg-card/75 transition-colors hover:border-foreground/35 hover:bg-background",
+        "group/trail flex flex-col bg-card/70 motion-safe:transition-colors hover:bg-card",
         className,
       )}
     >
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
               Reading trail
             </p>
-            <h3 className="mt-2 font-heading text-2xl leading-tight font-light text-foreground">
+            <h3 className="mt-2 font-heading text-2xl font-light leading-tight text-foreground">
               {trail.title}
             </h3>
           </div>
-          <div className="shrink-0 text-right font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+          <div className="shrink-0 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             {trail.pages.length} steps
           </div>
         </div>
 
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           {trail.description}
         </p>
 
         <div className="mt-5">
-          <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             Route
           </p>
-          <ol className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            {trail.pages.map((page, index) => (
-              <li key={page.slug} className="flex min-w-0 flex-1 items-center gap-2">
+          <ol className="mt-3 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 xl:grid-cols-4">
+            {trail.pages.map((page, stepIndex) => (
+              <li key={page.slug} className="bg-card/70">
                 <RouteStep
-                  backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
-                  index={index}
+                  backlinksCount={
+                    relationMaps.backlinks.get(page.slug)?.length ?? 0
+                  }
+                  index={stepIndex}
+                  isLast={stepIndex === trail.pages.length - 1}
                   onHover={onHover}
                   onSelect={onSelect}
                   outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
                   page={page}
                 />
-                {index < trail.pages.length - 1 ? (
-                  <ArrowRightIcon
-                    className="hidden size-4 shrink-0 text-muted-foreground/55 sm:block"
-                    aria-hidden
-                  />
-                ) : null}
               </li>
             ))}
           </ol>
@@ -952,12 +1014,12 @@ function ReadingTrailCard({
 
       <button
         type="button"
-        className="flex items-center justify-between border-t border-border/80 px-5 py-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center justify-between border-t border-border/80 bg-card/40 px-5 py-4 text-left text-sm font-medium text-foreground motion-safe:transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         onClick={() => onFollowTrail(trail)}
       >
         Follow trail
         <ArrowRightIcon
-          className="size-4 transition-transform duration-200 motion-safe:group-hover/trail:translate-x-1"
+          className="size-4 motion-safe:transition-transform motion-safe:group-hover/trail:translate-x-1"
           aria-hidden
         />
       </button>
@@ -968,6 +1030,7 @@ function ReadingTrailCard({
 function RouteStep({
   backlinksCount,
   index,
+  isLast,
   onHover,
   onSelect,
   outboundCount,
@@ -975,36 +1038,45 @@ function RouteStep({
 }: {
   backlinksCount: number;
   index: number;
+  isLast: boolean;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string | null) => void;
   outboundCount: number;
   page: PublicWikiIndexPage;
 }) {
   return (
-    <span
-      className="group/step relative block min-w-0 flex-1"
+    <div
+      className="group/step relative h-full"
       onMouseEnter={() => onHover(page.slug)}
       onMouseLeave={() => onHover(null)}
     >
       <button
         type="button"
         onClick={() => onSelect(page.slug)}
-        className="block min-h-20 w-full border border-border/80 bg-background/70 px-3 py-2 text-left transition-colors hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-full w-full items-start gap-3 px-3 py-3 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="mt-2 line-clamp-2 block text-xs font-medium leading-snug text-foreground">
-          {page.title}
+        <span className="flex-1">
+          <span className="block line-clamp-2 text-xs font-medium leading-snug text-foreground">
+            {page.title}
+          </span>
         </span>
+        {!isLast ? (
+          <ArrowRightIcon
+            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
+            aria-hidden
+          />
+        ) : null}
       </button>
       <PageHoverPreview
         backlinksCount={backlinksCount}
-        className="absolute left-0 top-full z-40 mt-2 hidden w-72 group-hover/step:block group-focus-within/step:block"
+        className="absolute left-0 right-0 top-full z-40 mt-1 hidden group-hover/step:block group-focus-within/step:block sm:right-auto sm:w-72"
         outboundCount={outboundCount}
         page={page}
       />
-    </span>
+    </div>
   );
 }
 
@@ -1028,15 +1100,15 @@ function IndexMode({
   selectedPage: PublicWikiIndexPage | null;
 }) {
   return (
-    <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <section className="min-w-0 border-y border-border/80">
-        <div className="hidden grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_7rem_7rem_5rem] border-b border-border/80 bg-muted/40 px-4 py-3 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase lg:grid">
+    <div className="grid min-w-0 gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section className="min-w-0 border border-border/80">
+        <div className="hidden grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] border-b border-border/80 bg-muted/40 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground lg:grid">
           <span>Page</span>
           <span>Cluster</span>
           <span>Role</span>
-          <span>Sources</span>
-          <span>Links</span>
-          <span>Open</span>
+          <span className="text-right">Sources</span>
+          <span className="text-right">Links</span>
+          <span className="text-right">Open</span>
         </div>
         <div className="divide-y divide-border/80">
           {pages.map((page) => (
@@ -1088,38 +1160,69 @@ function IndexRow({
   return (
     <article
       className={cn(
-        "group/row relative grid gap-3 bg-card px-4 py-4 transition-colors hover:bg-background lg:grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_7rem_7rem_5rem] lg:items-center",
-        active && "bg-background ring-1 ring-primary/20",
+        "group/row relative grid gap-y-2 gap-x-3 bg-card/70 px-4 py-4 motion-safe:transition-colors hover:bg-card lg:grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] lg:items-center",
+        active && "border-l-2 border-accent bg-card pl-[calc(1rem-2px)]",
       )}
       onMouseEnter={() => onHover(page.slug)}
       onMouseLeave={() => onHover(null)}
     >
-      <div>
+      <div className="min-w-0">
         <button
           type="button"
           onClick={() => onSelect(page.slug)}
-          className="text-left font-heading text-xl leading-tight font-light text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="block w-full text-left font-heading text-xl font-light leading-tight text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {page.title}
         </button>
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground lg:hidden">
           {page.description}
         </p>
+        <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground lg:hidden">
+          <div className="flex items-center gap-1.5">
+            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Cluster</dt>
+            <dd className="text-foreground">{clusterLabel(page.cluster)}</dd>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Role</dt>
+            <dd className="text-foreground">{label(page.role)}</dd>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Sources</dt>
+            <dd className="tabular-nums text-foreground">{page.sourceNotes.length}</dd>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Links</dt>
+            <dd className="tabular-nums text-foreground">
+              {relationCount(page.slug, relationMaps)}
+            </dd>
+          </div>
+        </dl>
       </div>
-      <span className="text-sm text-muted-foreground">{clusterLabel(page.cluster)}</span>
-      <span className="text-sm text-muted-foreground">{label(page.role)}</span>
-      <span className="text-sm tabular-nums text-muted-foreground">
+      <span className="hidden text-sm text-muted-foreground lg:block">
+        {clusterLabel(page.cluster)}
+      </span>
+      <span className="hidden text-sm text-muted-foreground lg:block">
+        {label(page.role)}
+      </span>
+      <span className="hidden text-sm tabular-nums text-muted-foreground lg:block lg:text-right">
         {page.sourceNotes.length}
       </span>
-      <span className="text-sm tabular-nums text-muted-foreground">
+      <span className="hidden text-sm tabular-nums text-muted-foreground lg:block lg:text-right">
         {relationCount(page.slug, relationMaps)}
       </span>
       <Link
         href={`/wiki/${page.slug}`}
-        className="inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+        className="hidden items-center justify-end gap-1 text-sm font-medium text-foreground underline decoration-transparent underline-offset-4 transition-colors hover:decoration-accent lg:inline-flex"
       >
         Open
-        <ExternalLinkIcon className="size-3.5" aria-hidden />
+        <ArrowRightIcon className="size-3.5" aria-hidden />
+      </Link>
+      <Link
+        href={`/wiki/${page.slug}`}
+        className="inline-flex items-center gap-1 self-start text-sm font-medium text-foreground underline decoration-accent underline-offset-4 lg:hidden"
+      >
+        Open
+        <ArrowRightIcon className="size-3.5" aria-hidden />
       </Link>
       <PageHoverPreview
         backlinksCount={backlinksCount}
@@ -1155,7 +1258,7 @@ function PreviewChip({
       <button
         type="button"
         onClick={() => onSelect(page.slug)}
-        className="rounded-full border border-border/80 bg-background/70 px-2.5 py-1 text-left text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="border border-border/80 bg-background/70 px-2.5 py-1 text-left text-xs font-medium text-muted-foreground motion-safe:transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {prefix ? <span className="mr-1 text-foreground">{prefix}</span> : null}
         {page.title}
@@ -1188,17 +1291,16 @@ function PageHoverPreview({
         className,
       )}
     >
-      <div className="mb-2 flex flex-wrap gap-1.5">
-        <Badge variant="secondary">{clusterLabel(page.cluster)}</Badge>
-        <Badge variant="outline">{label(page.role)}</Badge>
-      </div>
-      <p className="font-heading text-lg leading-tight font-light text-foreground">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {clusterLabel(page.cluster)} · {label(page.role)}
+      </p>
+      <p className="mt-2 font-heading text-lg font-light leading-tight text-foreground">
         {page.title}
       </p>
       <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
         {page.description}
       </p>
-      <div className="mt-3 flex flex-wrap gap-2 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+      <div className="mt-3 flex flex-wrap gap-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
         <span>{page.sourceNotes.length} sources</span>
         <span>{outboundCount} outbound</span>
         <span>{backlinksCount} backlinks</span>
@@ -1232,16 +1334,19 @@ function PageDrawer({
     : [];
 
   return (
-    <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
-      <section className="border-y border-border/80 bg-card/75 py-5">
+    <aside
+      className="space-y-5 xl:sticky xl:top-24 xl:self-start"
+      aria-label="Selected page details"
+    >
+      <section className="border border-border/80 bg-card/70 p-5">
         {page ? (
-          <div className="px-4">
+          <div>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                   Selected page
                 </p>
-                <h2 className="mt-3 font-heading text-3xl leading-tight font-light text-foreground">
+                <h2 className="mt-3 font-heading text-3xl font-light leading-tight text-foreground">
                   {page.title}
                 </h2>
               </div>
@@ -1256,33 +1361,31 @@ function PageDrawer({
               </Button>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant="secondary">{clusterLabel(page.cluster)}</Badge>
-              <Badge variant="outline">{label(page.role)}</Badge>
-              <Badge variant="outline">{page.readingMinutes} min</Badge>
-            </div>
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {clusterLabel(page.cluster)} · {label(page.role)} · {page.readingMinutes} min
+            </p>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               {page.description}
             </p>
             <Link
               href={`/wiki/${page.slug}`}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/85"
+              className="mt-5 inline-flex items-center justify-between gap-3 border border-foreground bg-foreground px-4 py-2 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Open page
-              <ExternalLinkIcon className="size-4" aria-hidden />
+              <ArrowRightIcon className="size-4" aria-hidden />
             </Link>
           </div>
         ) : (
-          <div className="px-4">
-            <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
               Select a page
             </p>
-            <h2 className="mt-3 font-heading text-3xl leading-tight font-light text-foreground">
-              Click a graph node, card, trail item, or row.
+            <h2 className="mt-3 font-heading text-2xl font-light leading-tight text-foreground">
+              Click a card, row, or graph node.
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               The drawer shows backlinks, outbound links, source count, and a
-              quick route into the page.
+              quick route into the page. Press Esc to close.
             </p>
           </div>
         )}
@@ -1290,48 +1393,131 @@ function PageDrawer({
 
       {page ? (
         <>
-          <RelationList
+          <GroupedRelationList
             emptyText="No outbound links were found for this page."
-            icon={<ArrowRightIcon className="size-4" aria-hidden />}
+            icon={<ArrowRightIcon className="size-3.5" aria-hidden />}
             labelText="Outbound links"
             onSelect={onSelect}
             pages={outboundPages}
           />
-          <RelationList
+          <GroupedRelationList
             emptyText="No backlinks were found for this page."
-            icon={<BookOpenIcon className="size-4" aria-hidden />}
+            icon={<BookOpenIcon className="size-3.5" aria-hidden />}
             labelText="Backlinks"
             onSelect={onSelect}
             pages={backlinkPages}
           />
           {page.sourceNotes.length > 0 ? (
-            <section className="border-y border-border/80 py-4">
-              <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+            <section className="border border-border/80 bg-card/70 p-5">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 Source trail
               </p>
-              <div className="mt-3 space-y-3">
+              <ol className="mt-3 space-y-3">
                 {page.sourceNotes.slice(0, 3).map((note, noteIndex) => (
-                  <p
+                  <li
                     key={`${page.slug}-source-${noteIndex}`}
-                    className="text-sm leading-relaxed text-muted-foreground"
+                    className="flex items-start gap-3 text-sm leading-relaxed text-muted-foreground"
                   >
-                    {note}
-                  </p>
+                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      S{String(noteIndex + 1).padStart(2, "0")}
+                    </span>
+                    <span>{note}</span>
+                  </li>
                 ))}
-              </div>
+              </ol>
+              {page.sourceNotes.length > 3 ? (
+                <Link
+                  href={`/wiki/${page.slug}`}
+                  className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-foreground underline decoration-accent underline-offset-4"
+                >
+                  +{page.sourceNotes.length - 3} more on page
+                  <ArrowRightIcon className="size-3.5" aria-hidden />
+                </Link>
+              ) : null}
             </section>
           ) : null}
         </>
       ) : (
         <RelationList
           emptyText="No entry points available."
-          icon={<MapIcon className="size-4" aria-hidden />}
-          labelText={index ? `${index.pages.length} pages available` : "Good entry points"}
+          icon={<MapIcon className="size-3.5" aria-hidden />}
+          labelText={
+            index ? `${index.pages.length} pages available` : "Good entry points"
+          }
           onSelect={onSelect}
           pages={entryPages}
         />
       )}
     </aside>
+  );
+}
+
+function GroupedRelationList({
+  emptyText,
+  icon,
+  labelText,
+  onSelect,
+  pages,
+}: {
+  emptyText: string;
+  icon: ReactNode;
+  labelText: string;
+  onSelect: (slug: string | null) => void;
+  pages: PublicWikiIndexPage[];
+}) {
+  if (pages.length === 0) {
+    return (
+      <section className="border border-border/80 bg-card/70 p-5">
+        <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          {icon}
+          {labelText}
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          {emptyText}
+        </p>
+      </section>
+    );
+  }
+
+  const groups = groupPagesByCluster(pages);
+
+  return (
+    <section className="border border-border/80 bg-card/70">
+      <p className="flex items-center gap-2 border-b border-border/80 px-5 py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        {icon}
+        {labelText}
+        <span className="ml-auto tabular-nums text-foreground">
+          {pages.length}
+        </span>
+      </p>
+      <div className="divide-y divide-border/80">
+        {groups.map(([clusterId, clusterPages]) => (
+          <div key={clusterId} className="px-5 py-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {clusterLabel(clusterId)}
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {clusterPages.slice(0, 6).map((page) => (
+                <li key={page.slug}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(page.slug)}
+                    className="block w-full text-left text-sm leading-relaxed text-muted-foreground underline decoration-transparent underline-offset-4 motion-safe:transition-colors hover:text-foreground hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {page.title}
+                  </button>
+                </li>
+              ))}
+              {clusterPages.length > 6 ? (
+                <li className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  +{clusterPages.length - 6} more
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1349,19 +1535,19 @@ function RelationList({
   pages: PublicWikiIndexPage[];
 }) {
   return (
-    <section className="border-y border-border/80 py-4">
-      <p className="flex items-center gap-2 font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+    <section className="border border-border/80 bg-card/70 p-5">
+      <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
         {icon}
         {labelText}
       </p>
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 divide-y divide-border/80">
         {pages.length > 0 ? (
           pages.slice(0, 8).map((page) => (
             <button
               key={page.slug}
               type="button"
               onClick={() => onSelect(page.slug)}
-              className="block w-full border-t border-border/70 py-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="block w-full py-3 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="block font-medium text-foreground">{page.title}</span>
               <span className="mt-1 line-clamp-2 block text-sm leading-relaxed text-muted-foreground">
@@ -1370,7 +1556,9 @@ function RelationList({
             </button>
           ))
         ) : (
-          <p className="text-sm leading-relaxed text-muted-foreground">{emptyText}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {emptyText}
+          </p>
         )}
       </div>
     </section>
@@ -1379,7 +1567,7 @@ function RelationList({
 
 function EmptyState() {
   return (
-    <div className="col-span-full border-y border-border/80 bg-card/70 p-8 text-center">
+    <div className="border-t border-border/80 bg-card/70 p-10 text-center">
       <h2 className="font-heading text-xl font-light text-foreground">
         No pages match those filters.
       </h2>

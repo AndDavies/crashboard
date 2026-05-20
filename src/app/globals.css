@@ -143,8 +143,8 @@
   .accent-rule {
     background: var(--accent);
     display: inline-block;
-    height: 0.85rem;
-    width: min(12rem, 38vw);
+    height: 0.4rem;
+    width: min(7rem, 24vw);
   }
 
   .blog-editor .tiptap > * + *,
@@ -245,15 +245,19 @@
   }
 
   .wiki-prose h2 {
-    @apply mt-12 border-t border-border/80 pt-8 font-heading text-2xl font-semibold tracking-tight text-foreground;
+    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .wiki-prose h2 + h3 {
+    @apply mt-6;
   }
 
   .wiki-prose h3 {
-    @apply mt-8 font-heading text-xl font-semibold tracking-tight text-foreground;
+    @apply mt-10 max-w-3xl font-heading text-xl font-semibold tracking-tight text-foreground;
   }
 
   .wiki-prose h4 {
-    @apply mt-6 font-heading text-lg font-semibold text-foreground;
+    @apply mt-6 max-w-3xl font-heading text-lg font-semibold text-foreground;
   }
 
   .wiki-prose p {
@@ -277,12 +281,20 @@
     @apply pl-1 leading-7;
   }
 
+  .wiki-prose a {
+    @apply font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground;
+  }
+
   .wiki-prose blockquote {
-    @apply my-7 max-w-3xl rounded-lg border-l-4 border-primary/60 bg-card/70 px-5 py-4 font-heading text-lg leading-8 text-foreground shadow-sm;
+    @apply my-7 max-w-3xl border-y border-l-2 border-border/80 border-l-accent bg-card/70 px-5 py-4 font-heading text-lg leading-8 text-foreground;
   }
 
   .wiki-prose pre {
-    @apply my-7 max-w-4xl overflow-x-auto rounded-lg border border-border/80 bg-primary px-4 py-4 text-sm leading-6 text-primary-foreground;
+    @apply my-7 max-w-4xl overflow-x-auto border border-border/80 bg-card px-4 py-4 text-sm leading-6 text-foreground;
+  }
+
+  .wiki-prose code {
+    font-variant-ligatures: none;
   }
 
   .wiki-graph-edge,
@@ -302,7 +314,40 @@
   }
 
   .wiki-graph-pulse {
-    animation: wiki-pulse 1.8s ease-out infinite;
+    animation: wiki-pulse 1.6s ease-out 3;
+  }
+
+  .wiki-stack-fade > * {
+    animation: wiki-stack-fade 420ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+
+  .wiki-stack-fade > *:nth-child(1) { animation-delay: 0ms; }
+  .wiki-stack-fade > *:nth-child(2) { animation-delay: 40ms; }
+  .wiki-stack-fade > *:nth-child(3) { animation-delay: 80ms; }
+  .wiki-stack-fade > *:nth-child(4) { animation-delay: 120ms; }
+  .wiki-stack-fade > *:nth-child(5) { animation-delay: 160ms; }
+  .wiki-stack-fade > *:nth-child(6) { animation-delay: 200ms; }
+  .wiki-stack-fade > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+  .wiki-scroll-mask {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 1rem,
+      black calc(100% - 1rem),
+      transparent 100%
+    );
+  }
+}
+
+@keyframes wiki-stack-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -329,7 +374,8 @@
   .wiki-graph-node,
   .wiki-graph-node circle,
   .wiki-graph-node text,
-  .wiki-graph-pulse {
+  .wiki-graph-pulse,
+  .wiki-stack-fade > * {
     animation: none;
     transition: none;
   }

@@ -32,9 +32,9 @@ export function WikiReadingProgress() {
   }, []);
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 h-1 bg-transparent" aria-hidden>
+    <div className="fixed inset-x-0 top-0 z-50 h-0.5 bg-transparent" aria-hidden>
       <div
-        className="h-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none"
+        className="h-full bg-accent motion-safe:transition-[width] motion-safe:duration-150 motion-safe:ease-out"
         style={{ width: `${progress * 100}%` }}
       />
     </div>
@@ -67,19 +67,22 @@ export function WikiPageToc({ headings }: { headings: Heading[] }) {
   }, [headings]);
 
   return (
-    <nav className="mt-3 max-h-[22rem] space-y-1 overflow-y-auto" aria-label="Page table of contents">
+    <nav
+      className="wiki-scroll-mask mt-3 max-h-[22rem] space-y-0.5 overflow-y-auto pr-1"
+      aria-label="Page table of contents"
+    >
       {headings.map((heading) => (
         <a
           key={heading.id}
           href={`#${heading.id}`}
           aria-current={activeId === heading.id ? "location" : undefined}
           className={cn(
-            "block rounded-md border-l-2 px-2 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "block border-l-2 py-1.5 pl-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            heading.level === 3 && "pl-6",
             activeId === heading.id
-              ? "border-primary bg-muted/60 text-foreground"
-              : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+              ? "border-accent bg-muted/50 text-foreground"
+              : "border-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground",
           )}
-          style={{ paddingLeft: heading.level === 3 ? "1.25rem" : undefined }}
         >
           {heading.text}
         </a>

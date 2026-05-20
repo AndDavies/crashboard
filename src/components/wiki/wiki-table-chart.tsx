@@ -2,38 +2,53 @@ import type { PublicWikiChart } from "@/lib/public-wiki/types";
 
 export function WikiTableChart({ chart }: { chart: PublicWikiChart }) {
   const max = Math.max(...chart.values, 1);
+  const min = Math.min(...chart.values, 0);
+  const niceMax = Math.ceil(max);
 
   return (
-    <div className="my-8 rounded-lg border border-border/80 bg-card/70 p-4 transition-all duration-300 hover:border-primary/25 hover:shadow-sm">
-      <div className="flex flex-col gap-1 border-b border-border/70 pb-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <figure className="my-8 border border-border/80 bg-card/70">
+      <figcaption className="flex flex-col gap-1 border-b border-border/80 px-5 py-4">
+        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           Generated chart
-        </p>
-        <h3 className="font-heading text-base font-semibold text-foreground">
+        </span>
+        <span className="font-heading text-base font-semibold text-foreground">
           {chart.title}
-        </h3>
-      </div>
-      <div className="mt-4 space-y-3">
+        </span>
+        <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          Range {min.toLocaleString()} – {niceMax.toLocaleString()}
+        </span>
+      </figcaption>
+      <div className="space-y-2 px-5 py-4" role="list">
         {chart.labels.map((label, index) => {
           const value = chart.values[index] ?? 0;
+          const ratio = max > 0 ? value / max : 0;
+          const width = Math.max(0.5, ratio * 100);
           return (
-            <div key={`${chart.id}-${label}`} className="group grid gap-2 sm:grid-cols-[12rem_1fr_4rem] sm:items-center">
-              <p className="truncate text-xs font-medium text-muted-foreground">
+            <div
+              key={`${chart.id}-${label}`}
+              role="listitem"
+              aria-label={`${label}: ${value.toLocaleString()}`}
+              className="grid items-center gap-3 sm:grid-cols-[10rem_1fr_5rem]"
+            >
+              <p className="truncate text-xs font-medium text-foreground">
                 {label}
               </p>
-              <div className="h-3 overflow-hidden rounded-full bg-muted transition-colors group-hover:bg-secondary">
+              <div className="relative h-2.5 bg-muted/60">
                 <div
-                  className="h-full rounded-full bg-[color-mix(in_oklch,var(--accent)_74%,var(--primary))] transition-all duration-500 group-hover:bg-primary motion-reduce:transition-none"
-                  style={{ width: `${Math.max(5, (value / max) * 100)}%` }}
+                  className="h-full bg-accent motion-safe:transition-[width] motion-safe:duration-500"
+                  style={{ width: `${width}%` }}
                 />
               </div>
-              <p className="text-xs font-semibold tabular-nums text-foreground sm:text-right">
+              <p className="text-xs font-medium tabular-nums text-foreground sm:text-right">
                 {value.toLocaleString()}
               </p>
             </div>
           );
         })}
       </div>
-    </div>
+      <div className="border-t border-border/80 px-5 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        {chart.values.length} {chart.values.length === 1 ? "row" : "rows"}
+      </div>
+    </figure>
   );
 }

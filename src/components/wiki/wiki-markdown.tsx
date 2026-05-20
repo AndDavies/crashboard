@@ -131,20 +131,20 @@ function InlineMarkdown({ text }: { text: string }) {
           const internal = href.startsWith("/");
           if (internal) {
             return (
-              <Link key={`${token}-${index}`} href={href} className="font-medium text-primary underline decoration-border underline-offset-4 hover:decoration-primary">
+              <Link key={`${token}-${index}`} href={href}>
                 {link[1]}
               </Link>
             );
           }
           return (
-            <a key={`${token}-${index}`} href={href} className="font-medium text-primary underline decoration-border underline-offset-4 hover:decoration-primary" rel="noreferrer" target="_blank">
+            <a key={`${token}-${index}`} href={href} rel="noreferrer" target="_blank">
               {link[1]}
             </a>
           );
         }
         if (token.startsWith("`") && token.endsWith("`")) {
           return (
-            <code key={`${token}-${index}`} className="rounded bg-muted px-1.5 py-0.5 text-[0.86em] text-foreground">
+            <code key={`${token}-${index}`} className="border border-border/80 bg-muted/60 px-1.5 py-0.5 text-[0.86em] text-foreground">
               {token.slice(1, -1)}
             </code>
           );
@@ -162,23 +162,32 @@ function Table({ rows }: { rows: string[][] }) {
   const [head, separator, ...body] = rows;
   const dataRows = separator?.every((cell) => /^:?-{3,}:?$/.test(cell)) ? body : rows.slice(1);
   return (
-    <div className="my-8 overflow-hidden rounded-lg border border-border/80 bg-card/50 transition-shadow hover:shadow-sm">
+    <div className="my-8 border border-border/80 bg-card/70">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border/70 text-sm">
+        <table className="min-w-full divide-y divide-border/80 text-sm">
           <thead className="bg-muted/50">
             <tr>
               {(head ?? []).map((cell) => (
-                <th key={cell} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <th
+                  key={cell}
+                  className="px-4 py-3 text-left font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground"
+                >
                   {cell}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/70 bg-card/40">
+          <tbody className="divide-y divide-border/80">
             {dataRows.map((row, rowIndex) => (
-              <tr key={`${row.join("-")}-${rowIndex}`} className="transition-colors hover:bg-muted/40">
+              <tr
+                key={`${row.join("-")}-${rowIndex}`}
+                className="motion-safe:transition-colors hover:bg-muted/30"
+              >
                 {row.map((cell, cellIndex) => (
-                  <td key={`${cell}-${cellIndex}`} className="max-w-[22rem] px-4 py-3 align-top text-muted-foreground first:font-medium first:text-foreground">
+                  <td
+                    key={`${cell}-${cellIndex}`}
+                    className="px-4 py-3 align-top text-muted-foreground first:font-medium first:text-foreground"
+                  >
                     <InlineMarkdown text={cell} />
                   </td>
                 ))}
@@ -192,40 +201,45 @@ function Table({ rows }: { rows: string[][] }) {
 }
 
 function MermaidBlock({ code }: { code: string }) {
-  const lines = code
+  const steps = code
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .slice(1, 9);
+    .slice(1, 9)
+    .map((line) => line.replace(/["[\]]/g, "").replace(/-->/g, "→"));
 
   return (
-    <div className="my-8 rounded-lg border border-border/80 bg-card/80 p-4 transition-all duration-300 hover:border-primary/25 hover:shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Workflow
-          </p>
-          <h3 className="mt-1 font-heading text-base font-semibold text-foreground">
-            Generated from diagram markup
-          </h3>
-        </div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {lines.map((line, index) => (
-          <div key={`${line}-${index}`} className="rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground">
-            {line.replace(/["[\]]/g, "").replace(/-->/g, "->")}
-          </div>
+    <figure className="my-8 border border-border/80 bg-card/70">
+      <figcaption className="flex flex-col gap-1 border-b border-border/80 px-5 py-4">
+        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Workflow diagram
+        </span>
+        <span className="font-heading text-base font-semibold text-foreground">
+          Steps inferred from diagram markup
+        </span>
+      </figcaption>
+      <ol className="grid gap-px bg-border/80 sm:grid-cols-2">
+        {steps.map((line, index) => (
+          <li
+            key={`${line}-${index}`}
+            className="flex items-start gap-3 bg-card/70 px-4 py-3 text-xs text-muted-foreground"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span className="flex-1 text-foreground">{line}</span>
+          </li>
         ))}
-      </div>
-      <details className="mt-4">
-        <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+      </ol>
+      <details className="border-t border-border/80 px-5 py-3">
+        <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground">
           View source diagram
         </summary>
-        <pre className="mt-3 overflow-x-auto rounded-md bg-muted p-3 text-xs leading-relaxed text-muted-foreground">
+        <pre className="mt-3 overflow-x-auto bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
           {code}
         </pre>
       </details>
-    </div>
+    </figure>
   );
 }
 

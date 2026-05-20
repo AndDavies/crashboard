@@ -31,13 +31,33 @@ export const metadata: Metadata = {
 
 export default function WikiPage() {
   const index = getPublicWikiIndex();
-  const sourceNotes = index.pages.reduce((sum, page) => sum + page.sourceNotes.length, 0);
+  const sourceNotes = index.pages.reduce(
+    (sum, page) => sum + page.sourceNotes.length,
+    0,
+  );
   const linkedEdges = index.graph.edges.length;
   const readerPaths = wikiReaderPaths.map((path) => ({
     ...path,
     primaryPage: getReaderPathPrimaryPage(path, index.pages),
     pages: getReaderPathPages(path, index.pages),
   }));
+  const stats: Array<{ label: string; value: string; hint: string }> = [
+    {
+      label: "Pages",
+      value: index.pages.length.toLocaleString(),
+      hint: "Public synthesis",
+    },
+    {
+      label: "Sources",
+      value: sourceNotes.toLocaleString(),
+      hint: "Cited notes",
+    },
+    {
+      label: "Links",
+      value: linkedEdges.toLocaleString(),
+      hint: "Internal connections",
+    },
+  ];
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 md:py-16">
@@ -62,63 +82,50 @@ export default function WikiPage() {
           })),
         }}
       />
-      <section className="technical-grid -mx-4 grid gap-10 border-b border-border/80 bg-card px-4 py-16 sm:-mx-6 sm:px-6 md:py-24 lg:grid-cols-[1fr_28rem] lg:items-end">
-        <div>
-          <p className="flex items-center gap-3 font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+      <section className="technical-grid -mx-4 grid gap-10 border-b border-border/80 bg-card px-4 py-16 sm:-mx-6 sm:px-6 md:py-24 lg:grid-cols-[1fr_22rem] lg:items-start">
+        <div className="min-w-0">
+          <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <span className="h-1 w-10 bg-accent" aria-hidden />
             Public wiki
           </p>
-          <h1 className="mt-8 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-4 max-w-4xl font-heading text-5xl font-light leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
             Choose a path through my public knowledge system.
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
-          <p className="mt-8 max-w-3xl text-lg leading-relaxed text-muted-foreground">
+          <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
             This wiki turns private Obsidian notes into public, source-backed
             synthesis on AI workflows, knowledge systems, strategy, and venture
             judgment.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            ["Pages", index.pages.length.toLocaleString()],
-            ["Sources", sourceNotes.toLocaleString()],
-            ["Links", linkedEdges.toLocaleString()],
-          ].map(([label, value]) => (
+        <dl className="grid gap-px border border-border/80 bg-border/80">
+          {stats.map((stat) => (
             <div
-              key={label}
-              className="border-y border-border/80 bg-background/80 p-4"
+              key={stat.label}
+              className="flex items-baseline justify-between gap-4 bg-background/80 px-5 py-4"
             >
-              <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-                {label}
-              </p>
-              <p className="mt-3 font-heading text-4xl font-light text-foreground">
-                {value}
-              </p>
+              <div>
+                <dt className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  {stat.label}
+                </dt>
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  {stat.hint}
+                </p>
+              </div>
+              <dd className="font-heading text-4xl font-light tabular-nums text-foreground md:text-5xl">
+                {stat.value}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
 
-      <section className="border-b border-border/80 py-8">
-        <div className="grid gap-3 md:grid-cols-3">
-          {[
-            ["Pick a path", "Start with the question closest to what you need."],
-            ["Read the synthesis", "Use the page summary before the long-form notes."],
-            ["Follow trails", "Move through related pages and source-backed context."],
-          ].map(([title, text]) => (
-            <div key={title} className="border-y border-border/80 bg-card/70 p-4">
-              <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-                {title}
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+        Pick a path, read the synthesis, then follow trails into related pages
+        and source-backed context.
+      </p>
 
-      <section className="py-10">
+      <section className="mt-10">
         <WikiExplorer index={index} readerPaths={readerPaths} />
       </section>
     </div>
