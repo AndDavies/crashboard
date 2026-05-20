@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { WikiTableChart } from "@/components/wiki/wiki-table-chart";
+import { stripWikiOwnedMarkdownSections } from "@/lib/public-wiki/markdown";
 import type { PublicWikiChart } from "@/lib/public-wiki/types";
 
 type Block =
@@ -235,7 +236,7 @@ export function WikiMarkdown({
   markdown: string;
   charts: PublicWikiChart[];
 }) {
-  const blocks = parseMarkdown(markdown);
+  const blocks = parseMarkdown(stripWikiOwnedMarkdownSections(markdown));
 
   return (
     <div className="wiki-prose">

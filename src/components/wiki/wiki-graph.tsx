@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRightIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { clusterLabel } from "@/lib/public-wiki/reader-paths";
 import { cn } from "@/lib/utils";
 
 type Node = {
@@ -97,7 +98,13 @@ export function WikiGraph({
   const activeNodeId = selectedNodeId ?? hoverNodeId ?? focusedNodeId ?? null;
 
   const clusters = useMemo(() => {
-    return Array.from(new Set(visibleNodes.map((node) => node.cluster))).toSorted();
+    return Array.from(new Set(visibleNodes.map((node) => node.cluster))).toSorted(
+      (a, b) => {
+        if (a === "foundations") return -1;
+        if (b === "foundations") return 1;
+        return clusterLabel(a).localeCompare(clusterLabel(b));
+      },
+    );
   }, [visibleNodes]);
 
   const neighbors = useMemo(() => {
@@ -200,7 +207,7 @@ export function WikiGraph({
                 style={{ backgroundColor: getClusterColor(cluster) }}
                 aria-hidden
               />
-              {label(cluster)}
+              {clusterLabel(cluster)}
             </button>
           ))}
         </div>
@@ -253,7 +260,7 @@ export function WikiGraph({
                 key={node.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`${node.title}, ${label(node.cluster)}, ${degree} connected pages`}
+                aria-label={`${node.title}, ${clusterLabel(node.cluster)}, ${degree} connected pages`}
                 className={cn(
                   "wiki-graph-node cursor-pointer focus:outline-none",
                   visible ? "opacity-100" : "opacity-25",
@@ -310,7 +317,7 @@ export function WikiGraph({
             <div>
               <div className="mb-2 flex flex-wrap gap-2">
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                  {label(selectedNode.cluster)}
+                  {clusterLabel(selectedNode.cluster)}
                 </span>
                 <span className="rounded-full border border-border/80 px-2 py-0.5 text-xs font-medium text-muted-foreground">
                   {label(selectedNode.role)}

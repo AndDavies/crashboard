@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { FileText } from "lucide-react";
+import { FileText, Wrench } from "lucide-react";
 
 /** Single navigable route in the dashboard. */
 export type DashboardNavLeaf = {
@@ -30,6 +30,19 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
     defaultOpen: true,
     items: [
       { title: "Blog", href: "/dashboard/content/blog", icon: FileText },
+    ],
+  },
+  {
+    id: "tools",
+    title: "Tools",
+    icon: Wrench,
+    defaultOpen: true,
+    items: [
+      {
+        title: "PDF Extractor",
+        href: "/dashboard/tools/pdf-extractor",
+        icon: FileText,
+      },
     ],
   },
 ];

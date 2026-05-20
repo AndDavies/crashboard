@@ -1,12 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRightIcon,
   BookOpenIcon,
   ExternalLinkIcon,
-  LayoutGridIcon,
   ListIcon,
   MapIcon,
   SearchIcon,
@@ -24,10 +22,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WikiGraph } from "@/components/wiki/wiki-graph";
+import {
+  clusterLabel,
+  sortClustersForReaders,
+  type WikiReaderPath,
+} from "@/lib/public-wiki/reader-paths";
 import { cn } from "@/lib/utils";
 import type { PublicWikiIndex, PublicWikiIndexPage } from "@/lib/public-wiki/types";
 
-type ExplorerMode = "atlas" | "index" | "garden";
+type ExplorerMode = "paths" | "all-pages" | "map";
 type SortOption = "cluster" | "title" | "sources" | "reading" | "links";
 
 type RelationMaps = {
@@ -47,14 +50,19 @@ type ReadingTrail = {
   linkCount: number;
 };
 
+type ReaderPathWithPages = WikiReaderPath & {
+  primaryPage: PublicWikiIndexPage | null;
+  pages: PublicWikiIndexPage[];
+};
+
 const modeOptions: Array<{
   id: ExplorerMode;
   label: string;
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }> = [
-  { id: "atlas", label: "Atlas", icon: MapIcon },
-  { id: "index", label: "Index", icon: ListIcon },
-  { id: "garden", label: "Garden", icon: LayoutGridIcon },
+  { id: "paths", label: "Paths", icon: BookOpenIcon },
+  { id: "all-pages", label: "All pages", icon: ListIcon },
+  { id: "map", label: "Map", icon: MapIcon },
 ];
 
 function label(input: string) {
@@ -65,10 +73,6 @@ function label(input: string) {
     .join(" ");
 }
 
-function unique(items: string[]) {
-  return Array.from(new Set(items));
-}
-
 function roleWeight(role: string) {
   if (role === "hub") return 36;
   if (role === "concept") return 22;
@@ -77,6 +81,10 @@ function roleWeight(role: string) {
 
 function relationCount(slug: string, relationMaps: RelationMaps) {
   return relationMaps.degree.get(slug) ?? 0;
+}
+
+function clusterSortKey(cluster: string) {
+  return cluster === "foundations" ? "000-start-here" : clusterLabel(cluster);
 }
 
 function pageScore(page: PublicWikiIndexPage, relationMaps: RelationMaps) {
@@ -143,14 +151,22 @@ function makeRelationMaps(index: PublicWikiIndex): RelationMaps {
   return { backlinks, outbound, neighbors, degree };
 }
 
-export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
-  const [mode, setMode] = useState<ExplorerMode>("atlas");
+export function WikiExplorer({
+  index,
+  readerPaths,
+}: {
+  index: PublicWikiIndex;
+  readerPaths: ReaderPathWithPages[];
+}) {
+  const [mode, setMode] = useState<ExplorerMode>("paths");
   const [query, setQuery] = useState("");
   const [cluster, setCluster] = useState("all");
   const [role, setRole] = useState("all");
   const [sort, setSort] = useState<SortOption>("cluster");
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showWholeVaultMap, setShowWholeVaultMap] = useState(false);
+  const [showMobileMap, setShowMobileMap] = useState(false);
   const deferredQuery = useDeferredValue(query);
 
   const pageBySlug = useMemo(() => {
@@ -182,8 +198,8 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
         );
         return {
           id: item.id,
-          title: `${label(item.label)} trail`,
-          description: `A route through ${trailPages.length} ${label(item.label).toLowerCase()} pages with ${sourceCount} source notes and ${linkCount} relationships.`,
+          title: `${clusterLabel(item.label)} trail`,
+          description: `A route through ${trailPages.length} ${clusterLabel(item.label).toLowerCase()} pages with ${sourceCount} source notes and ${linkCount} relationships.`,
           clusterId: item.id,
           pages: trailPages,
           sourceCount,
@@ -208,31 +224,52 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
       if (sort === "links") {
         return relationCount(b.slug, relationMaps) - relationCount(a.slug, relationMaps);
       }
-      return `${a.cluster}-${a.title}`.localeCompare(`${b.cluster}-${b.title}`);
+      return `${clusterSortKey(a.cluster)}-${a.title}`.localeCompare(
+        `${clusterSortKey(b.cluster)}-${b.title}`,
+      );
     });
   }, [cluster, deferredQuery, index.pages, relationMaps, role, sort]);
 
-  const visibleIds = useMemo(() => new Set(pages.map((page) => page.slug)), [pages]);
+  const mapIds = useMemo(() => {
+    if (showWholeVaultMap) return new Set(index.pages.map((page) => page.slug));
+    if (selectedNodeId) {
+      return new Set([
+        selectedNodeId,
+        ...(relationMaps.neighbors.get(selectedNodeId) ?? new Set<string>()),
+      ]);
+    }
+    if (cluster !== "all") {
+      return new Set(index.pages.filter((page) => page.cluster === cluster).map((page) => page.slug));
+    }
+    const pathSlugs = readerPaths.flatMap((path) => path.pages.map((page) => page.slug));
+    return new Set(pathSlugs.length > 0 ? pathSlugs : entryPages.map((page) => page.slug));
+  }, [
+    cluster,
+    entryPages,
+    index.pages,
+    readerPaths,
+    relationMaps.neighbors,
+    selectedNodeId,
+    showWholeVaultMap,
+  ]);
 
-  const graph = useMemo(() => {
+  const mapGraph = useMemo(() => {
     return {
-      nodes: index.graph.nodes.filter((node) => visibleIds.has(node.id)),
+      nodes: index.graph.nodes.filter((node) => mapIds.has(node.id)),
       edges: index.graph.edges.filter(
-        (edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target),
+        (edge) => mapIds.has(edge.source) && mapIds.has(edge.target),
       ),
     };
-  }, [index.graph.edges, index.graph.nodes, visibleIds]);
+  }, [index.graph.edges, index.graph.nodes, mapIds]);
 
   const selectedPage = selectedNodeId ? pageBySlug.get(selectedNodeId) ?? null : null;
   const focusedNodeId = selectedNodeId ?? activeNodeId;
-  const focusedNeighbors = focusedNodeId
-    ? (relationMaps.neighbors.get(focusedNodeId) ?? new Set<string>())
-    : new Set<string>();
 
   function setClusterFilter(nextCluster: string) {
     setCluster(nextCluster);
     setActiveNodeId(null);
     setSelectedNodeId(null);
+    setShowWholeVaultMap(false);
   }
 
   function setRoleFilter(nextRole: string) {
@@ -251,10 +288,11 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
   function selectPage(slug: string | null) {
     setSelectedNodeId(slug);
     setActiveNodeId(slug);
+    setShowWholeVaultMap(false);
   }
 
   function followTrail(trail: ReadingTrail) {
-    setMode("garden");
+    setMode("paths");
     setClusterFilter(trail.clusterId);
     selectPage(trail.pages[0]?.slug ?? null);
   }
@@ -264,7 +302,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
       <ExplorerControls
         activeNodeId={focusedNodeId}
         cluster={cluster}
-        graphEdgeCount={graph.edges.length}
+        graphEdgeCount={mapGraph.edges.length}
         index={index}
         mode={mode}
         pageCount={pages.length}
@@ -282,16 +320,13 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
         }
       />
 
-      {mode === "atlas" ? (
-        <AtlasMode
-          entryPages={entryPages}
-          graph={graph}
+      {mode === "paths" ? (
+        <PathsMode
           index={index}
+          readerPaths={readerPaths}
           readingTrails={readingTrails}
           relationMaps={relationMaps}
           pageBySlug={pageBySlug}
-          activeNodeId={activeNodeId}
-          selectedNodeId={selectedNodeId}
           selectedPage={selectedPage}
           onHover={setActiveNodeId}
           onSelect={selectPage}
@@ -299,7 +334,7 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
         />
       ) : null}
 
-      {mode === "index" ? (
+      {mode === "all-pages" ? (
         <IndexMode
           pages={pages}
           relationMaps={relationMaps}
@@ -312,16 +347,28 @@ export function WikiExplorer({ index }: { index: PublicWikiIndex }) {
         />
       ) : null}
 
-      {mode === "garden" ? (
-        <GardenMode
-          pages={pages}
-          relationMaps={relationMaps}
+      {mode === "map" ? (
+        <MapMode
+          activeNodeId={activeNodeId}
+          entryPages={entryPages}
+          graph={mapGraph}
+          mapContext={
+            showWholeVaultMap
+              ? "Whole vault map"
+              : selectedNodeId
+                ? "Selected page neighborhood"
+                : cluster !== "all"
+                  ? `${clusterLabel(cluster)} cluster`
+                  : "Start here paths"
+          }
           pageBySlug={pageBySlug}
-          focusedNeighbors={focusedNeighbors}
-          focusedNodeId={focusedNodeId}
+          relationMaps={relationMaps}
           selectedNodeId={selectedNodeId}
           selectedPage={selectedPage}
-          entryPages={entryPages}
+          showMobileMap={showMobileMap}
+          showWholeVaultMap={showWholeVaultMap}
+          onRevealMobileMap={() => setShowMobileMap(true)}
+          onShowWholeVaultMap={() => setShowWholeVaultMap((current) => !current)}
           onHover={setActiveNodeId}
           onSelect={selectPage}
         />
@@ -365,12 +412,15 @@ function ExplorerControls({
   setSort: (sort: SortOption) => void;
   sort: SortOption;
 }) {
+  const showAllPageFilters = mode === "all-pages";
+  const showMapFilter = mode === "map";
+
   return (
     <section className="border-y border-border/80 bg-card/70 py-4">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-            Explore mode
+            Reader view
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {modeOptions.map((item) => {
@@ -397,7 +447,9 @@ function ExplorerControls({
 
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{pageCount} pages</Badge>
-          <Badge variant="outline">{graphEdgeCount} visible links</Badge>
+          {mode === "map" ? (
+            <Badge variant="outline">{graphEdgeCount} visible map links</Badge>
+          ) : null}
           <Badge variant="outline">{index.generatedAt.slice(0, 10)} export</Badge>
           {activeNodeId && relationCount !== null ? (
             <Badge variant="secondary">{relationCount} focused relationships</Badge>
@@ -410,64 +462,76 @@ function ExplorerControls({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end">
-        <label className="space-y-2">
-          <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            <SearchIcon className="size-3.5" aria-hidden />
-            Search
-          </span>
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search concepts, workflows, source notes..."
-            className="h-10 rounded-none bg-background/80"
+      {showAllPageFilters || showMapFilter ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end">
+          {showAllPageFilters ? (
+            <label className="space-y-2">
+              <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                <SearchIcon className="size-3.5" aria-hidden />
+                Search
+              </span>
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search concepts, workflows, source notes..."
+                className="h-10 rounded-none bg-background/80"
+              />
+            </label>
+          ) : (
+            <div className="text-sm leading-relaxed text-muted-foreground">
+              Scope the map by cluster, select a page, or reveal the whole vault.
+            </div>
+          )}
+
+          <FilterSelect
+            labelText="Cluster"
+            value={cluster}
+            onChange={setClusterFilter}
+            options={[
+              { value: "all", label: "All clusters" },
+              ...sortClustersForReaders(index).map((item) => ({
+                value: item.id,
+                label: `${clusterLabel(item.label)} (${item.count})`,
+              })),
+            ]}
           />
-        </label>
 
-        <FilterSelect
-          labelText="Cluster"
-          value={cluster}
-          onChange={setClusterFilter}
-          options={[
-            { value: "all", label: "All clusters" },
-            ...index.clusters.map((item) => ({
-              value: item.id,
-              label: `${label(item.label)} (${item.count})`,
-            })),
-          ]}
-        />
+          {showAllPageFilters ? (
+            <>
+              <FilterSelect
+                labelText="Role"
+                value={role}
+                onChange={setRoleFilter}
+                options={[
+                  { value: "all", label: "All roles" },
+                  ...index.roles.map((item) => ({
+                    value: item.id,
+                    label: `${label(item.label)} (${item.count})`,
+                  })),
+                ]}
+              />
 
-        <FilterSelect
-          labelText="Role"
-          value={role}
-          onChange={setRoleFilter}
-          options={[
-            { value: "all", label: "All roles" },
-            ...index.roles.map((item) => ({
-              value: item.id,
-              label: `${label(item.label)} (${item.count})`,
-            })),
-          ]}
-        />
-
-        <label className="space-y-2">
-          <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            <SlidersHorizontalIcon className="size-3.5" aria-hidden />
-            Sort
-          </span>
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SortOption)}
-            className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="cluster">Cluster</option>
-            <option value="links">Relationship count</option>
-            <option value="sources">Source notes</option>
-            <option value="reading">Reading time</option>
-            <option value="title">Title</option>
-          </select>
-        </label>
-      </div>
+              <label className="space-y-2">
+                <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                  <SlidersHorizontalIcon className="size-3.5" aria-hidden />
+                  Sort
+                </span>
+                <select
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as SortOption)}
+                  className="h-10 rounded-none border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="cluster">Cluster</option>
+                  <option value="links">Relationship count</option>
+                  <option value="sources">Source notes</option>
+                  <option value="reading">Reading time</option>
+                  <option value="title">Title</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -503,36 +567,63 @@ function FilterSelect({
   );
 }
 
-function AtlasMode({
-  activeNodeId,
-  entryPages,
-  graph,
+function PathsMode({
   index,
   onFollowTrail,
   onHover,
   onSelect,
   pageBySlug,
+  readerPaths,
   readingTrails,
   relationMaps,
-  selectedNodeId,
   selectedPage,
 }: {
-  activeNodeId: string | null;
-  entryPages: PublicWikiIndexPage[];
-  graph: PublicWikiIndex["graph"];
   index: PublicWikiIndex;
   onFollowTrail: (trail: ReadingTrail) => void;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string | null) => void;
   pageBySlug: Map<string, PublicWikiIndexPage>;
+  readerPaths: ReaderPathWithPages[];
   readingTrails: ReadingTrail[];
   relationMaps: RelationMaps;
-  selectedNodeId: string | null;
   selectedPage: PublicWikiIndexPage | null;
 }) {
   return (
-    <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
+    <div
+      className={cn(
+        "grid min-w-0 gap-8",
+        selectedPage && "xl:grid-cols-[minmax(0,1fr)_24rem]",
+      )}
+    >
       <div className="min-w-0 space-y-8">
+        <section>
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                Start here
+              </p>
+              <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+                Pick the door closest to what you need.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Each path opens a main page first, then points to supporting notes
+                once the topic has a clear shape.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {readerPaths.map((path) => (
+              <ReaderPathCard
+                key={path.id}
+                onHover={onHover}
+                onSelect={onSelect}
+                path={path}
+                relationMaps={relationMaps}
+              />
+            ))}
+          </div>
+        </section>
+
         <section>
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
@@ -540,14 +631,19 @@ function AtlasMode({
                 Reading trails
               </p>
               <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
-                Start with a path, then branch.
+                Then branch into a cluster.
               </h2>
             </div>
           </div>
-          <div className="grid gap-px border-y border-border/80 bg-border/80 md:grid-cols-2">
-            {readingTrails.map((trail) => (
+          <div className="grid gap-3 md:grid-cols-2">
+            {readingTrails.map((trail, index) => (
               <ReadingTrailCard
                 key={trail.id}
+                className={
+                  index === readingTrails.length - 1 && readingTrails.length % 2 === 1
+                    ? "md:col-span-2"
+                    : ""
+                }
                 onFollowTrail={onFollowTrail}
                 onHover={onHover}
                 onSelect={onSelect}
@@ -557,16 +653,158 @@ function AtlasMode({
             ))}
           </div>
         </section>
+      </div>
 
-        <section className="space-y-4">
+      {selectedPage ? (
+        <PageDrawer
+          entryPages={[]}
+          index={index}
+          page={selectedPage}
+          pageBySlug={pageBySlug}
+          relationMaps={relationMaps}
+          onClose={() => onSelect(null)}
+          onSelect={onSelect}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ReaderPathCard({
+  onHover,
+  onSelect,
+  path,
+  relationMaps,
+}: {
+  onHover: (slug: string | null) => void;
+  onSelect: (slug: string | null) => void;
+  path: ReaderPathWithPages;
+  relationMaps: RelationMaps;
+}) {
+  const primary = path.primaryPage;
+
+  return (
+    <article className="group/path flex min-h-72 flex-col border-y border-border/80 bg-card/75 p-5 transition-colors hover:bg-background">
+      <div>
+        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+          {path.title}
+        </p>
+        <h3 className="mt-4 font-heading text-2xl leading-tight font-light text-foreground">
+          {path.promise}
+        </h3>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          {path.description}
+        </p>
+      </div>
+
+      <div className="mt-auto pt-5">
+        {primary ? (
+          <button
+            type="button"
+            onClick={() => onSelect(primary.slug)}
+            onMouseEnter={() => onHover(primary.slug)}
+            onMouseLeave={() => onHover(null)}
+            className="inline-flex items-center gap-2 text-left text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Start with {primary.title}
+            <ArrowRightIcon className="size-4" aria-hidden />
+          </button>
+        ) : (
+          <p className="text-sm text-muted-foreground">Path page unavailable.</p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {path.pages.slice(1, 4).map((page) => (
+            <PreviewChip
+              key={page.slug}
+              backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
+              outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
+              page={page}
+              onHover={onHover}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MapMode({
+  activeNodeId,
+  entryPages,
+  graph,
+  mapContext,
+  onHover,
+  onRevealMobileMap,
+  onSelect,
+  onShowWholeVaultMap,
+  pageBySlug,
+  relationMaps,
+  selectedNodeId,
+  selectedPage,
+  showMobileMap,
+  showWholeVaultMap,
+}: {
+  activeNodeId: string | null;
+  entryPages: PublicWikiIndexPage[];
+  graph: PublicWikiIndex["graph"];
+  mapContext: string;
+  onHover: (slug: string | null) => void;
+  onRevealMobileMap: () => void;
+  onSelect: (slug: string | null) => void;
+  onShowWholeVaultMap: () => void;
+  pageBySlug: Map<string, PublicWikiIndexPage>;
+  relationMaps: RelationMaps;
+  selectedNodeId: string | null;
+  selectedPage: PublicWikiIndexPage | null;
+  showMobileMap: boolean;
+  showWholeVaultMap: boolean;
+}) {
+  return (
+    <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <section className="min-w-0 space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-              Atlas
+              Map view
             </p>
             <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
-              Local and global relationships.
+              {mapContext}
             </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              The graph is scoped by default so it explains the current path,
+              cluster, or selected page before exposing the whole vault.
+            </p>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={onShowWholeVaultMap}
+          >
+            {showWholeVaultMap ? "Show contextual map" : "Show whole vault map"}
+          </Button>
+        </div>
+
+        <div className="md:hidden">
+          {!showMobileMap ? (
+            <button
+              type="button"
+              onClick={onRevealMobileMap}
+              className="w-full border-y border-border/80 bg-card/75 p-5 text-left transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="font-heading text-2xl font-light text-foreground">
+                Reveal map
+              </span>
+              <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">
+                Graphs are dense on mobile, so the map stays hidden until you ask
+                for it.
+              </span>
+            </button>
+          ) : null}
+        </div>
+
+        <div className={cn("md:block", showMobileMap ? "block" : "hidden")}>
           <WikiGraph
             nodes={graph.nodes}
             edges={graph.edges}
@@ -577,12 +815,12 @@ function AtlasMode({
             showSelectedPanel={false}
             showNodeList={false}
           />
-        </section>
-      </div>
+        </div>
+      </section>
 
       <PageDrawer
         entryPages={entryPages}
-        index={index}
+        index={null}
         page={selectedPage}
         pageBySlug={pageBySlug}
         relationMaps={relationMaps}
@@ -594,12 +832,14 @@ function AtlasMode({
 }
 
 function ReadingTrailCard({
+  className,
   onFollowTrail,
   onHover,
   onSelect,
   relationMaps,
   trail,
 }: {
+  className?: string;
   onFollowTrail: (trail: ReadingTrail) => void;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string | null) => void;
@@ -607,7 +847,7 @@ function ReadingTrailCard({
   trail: ReadingTrail;
 }) {
   return (
-    <article className="bg-card p-5">
+    <article className={cn("border-y border-border/80 bg-card/75 p-5", className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-heading text-2xl leading-tight font-light text-foreground">
@@ -742,7 +982,7 @@ function IndexRow({
           {page.description}
         </p>
       </div>
-      <span className="text-sm text-muted-foreground">{label(page.cluster)}</span>
+      <span className="text-sm text-muted-foreground">{clusterLabel(page.cluster)}</span>
       <span className="text-sm text-muted-foreground">{label(page.role)}</span>
       <span className="text-sm tabular-nums text-muted-foreground">
         {page.sourceNotes.length}
@@ -761,179 +1001,6 @@ function IndexRow({
         backlinksCount={backlinksCount}
         className="absolute left-4 top-14 z-30 hidden max-w-sm group-hover/row:block group-focus-within/row:block"
         outboundCount={outboundCount}
-        page={page}
-      />
-    </article>
-  );
-}
-
-function GardenMode({
-  entryPages,
-  focusedNeighbors,
-  focusedNodeId,
-  onHover,
-  onSelect,
-  pageBySlug,
-  pages,
-  relationMaps,
-  selectedNodeId,
-  selectedPage,
-}: {
-  entryPages: PublicWikiIndexPage[];
-  focusedNeighbors: Set<string>;
-  focusedNodeId: string | null;
-  onHover: (slug: string | null) => void;
-  onSelect: (slug: string | null) => void;
-  pageBySlug: Map<string, PublicWikiIndexPage>;
-  pages: PublicWikiIndexPage[];
-  relationMaps: RelationMaps;
-  selectedNodeId: string | null;
-  selectedPage: PublicWikiIndexPage | null;
-}) {
-  return (
-    <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <section className="grid min-w-0 gap-px border-y border-border/80 bg-border/80 md:grid-cols-2 2xl:grid-cols-3">
-        {pages.map((page) => (
-          <GardenCard
-            key={page.slug}
-            active={selectedNodeId === page.slug}
-            dimmed={
-              Boolean(focusedNodeId) &&
-              focusedNodeId !== page.slug &&
-              !focusedNeighbors.has(page.slug)
-            }
-            focused={focusedNodeId === page.slug || focusedNeighbors.has(page.slug)}
-            page={page}
-            pageBySlug={pageBySlug}
-            relationMaps={relationMaps}
-            onHover={onHover}
-            onSelect={onSelect}
-          />
-        ))}
-        {pages.length === 0 ? <EmptyState /> : null}
-      </section>
-
-      <PageDrawer
-        entryPages={entryPages}
-        index={null}
-        page={selectedPage}
-        pageBySlug={pageBySlug}
-        relationMaps={relationMaps}
-        onClose={() => onSelect(null)}
-        onSelect={onSelect}
-      />
-    </div>
-  );
-}
-
-function GardenCard({
-  active,
-  dimmed,
-  focused,
-  onHover,
-  onSelect,
-  page,
-  pageBySlug,
-  relationMaps,
-}: {
-  active: boolean;
-  dimmed: boolean;
-  focused: boolean;
-  onHover: (slug: string | null) => void;
-  onSelect: (slug: string | null) => void;
-  page: PublicWikiIndexPage;
-  pageBySlug: Map<string, PublicWikiIndexPage>;
-  relationMaps: RelationMaps;
-}) {
-  const connectedPages = pagesFromSlugs(
-    unique([
-      ...(relationMaps.outbound.get(page.slug) ?? []),
-      ...(relationMaps.backlinks.get(page.slug) ?? []),
-    ]),
-    pageBySlug,
-  ).slice(0, 4);
-
-  return (
-    <article
-      className={cn(
-        "group/card relative flex min-h-80 flex-col bg-card/75 transition-colors duration-300 hover:bg-background",
-        active && "bg-background ring-1 ring-primary/20",
-        focused && !active && "bg-background",
-        dimmed && "opacity-55",
-      )}
-      onMouseEnter={() => onHover(page.slug)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(page.slug)}
-      onBlur={() => onHover(null)}
-    >
-      <div className="relative h-28 overflow-hidden border-b border-border/70 bg-muted">
-        <Image
-          src={page.heroImage}
-          alt=""
-          width={1200}
-          height={630}
-          unoptimized
-          className="size-full object-cover grayscale transition-transform duration-500 group-hover/card:scale-[1.03]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/35 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
-      </div>
-
-      <div className="flex flex-1 flex-col p-4">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <Badge variant="secondary">{label(page.cluster)}</Badge>
-          <Badge variant="outline">{label(page.role)}</Badge>
-        </div>
-        <Link
-          href={`/wiki/${page.slug}`}
-          className="font-heading text-xl leading-tight font-light text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {page.title}
-        </Link>
-        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-          {page.description}
-        </p>
-
-        {connectedPages.length > 0 ? (
-          <div className="mt-4 space-y-2">
-            <p className="text-[0.68rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Connected to
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {connectedPages.map((item) => (
-                <PreviewChip
-                  key={item.slug}
-                  backlinksCount={relationMaps.backlinks.get(item.slug)?.length ?? 0}
-                  outboundCount={relationMaps.outbound.get(item.slug)?.length ?? 0}
-                  page={item}
-                  onHover={onHover}
-                  onSelect={onSelect}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5 text-xs font-medium text-muted-foreground">
-          <span>{page.readingMinutes} min read</span>
-          <span>
-            {page.sourceNotes.length} sources · {relationCount(page.slug, relationMaps)} links
-          </span>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-4 w-full rounded-full"
-          onClick={() => onSelect(page.slug)}
-        >
-          Preview relationships
-        </Button>
-      </div>
-
-      <PageHoverPreview
-        backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
-        className="absolute left-4 right-4 top-16 z-30 hidden group-hover/card:block group-focus-within/card:block"
-        outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
         page={page}
       />
     </article>
@@ -998,7 +1065,7 @@ function PageHoverPreview({
       )}
     >
       <div className="mb-2 flex flex-wrap gap-1.5">
-        <Badge variant="secondary">{label(page.cluster)}</Badge>
+        <Badge variant="secondary">{clusterLabel(page.cluster)}</Badge>
         <Badge variant="outline">{label(page.role)}</Badge>
       </div>
       <p className="font-heading text-lg leading-tight font-light text-foreground">
@@ -1066,7 +1133,7 @@ function PageDrawer({
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant="secondary">{label(page.cluster)}</Badge>
+              <Badge variant="secondary">{clusterLabel(page.cluster)}</Badge>
               <Badge variant="outline">{label(page.role)}</Badge>
               <Badge variant="outline">{page.readingMinutes} min</Badge>
             </div>

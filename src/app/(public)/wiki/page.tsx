@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { WikiExplorer } from "@/components/wiki/wiki-explorer";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
-import { getWikiAeoTargetPages, wikiAeoTargets } from "@/lib/public-wiki/aeo";
+import {
+  getReaderPathPages,
+  getReaderPathPrimaryPage,
+  wikiReaderPaths,
+} from "@/lib/public-wiki/reader-paths";
 import { StructuredData } from "@/components/seo/structured-data";
 import {
   SEO_AUTHOR_NAME,
@@ -30,9 +33,10 @@ export default function WikiPage() {
   const index = getPublicWikiIndex();
   const sourceNotes = index.pages.reduce((sum, page) => sum + page.sourceNotes.length, 0);
   const linkedEdges = index.graph.edges.length;
-  const answerTargets = wikiAeoTargets.map((target) => ({
-    ...target,
-    pages: getWikiAeoTargetPages(target, index.pages),
+  const readerPaths = wikiReaderPaths.map((path) => ({
+    ...path,
+    primaryPage: getReaderPathPrimaryPage(path, index.pages),
+    pages: getReaderPathPages(path, index.pages),
   }));
 
   return (
@@ -51,10 +55,10 @@ export default function WikiPage() {
             name: SEO_SITE_NAME,
             url: absoluteSiteUrl("/"),
           },
-          about: wikiAeoTargets.map((target) => ({
+          about: wikiReaderPaths.map((path) => ({
             "@type": "Thing",
-            name: target.topic,
-            description: target.question,
+            name: path.title,
+            description: path.promise,
           })),
         }}
       />
@@ -65,22 +69,25 @@ export default function WikiPage() {
             Public wiki
           </p>
           <h1 className="mt-8 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
-            A compiled map of what I am learning.
+            Choose a path through my public knowledge system.
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
           <p className="mt-8 max-w-3xl text-lg leading-relaxed text-muted-foreground">
-            This is the public web version of my LLM-maintained wiki: source-backed
-            pages, recurring concepts, operating models, and links between ideas.
-            The raw evidence stays private; the synthesis is here to browse.
+            This wiki turns private Obsidian notes into public, source-backed
+            synthesis on AI workflows, knowledge systems, strategy, and venture
+            judgment.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-px border-y border-border/80 bg-border/80">
+        <div className="grid grid-cols-3 gap-2">
           {[
             ["Pages", index.pages.length.toLocaleString()],
             ["Sources", sourceNotes.toLocaleString()],
             ["Links", linkedEdges.toLocaleString()],
           ].map(([label, value]) => (
-            <div key={label} className="bg-background p-4">
+            <div
+              key={label}
+              className="border-y border-border/80 bg-background/80 p-4"
+            >
               <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
                 {label}
               </p>
@@ -92,50 +99,27 @@ export default function WikiPage() {
         </div>
       </section>
 
-      <section className="border-b border-border/80 py-10">
-        <div className="mb-6 max-w-3xl">
-          <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-            Answer targets
-          </p>
-          <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
-            Questions this wiki is built to answer.
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            These are the clearest public entry points for readers, search, and
-            answer systems. Each path links a direct answer page with supporting
-            wiki context.
-          </p>
-        </div>
-        <div className="grid gap-px border-y border-border/80 bg-border/80 md:grid-cols-2 xl:grid-cols-3">
-          {answerTargets.map((target) => (
-            <article key={target.question} className="bg-card p-5">
+      <section className="border-b border-border/80 py-8">
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            ["Pick a path", "Start with the question closest to what you need."],
+            ["Read the synthesis", "Use the page summary before the long-form notes."],
+            ["Follow trails", "Move through related pages and source-backed context."],
+          ].map(([title, text]) => (
+            <div key={title} className="border-y border-border/80 bg-card/70 p-4">
               <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-                {target.topic}
+                {title}
               </p>
-              <h3 className="mt-3 font-heading text-2xl leading-tight font-light text-foreground">
-                {target.question}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                {target.answer}
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {text}
               </p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                {target.pages.map((page) => (
-                  <Link
-                    key={page.slug}
-                    href={`/wiki/${page.slug}`}
-                    className="rounded-full border border-border/80 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {page.title}
-                  </Link>
-                ))}
-              </div>
-            </article>
+            </div>
           ))}
         </div>
       </section>
 
       <section className="py-10">
-        <WikiExplorer index={index} />
+        <WikiExplorer index={index} readerPaths={readerPaths} />
       </section>
     </div>
   );
