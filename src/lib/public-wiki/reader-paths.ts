@@ -12,7 +12,7 @@ export type WikiReaderPath = {
 export const wikiReaderPaths: WikiReaderPath[] = [
   {
     id: "ai-workflows",
-    title: "Build better AI workflows",
+    title: "Build Better AI Workflows",
     promise: "See how repeatable work can use AI without losing control.",
     description:
       "Start with workflow design, agent execution, evaluation, and the handoffs that keep automated work inspectable.",
@@ -25,7 +25,7 @@ export const wikiReaderPaths: WikiReaderPath[] = [
   },
   {
     id: "agent-memory",
-    title: "Design agent memory",
+    title: "Design Agent Memory",
     promise: "Understand what context should persist and what should disappear.",
     description:
       "Follow the pages on memory, context compaction, persistent threads, and the boundaries around durable agent knowledge.",
@@ -34,7 +34,7 @@ export const wikiReaderPaths: WikiReaderPath[] = [
   },
   {
     id: "public-synthesis",
-    title: "Turn notes into public synthesis",
+    title: "Turn Notes into Public Synthesis",
     promise: "Use private evidence to produce public, source-backed pages.",
     description:
       "Read how raw captures become useful synthesis, public knowledge systems, and reusable research artifacts.",
@@ -47,7 +47,7 @@ export const wikiReaderPaths: WikiReaderPath[] = [
   },
   {
     id: "venture-judgment",
-    title: "Find venture and workflow opportunities",
+    title: "Find Venture and Workflow Opportunities",
     promise: "Look for repeated pain, workflow gaps, and practical openings.",
     description:
       "Explore judgment, demand signals, workflow friction, and small wedges where AI changes the economics of work.",
@@ -60,7 +60,7 @@ export const wikiReaderPaths: WikiReaderPath[] = [
   },
   {
     id: "trust-boundaries",
-    title: "Understand AI trust boundaries",
+    title: "Understand AI Trust Boundaries",
     promise: "Separate useful autonomy from unsafe or unverifiable behavior.",
     description:
       "Start with assurance, safety, privacy, control, and the boundary design needed for serious AI systems.",

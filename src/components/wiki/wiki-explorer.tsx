@@ -684,48 +684,99 @@ function ReaderPathCard({
   const primary = path.primaryPage;
 
   return (
-    <article className="group/path flex min-h-72 flex-col border-y border-border/80 bg-card/75 p-5 transition-colors hover:bg-background">
-      <div>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-          {path.title}
-        </p>
-        <h3 className="mt-4 font-heading text-2xl leading-tight font-light text-foreground">
+    <article
+      className="group/path relative flex min-h-80 flex-col border-y border-border/80 bg-card/75 transition-colors hover:border-foreground/35 hover:bg-background focus-within:border-foreground/35"
+      onMouseEnter={() => {
+        if (primary) onHover(primary.slug);
+      }}
+      onMouseLeave={() => onHover(null)}
+    >
+      <span
+        className="pointer-events-none absolute left-0 top-0 h-full w-px bg-accent opacity-0 transition-opacity duration-200 group-hover/path:opacity-100 group-focus-within/path:opacity-100"
+        aria-hidden
+      />
+      {primary ? (
+        <Link
+          href={`/wiki/${primary.slug}`}
+          className="absolute inset-0 z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          onFocus={() => onHover(primary.slug)}
+          onBlur={() => onHover(null)}
+          aria-label={`Start with ${primary.title}`}
+        >
+          <span className="sr-only">Start with {primary.title}</span>
+        </Link>
+      ) : null}
+
+      <div className="relative z-0 flex flex-1 flex-col p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+              Start here
+            </p>
+            <h3 className="mt-3 font-heading text-2xl leading-tight font-light text-foreground">
+              {path.title}
+            </h3>
+          </div>
+          <MiniPathMap />
+        </div>
+
+        <p className="mt-4 text-base leading-relaxed text-foreground">
           {path.promise}
-        </h3>
+        </p>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           {path.description}
         </p>
       </div>
 
-      <div className="mt-auto pt-5">
+      <div className="px-5 pb-5">
+        {path.pages.length > 1 ? (
+          <div className="relative z-30 mb-4">
+            <p className="mb-2 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+              Related pages
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {path.pages.slice(1, 4).map((page) => (
+                <PreviewChip
+                  key={page.slug}
+                  backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
+                  outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
+                  page={page}
+                  onHover={onHover}
+                  onSelect={onSelect}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {primary ? (
-          <button
-            type="button"
-            onClick={() => onSelect(primary.slug)}
-            onMouseEnter={() => onHover(primary.slug)}
-            onMouseLeave={() => onHover(null)}
-            className="inline-flex items-center gap-2 text-left text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Start with {primary.title}
-            <ArrowRightIcon className="size-4" aria-hidden />
-          </button>
+          <div className="pointer-events-none -mx-5 -mb-5 border-t border-border/80 px-5 py-4 text-sm font-semibold text-foreground transition-colors group-hover/path:border-foreground/30 group-hover/path:bg-muted/35">
+            <span className="inline-flex items-center gap-2">
+              Start with {primary.title}
+              <ArrowRightIcon
+                className="size-4 transition-transform duration-200 motion-safe:group-hover/path:translate-x-1"
+                aria-hidden
+              />
+            </span>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">Path page unavailable.</p>
         )}
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {path.pages.slice(1, 4).map((page) => (
-            <PreviewChip
-              key={page.slug}
-              backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
-              outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
-              page={page}
-              onHover={onHover}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
       </div>
     </article>
+  );
+}
+
+function MiniPathMap() {
+  return (
+    <div className="relative mt-1 h-10 w-24 shrink-0 text-border" aria-hidden>
+      <span className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-current" />
+      <span className="absolute left-3 right-3 top-1/2 h-px origin-left -translate-y-1/2 scale-x-0 bg-accent transition-transform duration-300 motion-safe:group-hover/path:scale-x-100 motion-safe:group-focus-within/path:scale-x-100" />
+      <span className="absolute left-2 top-1/2 size-3 -translate-y-1/2 bg-foreground transition-transform duration-200 motion-safe:group-hover/path:scale-110" />
+      <span className="absolute left-[35%] top-1/2 size-2 -translate-y-1/2 bg-muted-foreground/65 transition-colors duration-200 group-hover/path:bg-accent" />
+      <span className="absolute left-[59%] top-1/2 size-2 -translate-y-1/2 bg-muted-foreground/65 transition-colors duration-200 group-hover/path:bg-accent" />
+      <span className="absolute right-2 top-1/2 size-2 -translate-y-1/2 bg-muted-foreground/65 transition-colors duration-200 group-hover/path:bg-accent" />
+    </div>
   );
 }
 
@@ -847,40 +898,113 @@ function ReadingTrailCard({
   trail: ReadingTrail;
 }) {
   return (
-    <article className={cn("border-y border-border/80 bg-card/75 p-5", className)}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="font-heading text-2xl leading-tight font-light text-foreground">
-            {trail.title}
-          </h3>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            {trail.description}
-          </p>
+    <article
+      className={cn(
+        "group/trail flex min-h-72 flex-col border-y border-border/80 bg-card/75 transition-colors hover:border-foreground/35 hover:bg-background",
+        className,
+      )}
+    >
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+              Reading trail
+            </p>
+            <h3 className="mt-2 font-heading text-2xl leading-tight font-light text-foreground">
+              {trail.title}
+            </h3>
+          </div>
+          <div className="shrink-0 text-right font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+            {trail.pages.length} steps
+          </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 rounded-full"
-          onClick={() => onFollowTrail(trail)}
-        >
-          Follow
-        </Button>
+
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          {trail.description}
+        </p>
+
+        <div className="mt-5">
+          <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+            Route
+          </p>
+          <ol className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            {trail.pages.map((page, index) => (
+              <li key={page.slug} className="flex min-w-0 flex-1 items-center gap-2">
+                <RouteStep
+                  backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
+                  index={index}
+                  onHover={onHover}
+                  onSelect={onSelect}
+                  outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
+                  page={page}
+                />
+                {index < trail.pages.length - 1 ? (
+                  <ArrowRightIcon
+                    className="hidden size-4 shrink-0 text-muted-foreground/55 sm:block"
+                    aria-hidden
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
-      <div className="mt-5 flex flex-wrap gap-2">
-        {trail.pages.map((page, index) => (
-          <PreviewChip
-            key={page.slug}
-            backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
-            outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
-            page={page}
-            prefix={`${index + 1}.`}
-            onHover={onHover}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
+
+      <button
+        type="button"
+        className="flex items-center justify-between border-t border-border/80 px-5 py-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => onFollowTrail(trail)}
+      >
+        Follow trail
+        <ArrowRightIcon
+          className="size-4 transition-transform duration-200 motion-safe:group-hover/trail:translate-x-1"
+          aria-hidden
+        />
+      </button>
     </article>
+  );
+}
+
+function RouteStep({
+  backlinksCount,
+  index,
+  onHover,
+  onSelect,
+  outboundCount,
+  page,
+}: {
+  backlinksCount: number;
+  index: number;
+  onHover: (slug: string | null) => void;
+  onSelect: (slug: string | null) => void;
+  outboundCount: number;
+  page: PublicWikiIndexPage;
+}) {
+  return (
+    <span
+      className="group/step relative block min-w-0 flex-1"
+      onMouseEnter={() => onHover(page.slug)}
+      onMouseLeave={() => onHover(null)}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(page.slug)}
+        className="block min-h-20 w-full border border-border/80 bg-background/70 px-3 py-2 text-left transition-colors hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="mt-2 line-clamp-2 block text-xs font-medium leading-snug text-foreground">
+          {page.title}
+        </span>
+      </button>
+      <PageHoverPreview
+        backlinksCount={backlinksCount}
+        className="absolute left-0 top-full z-40 mt-2 hidden w-72 group-hover/step:block group-focus-within/step:block"
+        outboundCount={outboundCount}
+        page={page}
+      />
+    </span>
   );
 }
 
