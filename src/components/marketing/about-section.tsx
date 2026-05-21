@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { ArrowRightIcon } from "lucide-react";
 import { operatingNotes, siteConfig } from "@/lib/marketing/site-config";
 import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
 
 export function AboutSection() {
   return (
-    <SectionShell id="about" className="bg-background">
+    <SectionShell id="about">
       <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div>
           <SectionHeading
@@ -26,22 +27,27 @@ export function AboutSection() {
           </div>
         </div>
 
-        <aside className="border-t border-border/80 pt-6 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">
-          <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-            Operating posture
-          </p>
-          <ul className="mt-5 divide-y divide-border/80 border-y border-border/80">
+        <aside className="border border-border/80 bg-card/70 p-6 lg:sticky lg:top-24 lg:self-start">
+          <p className="eyebrow">Operating posture</p>
+          <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
             {operatingNotes.map((note) => (
-              <li key={note} className="py-3 text-sm leading-relaxed text-foreground">
+              <li
+                key={note}
+                className="bg-card/70 px-4 py-3 text-sm leading-relaxed text-foreground"
+              >
                 {note}
               </li>
             ))}
           </ul>
           <Link
             href="/about"
-            className="mt-6 inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
+            className="group mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
           >
             Read the fuller profile
+            <ArrowRightIcon
+              className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+              aria-hidden
+            />
           </Link>
         </aside>
       </div>

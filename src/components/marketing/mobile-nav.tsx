@@ -37,14 +37,19 @@ export function MobileNav({ links, signedIn, brandWordmark }: Props) {
       />
       <SheetContent side="right" className="w-[min(100%,20rem)]">
         <SheetHeader>
-          <SheetTitle className="text-left">{brandWordmark}</SheetTitle>
+          <SheetTitle className="eyebrow text-left text-foreground">
+            {brandWordmark}
+          </SheetTitle>
         </SheetHeader>
-        <nav className="flex flex-col gap-1 pt-2" aria-label="Mobile">
+        <nav
+          className="grid gap-px border border-border/80 bg-border/80"
+          aria-label="Mobile"
+        >
           {links.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className="rounded-lg px-3 py-2.5 text-sm font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              className="bg-card/70 px-4 py-3 text-sm font-medium text-foreground outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               {label}
             </Link>
@@ -53,13 +58,19 @@ export function MobileNav({ links, signedIn, brandWordmark }: Props) {
         <Separator className="my-4" />
         <div className="flex flex-col gap-2">
           {signedIn ? (
-            <Button render={<Link href="/dashboard" />} nativeButton={false}>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center border border-foreground bg-foreground px-4 py-2.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               Dashboard
-            </Button>
+            </Link>
           ) : (
-            <Button render={<Link href="/login" />} nativeButton={false}>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center border border-foreground bg-foreground px-4 py-2.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               Log in
-            </Button>
+            </Link>
           )}
         </div>
       </SheetContent>

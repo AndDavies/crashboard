@@ -480,9 +480,7 @@ function ExplorerControls({
     >
       <div className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Reader view
-          </p>
+          <p className="eyebrow">Reader view</p>
           <div
             className="mt-2 inline-flex border border-border/80 bg-background"
             role="tablist"
@@ -514,12 +512,12 @@ function ExplorerControls({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="font-mono uppercase tracking-[0.16em]">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="meta-tag">
             {pageCount.toLocaleString()} pages
           </span>
           {!showAllPageFilters && filtersDirty ? (
-            <span className="font-mono uppercase tracking-[0.16em] text-foreground">
+            <span className="meta-tag text-foreground">
               Filtered · {clusterLabel(cluster)}
               {role !== "all" ? ` · ${label(role)}` : ""}
             </span>
@@ -541,7 +539,7 @@ function ExplorerControls({
         <div className="grid gap-4 border-t border-border/80 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem] lg:items-end">
           {showAllPageFilters ? (
             <label className="space-y-2">
-              <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="eyebrow flex items-center gap-2">
                 <SearchIcon className="size-3.5" aria-hidden />
                 Search
               </span>
@@ -612,7 +610,7 @@ function FilterSelect({
     options.find((option) => option.value === value)?.label ?? labelText;
   return (
     <label className="space-y-2">
-      <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+      <span className="eyebrow flex items-center gap-2">
         {icon}
         {labelText}
       </span>
@@ -672,7 +670,7 @@ function PathsMode({
             title="Pick the door closest to what you need."
             description="Each path opens a primary page, then points to supporting notes once the topic has a clear shape."
           />
-          <div className="wiki-stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+          <div className="stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
             {readerPaths.map((path) => (
               <ReaderPathCard
                 key={path.id}
@@ -691,7 +689,7 @@ function PathsMode({
             title="Then branch into a cluster."
             description="Auto-generated routes through the highest-linked pages in each cluster."
           />
-          <div className="wiki-stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2">
+          <div className="stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2">
             {readingTrails.map((trail, trailIndex) => (
               <ReadingTrailCard
                 key={trail.id}
@@ -741,9 +739,7 @@ function SectionHeader({
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          {eyebrow}
-        </p>
+        <p className="eyebrow">{eyebrow}</p>
         <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
           {title}
         </h2>
@@ -783,9 +779,7 @@ function ReaderPathCard({
       onMouseLeave={() => onHover(null)}
     >
       <div className="flex flex-1 flex-col gap-4 p-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Start here
-        </p>
+        <p className="eyebrow">Start here</p>
         <h3 className="font-heading text-2xl font-light leading-tight text-foreground">
           {path.title}
         </h3>
@@ -796,10 +790,8 @@ function ReaderPathCard({
 
         {visibleSupporting.length > 0 ? (
           <div className="mt-auto pt-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              Related pages
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <p className="eyebrow">Related pages</p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {visibleSupporting.map((page) => (
                 <PreviewChip
                   key={page.slug}
@@ -813,7 +805,7 @@ function ReaderPathCard({
                 />
               ))}
               {remaining > 0 ? (
-                <span className="border border-border/80 bg-background/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                <span className="meta-tag border border-border/80 bg-background/60 px-2.5 py-1">
                   +{remaining} more
                 </span>
               ) : null}
@@ -904,9 +896,7 @@ function MapMode({
               className="flex w-full items-center justify-between border border-border/80 bg-card/70 p-5 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span>
-                <span className="block font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Tap to reveal
-                </span>
+                <span className="eyebrow block">Tap to reveal</span>
                 <span className="mt-2 block font-heading text-2xl font-light text-foreground">
                   Map
                 </span>
@@ -972,14 +962,12 @@ function ReadingTrailCard({
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Reading trail
-            </p>
+            <p className="eyebrow">Reading trail</p>
             <h3 className="mt-2 font-heading text-2xl font-light leading-tight text-foreground">
               {trail.title}
             </h3>
           </div>
-          <div className="shrink-0 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="meta-tag shrink-0 text-right">
             {trail.pages.length} steps
           </div>
         </div>
@@ -989,9 +977,7 @@ function ReadingTrailCard({
         </p>
 
         <div className="mt-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            Route
-          </p>
+          <p className="eyebrow">Route</p>
           <ol className="mt-3 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 xl:grid-cols-4">
             {trail.pages.map((page, stepIndex) => (
               <li key={page.slug} className="bg-card/70">
@@ -1000,7 +986,6 @@ function ReadingTrailCard({
                     relationMaps.backlinks.get(page.slug)?.length ?? 0
                   }
                   index={stepIndex}
-                  isLast={stepIndex === trail.pages.length - 1}
                   onHover={onHover}
                   onSelect={onSelect}
                   outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
@@ -1030,7 +1015,6 @@ function ReadingTrailCard({
 function RouteStep({
   backlinksCount,
   index,
-  isLast,
   onHover,
   onSelect,
   outboundCount,
@@ -1038,7 +1022,6 @@ function RouteStep({
 }: {
   backlinksCount: number;
   index: number;
-  isLast: boolean;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string | null) => void;
   outboundCount: number;
@@ -1053,22 +1036,18 @@ function RouteStep({
       <button
         type="button"
         onClick={() => onSelect(page.slug)}
-        className="flex h-full w-full items-start gap-3 px-3 py-3 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="relative flex h-full w-full flex-col gap-2 p-4 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 w-0.5 bg-accent opacity-0 transition-opacity duration-150 group-hover/step:opacity-100 group-focus-within/step:opacity-100"
+        />
+        <span className="ordinal">
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="flex-1">
-          <span className="block line-clamp-2 text-xs font-medium leading-snug text-foreground">
-            {page.title}
-          </span>
+        <span className="line-clamp-3 text-sm font-medium leading-snug text-foreground">
+          {page.title}
         </span>
-        {!isLast ? (
-          <ArrowRightIcon
-            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
-            aria-hidden
-          />
-        ) : null}
       </button>
       <PageHoverPreview
         backlinksCount={backlinksCount}
@@ -1102,13 +1081,13 @@ function IndexMode({
   return (
     <div className="grid min-w-0 gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="min-w-0 border border-border/80">
-        <div className="hidden grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] border-b border-border/80 bg-muted/40 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground lg:grid">
-          <span>Page</span>
-          <span>Cluster</span>
-          <span>Role</span>
-          <span className="text-right">Sources</span>
-          <span className="text-right">Links</span>
-          <span className="text-right">Open</span>
+        <div className="hidden grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] border-b border-border/80 bg-muted/40 px-4 py-3 lg:grid">
+          <span className="eyebrow">Page</span>
+          <span className="eyebrow">Cluster</span>
+          <span className="eyebrow">Role</span>
+          <span className="eyebrow text-right">Sources</span>
+          <span className="eyebrow text-right">Links</span>
+          <span className="eyebrow text-right">Open</span>
         </div>
         <div className="divide-y divide-border/80">
           {pages.map((page) => (
@@ -1179,19 +1158,19 @@ function IndexRow({
         </p>
         <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground lg:hidden">
           <div className="flex items-center gap-1.5">
-            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Cluster</dt>
+            <dt className="meta-tag">Cluster</dt>
             <dd className="text-foreground">{clusterLabel(page.cluster)}</dd>
           </div>
           <div className="flex items-center gap-1.5">
-            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Role</dt>
+            <dt className="meta-tag">Role</dt>
             <dd className="text-foreground">{label(page.role)}</dd>
           </div>
           <div className="flex items-center gap-1.5">
-            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Sources</dt>
+            <dt className="meta-tag">Sources</dt>
             <dd className="tabular-nums text-foreground">{page.sourceNotes.length}</dd>
           </div>
           <div className="flex items-center gap-1.5">
-            <dt className="font-mono uppercase tracking-[0.16em] text-[10px]">Links</dt>
+            <dt className="meta-tag">Links</dt>
             <dd className="tabular-nums text-foreground">
               {relationCount(page.slug, relationMaps)}
             </dd>
@@ -1291,7 +1270,7 @@ function PageHoverPreview({
         className,
       )}
     >
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="meta-tag">
         {clusterLabel(page.cluster)} · {label(page.role)}
       </p>
       <p className="mt-2 font-heading text-lg font-light leading-tight text-foreground">
@@ -1300,10 +1279,10 @@ function PageHoverPreview({
       <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
         {page.description}
       </p>
-      <div className="mt-3 flex flex-wrap gap-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-        <span>{page.sourceNotes.length} sources</span>
-        <span>{outboundCount} outbound</span>
-        <span>{backlinksCount} backlinks</span>
+      <div className="mt-3 flex flex-wrap gap-3">
+        <span className="meta-tag">{page.sourceNotes.length} sources</span>
+        <span className="meta-tag">{outboundCount} outbound</span>
+        <span className="meta-tag">{backlinksCount} backlinks</span>
       </div>
     </div>
   );
@@ -1343,9 +1322,7 @@ function PageDrawer({
           <div>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Selected page
-                </p>
+                <p className="eyebrow">Selected page</p>
                 <h2 className="mt-3 font-heading text-3xl font-light leading-tight text-foreground">
                   {page.title}
                 </h2>
@@ -1361,7 +1338,7 @@ function PageDrawer({
               </Button>
             </div>
 
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="meta-tag mt-3">
               {clusterLabel(page.cluster)} · {label(page.role)} · {page.readingMinutes} min
             </p>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -1377,9 +1354,7 @@ function PageDrawer({
           </div>
         ) : (
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Select a page
-            </p>
+            <p className="eyebrow">Select a page</p>
             <h2 className="mt-3 font-heading text-2xl font-light leading-tight text-foreground">
               Click a card, row, or graph node.
             </h2>
@@ -1409,16 +1384,14 @@ function PageDrawer({
           />
           {page.sourceNotes.length > 0 ? (
             <section className="border border-border/80 bg-card/70 p-5">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Source trail
-              </p>
+              <p className="eyebrow">Source trail</p>
               <ol className="mt-3 space-y-3">
                 {page.sourceNotes.slice(0, 3).map((note, noteIndex) => (
                   <li
                     key={`${page.slug}-source-${noteIndex}`}
                     className="flex items-start gap-3 text-sm leading-relaxed text-muted-foreground"
                   >
-                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <span className="ordinal mt-0.5">
                       S{String(noteIndex + 1).padStart(2, "0")}
                     </span>
                     <span>{note}</span>
@@ -1468,7 +1441,7 @@ function GroupedRelationList({
   if (pages.length === 0) {
     return (
       <section className="border border-border/80 bg-card/70 p-5">
-        <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="eyebrow flex items-center gap-2">
           {icon}
           {labelText}
         </p>
@@ -1483,7 +1456,7 @@ function GroupedRelationList({
 
   return (
     <section className="border border-border/80 bg-card/70">
-      <p className="flex items-center gap-2 border-b border-border/80 px-5 py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="eyebrow flex items-center gap-2 border-b border-border/80 px-5 py-3">
         {icon}
         {labelText}
         <span className="ml-auto tabular-nums text-foreground">
@@ -1493,9 +1466,7 @@ function GroupedRelationList({
       <div className="divide-y divide-border/80">
         {groups.map(([clusterId, clusterPages]) => (
           <div key={clusterId} className="px-5 py-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              {clusterLabel(clusterId)}
-            </p>
+            <p className="eyebrow">{clusterLabel(clusterId)}</p>
             <ul className="mt-2 space-y-1.5">
               {clusterPages.slice(0, 6).map((page) => (
                 <li key={page.slug}>
@@ -1509,9 +1480,7 @@ function GroupedRelationList({
                 </li>
               ))}
               {clusterPages.length > 6 ? (
-                <li className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  +{clusterPages.length - 6} more
-                </li>
+                <li className="meta-tag">+{clusterPages.length - 6} more</li>
               ) : null}
             </ul>
           </div>
@@ -1536,7 +1505,7 @@ function RelationList({
 }) {
   return (
     <section className="border border-border/80 bg-card/70 p-5">
-      <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="eyebrow flex items-center gap-2">
         {icon}
         {labelText}
       </p>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
+import { clusterLabel } from "@/lib/public-wiki/reader-paths";
 import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
 
 export function ProjectsSection() {
@@ -8,40 +9,48 @@ export function ProjectsSection() {
   const featuredPages = index.pages.slice(0, 6);
 
   return (
-    <SectionShell id="wiki" className="bg-muted/35">
+    <SectionShell id="wiki">
       <SectionHeading
         eyebrow="Wiki"
         title="The real public content lives in the wiki."
         description="These pages are generated from the compiled knowledge base and link to real public routes."
       />
-      <div className="grid gap-px border-y border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3">
+      <div className="card-grid md:grid-cols-2 lg:grid-cols-3">
         {featuredPages.map((page) => (
           <Link
             key={page.slug}
             href={`/wiki/${page.slug}`}
-            className="group bg-background p-6 outline-none transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"
+            className="card-grid-cell group p-6"
           >
             <div className="flex items-start justify-between gap-4">
               <h3 className="font-heading text-xl leading-tight font-light text-foreground">
                 {page.title}
               </h3>
               <ArrowRightIcon
-                className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1"
+                className="mt-1 size-4 text-muted-foreground motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
                 aria-hidden
               />
             </div>
             <p className="mt-5 line-clamp-4 text-sm leading-relaxed text-muted-foreground">
               {page.description}
             </p>
+            <p className="meta-tag mt-5 inline-flex items-center gap-2">
+              {clusterLabel(page.cluster)}
+              <span aria-hidden>·</span>
+              {page.role}
+            </p>
           </Link>
         ))}
       </div>
       <Link
         href="/wiki"
-        className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+        className="group mt-8 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
       >
         Browse all {index.pages.length} wiki pages
-        <ArrowRightIcon className="size-4" aria-hidden />
+        <ArrowRightIcon
+          className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+          aria-hidden
+        />
       </Link>
     </SectionShell>
   );

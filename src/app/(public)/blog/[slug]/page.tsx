@@ -129,17 +129,18 @@ export default async function BlogPostPage({ params }: Props) {
 
       <article className="mt-10">
         <header className="max-w-4xl">
-          <p className="flex items-center gap-3 font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+          <p className="eyebrow flex items-center gap-3">
             <span className="h-1 w-10 bg-accent" aria-hidden />
             {post.publishedAt
               ? new Date(post.publishedAt).toLocaleDateString()
               : "Blog"}
           </p>
-          <h1 className="mt-8 font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-6 font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
             {post.title}
           </h1>
+          <span className="accent-rule mt-6" aria-hidden />
           {post.excerpt ? (
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
               {post.excerpt}
             </p>
           ) : null}
@@ -155,7 +156,7 @@ export default async function BlogPostPage({ params }: Props) {
         </header>
 
         {post.coverImageUrl ? (
-          <div className="relative mt-10 aspect-[1200/630] overflow-hidden border border-border/80">
+          <figure className="relative mt-10 aspect-[1200/630] overflow-hidden border border-border/80">
             <Image
               src={post.coverImageUrl}
               alt=""
@@ -165,14 +166,12 @@ export default async function BlogPostPage({ params }: Props) {
               unoptimized
               priority
             />
-          </div>
+          </figure>
         ) : null}
 
         {post.answerSummary ? (
-          <section className="mt-10 max-w-3xl border-y border-border/80 py-6">
-            <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-              Short answer
-            </p>
+          <section className="mt-10 max-w-3xl border border-border/80 bg-card/70 p-6">
+            <p className="eyebrow">Short answer</p>
             <p className="mt-3 text-lg leading-relaxed text-foreground">
               {post.answerSummary}
             </p>
@@ -183,30 +182,39 @@ export default async function BlogPostPage({ params }: Props) {
 
         {post.sourceLinks.length > 0 ? (
           <section className="mt-14 border-t border-border/80 pt-8">
-            <h2 className="font-heading text-3xl font-light text-foreground">
-              Sources and references
+            <p className="eyebrow">Sources and references</p>
+            <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+              Where the post points
             </h2>
-            <div className="mt-5 divide-y divide-border/70 border-y border-border/80">
-              {post.sourceLinks.map((source) => (
-                <a
-                  key={`${source.label}-${source.url}`}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-3 transition-colors hover:bg-muted/30"
-                >
-                  <span className="font-medium text-foreground">{source.label}</span>
-                  {source.note ? (
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      {source.note}
+            <ol className="mt-6 grid gap-px border border-border/80 bg-border/80">
+              {post.sourceLinks.map((source, sourceIndex) => (
+                <li key={`${source.label}-${source.url}`} className="bg-card/70">
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group/source flex items-start gap-4 p-4 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
+                    <span className="ordinal mt-0.5">
+                      S{String(sourceIndex + 1).padStart(2, "0")}
                     </span>
-                  ) : null}
-                  <span className="mt-1 block break-all text-xs text-muted-foreground">
-                    {source.url}
-                  </span>
-                </a>
+                    <span className="flex-1">
+                      <span className="font-medium text-foreground">
+                        {source.label}
+                      </span>
+                      {source.note ? (
+                        <span className="mt-1 block text-sm text-muted-foreground">
+                          {source.note}
+                        </span>
+                      ) : null}
+                      <span className="meta-tag mt-2 block break-all">
+                        {source.url}
+                      </span>
+                    </span>
+                  </a>
+                </li>
               ))}
-            </div>
+            </ol>
           </section>
         ) : null}
 
@@ -214,45 +222,53 @@ export default async function BlogPostPage({ params }: Props) {
           <section className="mt-14 grid gap-8 border-t border-border/80 pt-8 lg:grid-cols-2">
             {relatedWikiPages.length > 0 ? (
               <div>
-                <h2 className="font-heading text-3xl font-light text-foreground">
-                  Related wiki pages
+                <p className="eyebrow">Related wiki pages</p>
+                <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+                  Continue the trail
                 </h2>
-                <div className="mt-5 space-y-3">
+                <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
                   {relatedWikiPages.map((page) => (
-                    <Link
-                      key={page.slug}
-                      href={`/wiki/${page.slug}`}
-                      className="block border-t border-border/80 py-4 transition-colors hover:bg-muted/30"
-                    >
-                      <span className="font-medium text-foreground">{page.title}</span>
-                      <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
-                        {page.description}
-                      </span>
-                    </Link>
+                    <li key={page.slug} className="bg-card/70">
+                      <Link
+                        href={`/wiki/${page.slug}`}
+                        className="group block p-4 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      >
+                        <span className="font-medium text-foreground group-hover:underline group-hover:decoration-accent">
+                          {page.title}
+                        </span>
+                        <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
+                          {page.description}
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ) : null}
 
             {relatedPosts.length > 0 ? (
               <div>
-                <h2 className="font-heading text-3xl font-light text-foreground">
-                  Related posts
+                <p className="eyebrow">Related posts</p>
+                <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+                  More from the blog
                 </h2>
-                <div className="mt-5 space-y-3">
+                <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
                   {relatedPosts.map((item) => (
-                    <Link
-                      key={item.slug}
-                      href={`/blog/${item.slug}`}
-                      className="block border-t border-border/80 py-4 transition-colors hover:bg-muted/30"
-                    >
-                      <span className="font-medium text-foreground">{item.title}</span>
-                      <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
-                        {item.excerpt}
-                      </span>
-                    </Link>
+                    <li key={item.slug} className="bg-card/70">
+                      <Link
+                        href={`/blog/${item.slug}`}
+                        className="group block p-4 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      >
+                        <span className="font-medium text-foreground group-hover:underline group-hover:decoration-accent">
+                          {item.title}
+                        </span>
+                        <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
+                          {item.excerpt}
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ) : null}
           </section>

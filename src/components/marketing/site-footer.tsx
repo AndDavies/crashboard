@@ -17,7 +17,8 @@ export function SiteFooter() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="font-heading text-sm font-medium text-foreground">
+            <p className="eyebrow">{siteConfig.brandWordmark}</p>
+            <p className="mt-2 font-heading text-base font-medium text-foreground">
               {siteConfig.publicName}
             </p>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -30,7 +31,7 @@ export function SiteFooter() {
                 <li key={href}>
                   <Link
                     href={href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="text-sm text-muted-foreground motion-safe:transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {label}
                   </Link>
@@ -39,7 +40,7 @@ export function SiteFooter() {
               <li>
                 <Link
                   href="/dashboard"
-                  className="text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="text-sm text-muted-foreground motion-safe:transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Dashboard
                 </Link>
@@ -48,8 +49,8 @@ export function SiteFooter() {
           </nav>
         </div>
         <Separator className="my-8" />
-        <p className="text-xs text-muted-foreground">
-          © {year} {siteConfig.publicName}. {siteConfig.brandWordmark}.
+        <p className="meta-tag">
+          © {year} {siteConfig.publicName}
         </p>
       </div>
     </footer>

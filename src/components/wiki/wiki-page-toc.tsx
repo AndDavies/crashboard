@@ -68,7 +68,7 @@ export function WikiPageToc({ headings }: { headings: Heading[] }) {
 
   return (
     <nav
-      className="wiki-scroll-mask mt-3 max-h-[22rem] space-y-0.5 overflow-y-auto pr-1"
+      className="scroll-mask mt-3 max-h-[22rem] space-y-0.5 overflow-y-auto pr-1"
       aria-label="Page table of contents"
     >
       {headings.map((heading) => (

@@ -1,41 +1,43 @@
 import Link from "next/link";
+import { ArrowRightIcon, ArrowUpRightIcon } from "lucide-react";
 import type { ProjectItem } from "@/lib/marketing/site-config";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRightIcon } from "lucide-react";
 
 export function ProjectCard({ project }: { project: ProjectItem }) {
+  const isExternal = Boolean(project.href && /^https?:\/\//.test(project.href));
+  const Icon = isExternal ? ArrowUpRightIcon : ArrowRightIcon;
+
   const card = (
-    <Card className="h-full transition-shadow duration-200 group-hover:shadow-md group-focus-visible:ring-2 group-focus-visible:ring-ring">
-      <CardHeader className="border-b border-border/60">
-        <CardTitle>{project.title}</CardTitle>
-        <CardDescription>{project.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-4">
+    <article className="flex h-full flex-col border border-border/80 bg-card/70 motion-safe:transition-colors group-hover:bg-card group-focus-visible:bg-card group-focus-visible:ring-2 group-focus-visible:ring-ring">
+      <header className="border-b border-border/80 p-5">
+        <h3 className="font-heading text-xl font-light leading-tight text-foreground">
+          {project.title}
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {project.description}
+        </p>
+      </header>
+      <div className="flex-1 p-5">
         <div className="flex flex-wrap gap-1.5">
           {project.stack.map((tech) => (
-            <Badge key={tech} variant="secondary" className="font-normal">
+            <Badge key={tech} variant="outline" className="font-normal">
               {tech}
             </Badge>
           ))}
         </div>
-      </CardContent>
+      </div>
       {project.href ? (
-        <CardFooter className="border-t border-border/60">
-          <span className="inline-flex items-center gap-1 text-sm font-medium text-foreground">
+        <footer className="flex items-center justify-between border-t border-border/80 px-5 py-3 motion-safe:transition-colors group-hover:bg-foreground group-hover:text-background">
+          <span className="text-sm font-medium">
             {project.label ?? "Open"}
-            <ArrowUpRightIcon className="size-3.5 opacity-60" aria-hidden />
           </span>
-        </CardFooter>
+          <Icon
+            className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+            aria-hidden
+          />
+        </footer>
       ) : null}
-    </Card>
+    </article>
   );
 
   if (project.href) {

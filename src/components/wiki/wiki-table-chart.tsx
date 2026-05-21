@@ -8,13 +8,11 @@ export function WikiTableChart({ chart }: { chart: PublicWikiChart }) {
   return (
     <figure className="my-8 border border-border/80 bg-card/70">
       <figcaption className="flex flex-col gap-1 border-b border-border/80 px-5 py-4">
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Generated chart
-        </span>
+        <span className="eyebrow">Generated chart</span>
         <span className="font-heading text-base font-semibold text-foreground">
           {chart.title}
         </span>
-        <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="meta-tag mt-1">
           Range {min.toLocaleString()} – {niceMax.toLocaleString()}
         </span>
       </figcaption>
@@ -46,7 +44,7 @@ export function WikiTableChart({ chart }: { chart: PublicWikiChart }) {
           );
         })}
       </div>
-      <div className="border-t border-border/80 px-5 py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="meta-tag border-t border-border/80 px-5 py-3">
         {chart.values.length} {chart.values.length === 1 ? "row" : "rows"}
       </div>
     </figure>

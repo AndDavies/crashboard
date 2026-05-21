@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRightIcon, NetworkIcon, BookOpenIcon } from "lucide-react";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
-import { Button } from "@/components/ui/button";
 import { StructuredData } from "@/components/seo/structured-data";
 import {
   SEO_AUTHOR_NAME,
@@ -66,13 +66,14 @@ export default function AboutPage() {
           },
         }}
       />
-      <p className="flex items-center gap-3 font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
+      <p className="eyebrow flex items-center gap-3">
         <span className="h-1 w-10 bg-accent" aria-hidden />
         About
       </p>
-      <h1 className="mt-8 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+      <h1 className="mt-6 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
         I use Crashboard to turn private research into public working notes.
       </h1>
+      <span className="accent-rule mt-6" aria-hidden />
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_22rem]">
         <div className="max-w-3xl space-y-6 text-base leading-relaxed text-muted-foreground md:text-lg">
           <p>
@@ -91,38 +92,50 @@ export default function AboutPage() {
             reuse the pattern.
           </p>
         </div>
-        <aside className="border-t border-border/80 pt-6 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">
-          <p className="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">
-            Principles
-          </p>
-          <ul className="mt-5 divide-y divide-border/80 border-y border-border/80">
-            {principles.map((principle) => (
+        <aside className="border border-border/80 bg-card/70 p-6 lg:sticky lg:top-24 lg:self-start">
+          <p className="eyebrow">Principles</p>
+          <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
+            {principles.map((principle, index) => (
               <li
                 key={principle}
-                className="py-3 text-sm leading-relaxed text-foreground"
+                className="flex items-start gap-3 bg-card/70 px-4 py-3 text-sm leading-relaxed text-foreground"
               >
-                {principle}
+                <span className="ordinal mt-0.5">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="flex-1">{principle}</span>
               </li>
             ))}
           </ul>
         </aside>
       </div>
-      <div className="mt-12 flex flex-wrap gap-3">
-        <Button
-          nativeButton={false}
-          className="rounded-full bg-accent px-5 text-accent-foreground hover:bg-accent/85"
-          render={<Link href="/blog" />}
+      <div className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Link
+          href="/wiki"
+          className="group inline-flex items-center justify-between gap-3 border border-foreground bg-foreground px-5 py-3 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Read writing
-        </Button>
-        <Button
-          nativeButton={false}
-          variant="outline"
-          className="rounded-full border-foreground/15 px-5"
-          render={<Link href="/wiki" />}
+          <span className="inline-flex items-center gap-2">
+            <NetworkIcon className="size-4" aria-hidden />
+            Browse wiki
+          </span>
+          <ArrowRightIcon
+            className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+            aria-hidden
+          />
+        </Link>
+        <Link
+          href="/blog"
+          className="group inline-flex items-center justify-between gap-3 border border-border/80 bg-card/70 px-5 py-3 text-sm font-medium text-foreground motion-safe:transition-colors hover:border-foreground/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Browse wiki
-        </Button>
+          <span className="inline-flex items-center gap-2">
+            <BookOpenIcon className="size-4" aria-hidden />
+            Read writing
+          </span>
+          <ArrowRightIcon
+            className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+            aria-hidden
+          />
+        </Link>
       </div>
     </MarketingPageFrame>
   );

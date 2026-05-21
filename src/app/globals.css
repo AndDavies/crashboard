@@ -161,75 +161,84 @@
 
   .blog-editor .tiptap h2,
   .blog-content h2 {
-    margin-top: 2rem;
-    font-size: 1.5rem;
-    line-height: 1.25;
-    font-weight: 650;
+    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .blog-editor .tiptap h2 + h3,
+  .blog-content h2 + h3 {
+    @apply mt-6;
   }
 
   .blog-editor .tiptap h3,
   .blog-content h3 {
-    margin-top: 1.5rem;
-    font-size: 1.2rem;
-    line-height: 1.35;
-    font-weight: 650;
+    @apply mt-10 max-w-3xl font-heading text-xl font-semibold tracking-tight text-foreground;
+  }
+
+  .blog-editor .tiptap h4,
+  .blog-content h4 {
+    @apply mt-6 max-w-3xl font-heading text-lg font-semibold text-foreground;
+  }
+
+  .blog-editor .tiptap p,
+  .blog-content p {
+    @apply my-5 max-w-3xl text-[1rem] leading-7 text-muted-foreground;
+  }
+
+  .blog-editor .tiptap ul,
+  .blog-content ul,
+  .blog-editor .tiptap ol,
+  .blog-content ol {
+    @apply my-5 max-w-3xl space-y-2 pl-5 text-muted-foreground;
   }
 
   .blog-editor .tiptap ul,
   .blog-content ul {
     list-style: disc;
-    padding-left: 1.5rem;
   }
 
   .blog-editor .tiptap ol,
   .blog-content ol {
     list-style: decimal;
-    padding-left: 1.5rem;
+  }
+
+  .blog-editor .tiptap li,
+  .blog-content li {
+    @apply pl-1 leading-7;
   }
 
   .blog-editor .tiptap blockquote,
   .blog-content blockquote {
-    border-left: 3px solid var(--border);
-    color: var(--muted-foreground);
-    padding-left: 1rem;
+    @apply my-7 max-w-3xl border-y border-l-2 border-border/80 border-l-accent bg-card/70 px-5 py-4 font-heading text-lg leading-8 text-foreground;
   }
 
   .blog-editor .tiptap pre,
   .blog-content pre {
-    background: var(--muted);
-    border: 1px solid var(--border);
-    font-size: 0.875rem;
-    line-height: 1.6;
-    overflow-x: auto;
-    padding: 1rem;
+    @apply my-7 max-w-4xl overflow-x-auto border border-border/80 bg-card px-4 py-4 text-sm leading-6 text-foreground;
+  }
+
+  .blog-editor .tiptap code,
+  .blog-content code {
+    font-variant-ligatures: none;
   }
 
   .blog-editor .tiptap :not(pre) > code,
   .blog-content :not(pre) > code {
-    background: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 0.375rem;
-    font-size: 0.9em;
-    padding: 0.1rem 0.35rem;
+    @apply border border-border/80 bg-muted/60 px-1.5 py-0.5 text-[0.9em];
   }
 
   .blog-editor .tiptap img,
   .blog-content img {
-    border: 1px solid var(--border);
-    max-width: 100%;
+    @apply max-w-full border border-border/80;
   }
 
   .blog-editor .tiptap a,
   .blog-content a {
-    text-decoration: underline;
-    text-underline-offset: 4px;
+    @apply font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground;
   }
 
   .blog-editor .tiptap hr,
   .blog-content hr {
-    border: 0;
-    border-top: 1px solid var(--border);
-    margin: 2rem 0;
+    @apply my-8 border-0 border-t border-border/80;
   }
 
   .blog-editor .tiptap p.is-editor-empty:first-child::before {
@@ -317,19 +326,31 @@
     animation: wiki-pulse 1.6s ease-out 3;
   }
 
-  .wiki-stack-fade > * {
-    animation: wiki-stack-fade 420ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground;
   }
 
-  .wiki-stack-fade > *:nth-child(1) { animation-delay: 0ms; }
-  .wiki-stack-fade > *:nth-child(2) { animation-delay: 40ms; }
-  .wiki-stack-fade > *:nth-child(3) { animation-delay: 80ms; }
-  .wiki-stack-fade > *:nth-child(4) { animation-delay: 120ms; }
-  .wiki-stack-fade > *:nth-child(5) { animation-delay: 160ms; }
-  .wiki-stack-fade > *:nth-child(6) { animation-delay: 200ms; }
-  .wiki-stack-fade > *:nth-child(n + 7) { animation-delay: 240ms; }
+  .ordinal {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground;
+  }
 
-  .wiki-scroll-mask {
+  .meta-tag {
+    @apply font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground;
+  }
+
+  .stack-fade > * {
+    animation: stack-fade 420ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+
+  .stack-fade > *:nth-child(1) { animation-delay: 0ms; }
+  .stack-fade > *:nth-child(2) { animation-delay: 40ms; }
+  .stack-fade > *:nth-child(3) { animation-delay: 80ms; }
+  .stack-fade > *:nth-child(4) { animation-delay: 120ms; }
+  .stack-fade > *:nth-child(5) { animation-delay: 160ms; }
+  .stack-fade > *:nth-child(6) { animation-delay: 200ms; }
+  .stack-fade > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+  .scroll-mask {
     mask-image: linear-gradient(
       to bottom,
       transparent 0,
@@ -338,9 +359,21 @@
       transparent 100%
     );
   }
+
+  .card-grid {
+    @apply grid gap-px border border-border/80 bg-border/80;
+  }
+
+  .card-grid-cell {
+    @apply flex flex-col bg-card/70 motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset;
+  }
+
+  .surface {
+    @apply border border-border/80 bg-card/70;
+  }
 }
 
-@keyframes wiki-stack-fade {
+@keyframes stack-fade {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -375,7 +408,7 @@
   .wiki-graph-node circle,
   .wiki-graph-node text,
   .wiki-graph-pulse,
-  .wiki-stack-fade > * {
+  .stack-fade > * {
     animation: none;
     transition: none;
   }

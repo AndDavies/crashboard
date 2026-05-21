@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { siteConfig } from "@/lib/marketing/site-config";
-import { Button } from "@/components/ui/button";
 import { MobileNav, type NavItem } from "@/components/marketing/mobile-nav";
 
 const mainNav: NavItem[] = [
@@ -23,13 +22,13 @@ export async function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
         <Link
           href="/"
-          className="group font-heading text-[15px] font-medium text-foreground outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+          className="group font-heading text-[15px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {siteConfig.publicName}
-          <span className="ml-2 hidden font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase sm:inline">
+          <span className="ml-2 hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
             {siteConfig.brandWordmark}
           </span>
-          <span className="mt-1 block h-0.5 w-14 bg-accent transition-[width] group-hover:w-20" />
+          <span className="mt-1 block h-0.5 w-14 bg-accent motion-safe:transition-[width] motion-safe:group-hover:w-20" />
         </Link>
 
         <nav
@@ -40,7 +39,7 @@ export async function SiteHeader() {
             <Link
               key={href}
               href={href}
-              className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="px-3 py-2 text-sm text-muted-foreground motion-safe:transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {label}
             </Link>
@@ -49,24 +48,19 @@ export async function SiteHeader() {
 
         <div className="flex items-center gap-2">
           {signedIn ? (
-            <Button
-              nativeButton={false}
-              render={<Link href="/dashboard" />}
-              size="sm"
-              className="hidden rounded-full bg-foreground px-4 text-background hover:bg-foreground/85 sm:inline-flex"
+            <Link
+              href="/dashboard"
+              className="hidden border border-foreground bg-foreground px-4 py-1.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
             >
               Dashboard
-            </Button>
+            </Link>
           ) : (
-            <Button
-              nativeButton={false}
-              render={<Link href="/login" />}
-              variant="outline"
-              size="sm"
-              className="hidden rounded-full border-foreground/15 bg-background px-4 text-foreground hover:border-foreground/30 hover:bg-muted sm:inline-flex"
+            <Link
+              href="/login"
+              className="hidden border border-border/80 bg-background px-4 py-1.5 text-sm font-medium text-foreground motion-safe:transition-colors hover:border-foreground/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
             >
               Dashboard
-            </Button>
+            </Link>
           )}
           <MobileNav
             links={mainNav}

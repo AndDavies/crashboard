@@ -62,7 +62,7 @@ export function WikiPageView({
 
       <header className="grid min-w-0 gap-8 border-b border-border/80 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>{clusterLabel(page.cluster)}</span>
             <span aria-hidden>·</span>
             <span>{label(page.role)}</span>
@@ -105,9 +105,7 @@ export function WikiPageView({
 
           {related.length > 0 ? (
             <section id="related-pages" className="mt-14 border-t border-border/80 pt-8">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Related
-              </p>
+              <p className="eyebrow">Related</p>
               <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
                 Related Pages
               </h2>
@@ -118,9 +116,7 @@ export function WikiPageView({
                     href={`/wiki/${item.slug}`}
                     className="group flex flex-col bg-card/70 p-5 motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                      {clusterLabel(item.cluster)}
-                    </p>
+                    <p className="eyebrow">{clusterLabel(item.cluster)}</p>
                     <h3 className="mt-3 font-heading text-lg font-light text-foreground">
                       {item.title}
                     </h3>
@@ -142,9 +138,7 @@ export function WikiPageView({
 
           {page.sourceNotes.length > 0 ? (
             <section className="mt-14 border-t border-border/80 pt-8">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Evidence
-              </p>
+              <p className="eyebrow">Evidence</p>
               <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
                 Source Notes
               </h2>
@@ -154,7 +148,7 @@ export function WikiPageView({
                     key={`${note}-${sourceIndex}`}
                     className="group/source flex items-start gap-4 bg-card/70 p-4 motion-safe:transition-colors hover:bg-card"
                   >
-                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <span className="ordinal mt-0.5">
                       S{String(sourceIndex + 1).padStart(2, "0")}
                     </span>
                     <span className="flex-1 text-sm leading-relaxed text-muted-foreground group-hover/source:text-foreground">
@@ -172,9 +166,7 @@ export function WikiPageView({
           aria-label="Article navigation"
         >
           <div className="border border-border/80 bg-card/70 p-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Contents
-            </p>
+            <p className="eyebrow">Contents</p>
             <WikiPageToc
               headings={page.headings.filter(
                 (heading) => heading.level === 2 || heading.level === 3,
@@ -185,9 +177,7 @@ export function WikiPageView({
           {graph.nodes.length > 1 ? (
             <section className="border border-border/80 bg-card/70" aria-label="Page neighborhood">
               <div className="border-b border-border/80 px-4 py-3">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Page map
-                </p>
+                <p className="eyebrow">Page map</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   A small neighborhood around this page.
                 </p>
@@ -232,9 +222,7 @@ function ArticleSummaryBlock({
   return (
     <section className="mb-10 grid gap-px border border-border/80 bg-border/80 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="flex flex-col bg-card/80 p-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          What to use this for
-        </p>
+        <p className="eyebrow">What to use this for</p>
         <h2 className="mt-3 font-heading text-2xl font-light text-foreground">
           {answerQuestion}
         </h2>
@@ -242,9 +230,7 @@ function ArticleSummaryBlock({
           {pageDescription}
         </p>
         <div className="mt-6 border-t border-border/80 pt-5">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            3 key takeaways
-          </p>
+          <p className="eyebrow">3 key takeaways</p>
           <ul className="mt-3 space-y-3">
             {summary.keyTakeaways.map((takeaway) => (
               <li
@@ -336,7 +322,7 @@ function SummaryFact({
 }) {
   return (
     <div className="bg-card/70 p-4">
-      <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="eyebrow flex items-center gap-1.5">
         {icon}
         {labelText}
       </p>

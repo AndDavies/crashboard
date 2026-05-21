@@ -217,9 +217,7 @@ export function WikiGraph({
     <div className="min-w-0 max-w-full overflow-hidden border border-border/80 bg-card/70">
       <div className="flex flex-col gap-3 border-b border-border/80 px-4 py-3">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Graph
-          </p>
+          <p className="eyebrow">Graph</p>
           <h2 className="font-heading text-lg font-light text-foreground">
             Page relationships
           </h2>
@@ -262,7 +260,7 @@ export function WikiGraph({
           })}
         </div>
         {totalNodes > VISIBLE_NODE_CAP ? (
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="meta-tag">
             Showing {VISIBLE_NODE_CAP} of {totalNodes} pages
           </p>
         ) : null}

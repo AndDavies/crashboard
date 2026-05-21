@@ -84,7 +84,7 @@ export default function WikiPage() {
       />
       <section className="technical-grid -mx-4 grid gap-10 border-b border-border/80 bg-card px-4 py-16 sm:-mx-6 sm:px-6 md:py-24 lg:grid-cols-[1fr_22rem] lg:items-start">
         <div className="min-w-0">
-          <p className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="eyebrow flex items-center gap-3">
             <span className="h-1 w-10 bg-accent" aria-hidden />
             Public wiki
           </p>
@@ -105,12 +105,8 @@ export default function WikiPage() {
               className="flex items-baseline justify-between gap-4 bg-background/80 px-5 py-4"
             >
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                  {stat.label}
-                </dt>
-                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  {stat.hint}
-                </p>
+                <dt className="eyebrow">{stat.label}</dt>
+                <p className="meta-tag mt-2">{stat.hint}</p>
               </div>
               <dd className="font-heading text-4xl font-light tabular-nums text-foreground md:text-5xl">
                 {stat.value}

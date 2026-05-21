@@ -165,13 +165,10 @@ function Table({ rows }: { rows: string[][] }) {
     <div className="my-8 border border-border/80 bg-card/70">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-border/80 text-sm">
-          <thead className="bg-muted/50">
+            <thead className="bg-muted/50">
             <tr>
               {(head ?? []).map((cell) => (
-                <th
-                  key={cell}
-                  className="px-4 py-3 text-left font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground"
-                >
+                <th key={cell} className="eyebrow px-4 py-3 text-left">
                   {cell}
                 </th>
               ))}
@@ -211,9 +208,7 @@ function MermaidBlock({ code }: { code: string }) {
   return (
     <figure className="my-8 border border-border/80 bg-card/70">
       <figcaption className="flex flex-col gap-1 border-b border-border/80 px-5 py-4">
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Workflow diagram
-        </span>
+        <span className="eyebrow">Workflow diagram</span>
         <span className="font-heading text-base font-semibold text-foreground">
           Steps inferred from diagram markup
         </span>
@@ -224,7 +219,7 @@ function MermaidBlock({ code }: { code: string }) {
             key={`${line}-${index}`}
             className="flex items-start gap-3 bg-card/70 px-4 py-3 text-xs text-muted-foreground"
           >
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="ordinal">
               {String(index + 1).padStart(2, "0")}
             </span>
             <span className="flex-1 text-foreground">{line}</span>
@@ -232,7 +227,7 @@ function MermaidBlock({ code }: { code: string }) {
         ))}
       </ol>
       <details className="border-t border-border/80 px-5 py-3">
-        <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground">
+        <summary className="meta-tag cursor-pointer hover:text-foreground">
           View source diagram
         </summary>
         <pre className="mt-3 overflow-x-auto bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">

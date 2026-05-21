@@ -32,23 +32,29 @@ export function SectionHeading({
   eyebrow,
   title,
   description,
+  accentRule = true,
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
+  accentRule?: boolean;
 }) {
   return (
     <div className="mb-10 max-w-4xl md:mb-14">
       {eyebrow ? (
-        <p className="mb-4 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        <p className="eyebrow mb-4 flex items-center gap-3">
+          <span className="h-1 w-10 bg-accent" aria-hidden />
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="font-heading text-4xl leading-[1.02] font-light text-foreground md:text-6xl">
+      <h2 className="font-heading text-4xl leading-[1.02] font-light tracking-[-0.01em] text-foreground md:text-6xl">
         {title}
       </h2>
+      {accentRule ? (
+        <span className="accent-rule mt-6" aria-hidden />
+      ) : null}
       {description ? (
-        <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
+        <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
           {description}
         </p>
       ) : null}

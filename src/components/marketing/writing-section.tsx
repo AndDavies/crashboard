@@ -16,7 +16,7 @@ export function WritingSection() {
             title="The blog is for questions that need more than a note."
             description="Posts will connect field notes, source trails, and working examples back to the wiki."
           />
-          <div className="technical-grid relative aspect-[4/3] overflow-hidden border-y border-foreground/10 bg-background">
+          <figure className="technical-grid relative aspect-[4/3] overflow-hidden border border-border/80 bg-background">
             <Image
               src="/images/marketing/crashboard-writing.jpg"
               alt="Editorial desk with research notes and writing materials"
@@ -24,38 +24,37 @@ export function WritingSection() {
               sizes="(min-width: 1024px) 40vw, 100vw"
               className="object-cover opacity-70 grayscale"
             />
-          </div>
+          </figure>
         </div>
 
-        <div className="border-y border-foreground/12 py-8">
+        <div className="border border-border/80 bg-card/70">
           {hasPosts ? (
-            <div className="divide-y divide-foreground/12">
+            <ul className="grid gap-px bg-border/80">
               {blogPosts.map((post) => (
-                <Link
-                  key={post.slug}
-                  href={`/blog/${post.slug}`}
-                  className="group grid gap-4 py-6 outline-none transition-colors hover:bg-background/35 focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto]"
-                >
-                  <div>
-                    <h3 className="font-heading text-xl font-light text-foreground">
-                      {post.title}
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {post.description}
-                    </p>
-                  </div>
-                  <ArrowRightIcon
-                    className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1"
-                    aria-hidden
-                  />
-                </Link>
+                <li key={post.slug} className="bg-card/70">
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="group grid gap-4 p-5 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[1fr_auto]"
+                  >
+                    <div>
+                      <h3 className="font-heading text-xl font-light text-foreground">
+                        {post.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {post.description}
+                      </p>
+                    </div>
+                    <ArrowRightIcon
+                      className="mt-1 size-4 text-muted-foreground motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+                      aria-hidden
+                    />
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
-            <div className="max-w-xl">
-              <p className="text-sm font-semibold uppercase text-muted-foreground">
-                Awaiting CMS content
-              </p>
+            <div className="max-w-xl p-6">
+              <p className="eyebrow">Awaiting CMS content</p>
               <h3 className="mt-3 font-heading text-3xl leading-tight font-light text-foreground">
                 The archive starts when there is something worth publishing.
               </h3>
@@ -66,10 +65,13 @@ export function WritingSection() {
               </p>
               <Link
                 href="/blog"
-                className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                className="group mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
               >
                 Open the blog
-                <ArrowRightIcon className="size-4" aria-hidden />
+                <ArrowRightIcon
+                  className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+                  aria-hidden
+                />
               </Link>
             </div>
           )}
