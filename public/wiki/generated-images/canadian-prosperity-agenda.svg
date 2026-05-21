@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Sovereignty &amp; Critical Infrastructure">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Canadian Prosperity Agenda">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f8f3e8"/>
@@ -20,9 +20,9 @@
     <circle cx="832" cy="226" r="13"/>
     <circle cx="964" cy="246" r="13"/>
   </g>
-  <text x="142" y="158" fill="#3a2f3e" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">SOVEREIGNTY / HUB</text>
+  <text x="142" y="158" fill="#3a2f3e" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">SOVEREIGNTY / CONCEPT</text>
   <foreignObject x="140" y="190" width="700" height="190">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #3a2f3e; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Sovereignty &amp; Critical Infrastructure</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #3a2f3e; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Canadian Prosperity Agenda</div>
   </foreignObject>
-  <text x="142" y="506" fill="#6b6358" font-family="Inter, ui-sans-serif, system-ui" font-size="24">2,688 words · 12 min read · 12 source notes</text>
+  <text x="142" y="506" fill="#6b6358" font-family="Inter, ui-sans-serif, system-ui" font-size="24">2,471 words · 11 min read · 61 source notes</text>
 </svg>
