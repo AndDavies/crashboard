@@ -1,0 +1,119 @@
+{
+  "slug": "enterprise-agent-extension-architecture",
+  "title": "Enterprise Agent Extension Architecture",
+  "description": "Enterprise agent extension architecture is the layer that turns a general assistant into an organization-specific agent through knowledge connectors, custom instructions, actions, app packages, admin controls, and security boundaries.",
+  "role": "reference",
+  "cluster": "agents",
+  "visualStatus": "mermaid",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Enterprise Agent Extension Architecture",
+      "id": "enterprise-agent-extension-architecture"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Core thesis",
+      "id": "core-thesis"
+    },
+    {
+      "level": 2,
+      "text": "Framework / model",
+      "id": "framework-model"
+    },
+    {
+      "level": 3,
+      "text": "1. Separate knowledge extension from action extension",
+      "id": "1-separate-knowledge-extension-from-action-extension"
+    },
+    {
+      "level": 3,
+      "text": "2. Tenant governance is part of the product",
+      "id": "2-tenant-governance-is-part-of-the-product"
+    },
+    {
+      "level": 3,
+      "text": "3. Retrieval mode changes risk",
+      "id": "3-retrieval-mode-changes-risk"
+    },
+    {
+      "level": 3,
+      "text": "4. Untrusted action data can become prompt injection",
+      "id": "4-untrusted-action-data-can-become-prompt-injection"
+    },
+    {
+      "level": 3,
+      "text": "5. Agent packaging should preserve human legibility",
+      "id": "5-agent-packaging-should-preserve-human-legibility"
+    },
+    {
+      "level": 2,
+      "text": "Failure modes / limitations",
+      "id": "failure-modes-limitations"
+    },
+    {
+      "level": 3,
+      "text": "Treating Copilot extension as just a prompt file",
+      "id": "treating-copilot-extension-as-just-a-prompt-file"
+    },
+    {
+      "level": 3,
+      "text": "Giving actions too much authority",
+      "id": "giving-actions-too-much-authority"
+    },
+    {
+      "level": 3,
+      "text": "Hiding admin governance until after rollout",
+      "id": "hiding-admin-governance-until-after-rollout"
+    },
+    {
+      "level": 3,
+      "text": "Confusing indexed knowledge with safe knowledge",
+      "id": "confusing-indexed-knowledge-with-safe-knowledge"
+    },
+    {
+      "level": 2,
+      "text": "Practical implications",
+      "id": "practical-implications"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Agent Execution Systems",
+    "AI Safety & Control",
+    "AI-Native Organizations",
+    "Coding Agent Workflows",
+    "AI Automation Builders"
+  ],
+  "linkedSlugs": [
+    "agent-execution-systems",
+    "ai-safety-and-control",
+    "ai-native-organizations",
+    "coding-agent-workflows",
+    "ai-automation-builders"
+  ],
+  "sourceNotes": [
+    "`raw/microsoft-365-copilot-extensibility (1).pdf` and `outputs/pdf-extract/microsoft-365-copilot-extensibility-1.md` - Microsoft 365 Copilot extensibility documentation covering declarative agents, app packages, connectors, API plugins, custom engine agents, Copilot Studio, Microsoft 365 admin controls, MCP/federated connector surfaces, and secure implementation concerns for untrusted data and sensitive actions."
+  ],
+  "markdown": "# Enterprise Agent Extension Architecture\n\n> Enterprise agent extension architecture is the layer that turns a general assistant into an organization-specific agent through knowledge connectors, custom instructions, actions, app packages, admin controls, and security boundaries.\n\n## Why this matters\n\nThe Microsoft 365 Copilot extensibility source is useful because it shows agent deployment as enterprise platform architecture rather than as a standalone chatbot. The agent is not only a model. It is a packaged experience connected to tenant data, external systems, action APIs, policy controls, app governance, and human approval surfaces.\n\nThat matters because enterprise agents usually fail or become risky at the boundaries:\n\n- what data the agent can retrieve\n- which tools or APIs it can call\n- who can install or enable the agent\n- whether action outputs can be trusted\n- how untrusted content is handled\n- whether admins can approve, disable, monitor, and scope use\n- whether the agent is in-context inside a larger assistant or an immersive app experience\n\nThis page should be read with [Agent Execution Systems](/wiki/agent-execution-systems), [AI Safety & Control](/wiki/ai-safety-and-control), and [AI-Native Organizations](/wiki/ai-native-organizations).\n\n## Core thesis\n\nEnterprise agent extension is a control-plane problem. The durable design question is not just \"can the model call tools?\" It is whether the organization can package, govern, approve, secure, and maintain tool-using agents inside its existing data and identity boundary.\n\nThe Microsoft source contributes several durable distinctions:\n\n- **declarative agents** create custom Microsoft 365 Copilot experiences with instructions, knowledge, conversation starters, and actions\n- **connectors** make external organizational data discoverable to Copilot, either by indexing it into Microsoft Graph or retrieving it at runtime\n- **API plugins/actions** expose REST APIs through OpenAPI descriptions so agents can perform work\n- **MCP connectors and tools** add a live tool layer for selected federated or real-time data scenarios\n- **custom engine agents** are separate agent applications that can use Microsoft 365 data while controlling more of their own runtime\n- **admin controls** decide which apps, agents, connectors, and plugins can be acquired, enabled, disabled, or scoped to groups\n- **security design** has to assume untrusted content can influence an agent if connectors or actions bring in emails, tickets, documents, or external data\n\nThe useful abstraction is:\n\n```mermaid\nflowchart TD\n  A[\"User prompt\"] --> B[\"Enterprise agent\"]\n  C[\"Custom instructions\"] --> B\n  D[\"Tenant and connector knowledge\"] --> B\n  E[\"API plugins / actions\"] --> B\n  F[\"Admin policy and app governance\"] --> B\n  B --> G{\"Sensitive action?\"}\n  G -->|No| H[\"Respond or act\"]\n  G -->|Yes| I[\"Human confirmation / takeover\"]\n  H --> J[\"Logs, controls, and review\"]\n  I --> J\n```\n\n## Framework / model\n\n### 1. Separate knowledge extension from action extension\n\nKnowledge extension changes what the agent can know. Action extension changes what the agent can do.\n\nThat difference matters:\n\n| Extension type | Primary risk | Control question |\n| --- | --- | --- |\n| Connector knowledge | Retrieval of stale, sensitive, or untrusted data | What data is indexed or retrieved, and under whose permissions? |\n| API plugin or action | Incorrect or unsafe external operation | What can the API change, and when does a human approve? |\n| Declarative instructions | Mis-scoped agent behavior | Are instructions narrow, testable, and aligned with allowed data/actions? |\n| Immersive app experience | User confusion and overtrust | Does the UI make scope, authority, and confirmation clear? |\n\n### 2. Tenant governance is part of the product\n\nEnterprise agents need install, approval, and enablement controls. A useful architecture lets administrators:\n\n- review app packages\n- approve or block agents\n- enable agents for groups or individuals\n- govern which connectors are available\n- manage API plugins and actions\n- distinguish store-bought, internally built, and user-created agents\n\nWithout this layer, every useful agent becomes a shadow-IT risk.\n\n### 3. Retrieval mode changes risk\n\nThe source distinguishes between external data indexed into Microsoft Graph and data retrieved in real time through federated or MCP-style connectors.\n\nIndexed retrieval can improve discoverability and search, but it expands the indexed corpus. Federated retrieval can keep data live or outside the index, but it adds runtime dependency and connector-security risk. Neither is automatically safer; the choice depends on sensitivity, freshness, permissions, and auditability.\n\n### 4. Untrusted action data can become prompt injection\n\nIf an action returns data from support tickets, emails, webpages, or other untrusted systems, the returned content can try to steer the agent. Enterprise design therefore needs breach-minded defaults:\n\n- avoid giving agents sensitive write capabilities when untrusted data is in the context\n- require confirmations for consequential operations\n- keep action scopes narrow\n- treat tool output as data, not trusted instruction\n- test connectors and plugins against hostile content\n\n### 5. Agent packaging should preserve human legibility\n\nThe manifest, app package, connector definitions, OpenAPI descriptions, and admin surfaces should make the agent's scope inspectable. The stronger pattern is not a mysterious assistant with many hidden powers. It is an agent whose data sources, actions, instructions, and deployment scope can be reviewed.\n\n## Failure modes / limitations\n\n### Treating Copilot extension as just a prompt file\n\nInstructions are only one part of the system. The real product includes data connectors, action surfaces, app packaging, permissioning, deployment, and monitoring.\n\n### Giving actions too much authority\n\nAn agent that can read untrusted tickets and then call sensitive APIs needs stronger controls than an agent that only drafts a response.\n\n### Hiding admin governance until after rollout\n\nIf admins cannot see and control agents, connectors, and plugins, adoption becomes fragile even when the end-user experience is strong.\n\n### Confusing indexed knowledge with safe knowledge\n\nContent can be permissioned and still be misleading, stale, adversarial, or irrelevant. Retrieval needs quality and trust controls, not only access control.\n\n## Practical implications\n\n- design enterprise agents around four surfaces: instructions, knowledge, actions, and governance\n- require explicit approval for sensitive or irreversible actions\n- use narrow API descriptions and least-privilege connectors\n- separate indexed data, federated retrieval, and action APIs in the architecture review\n- treat app approval, group scoping, and connector governance as first-class product requirements\n- test untrusted tool outputs as prompt-injection surfaces\n- document what the agent can read, what it can do, and when it must ask a human\n\n## Related\n\n- [Agent Execution Systems](/wiki/agent-execution-systems)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [AI-Native Organizations](/wiki/ai-native-organizations)\n- [Coding Agent Workflows](/wiki/coding-agent-workflows)\n- [AI Automation Builders](/wiki/ai-automation-builders)\n\n## Source notes\n\n- `raw/microsoft-365-copilot-extensibility (1).pdf` and `outputs/pdf-extract/microsoft-365-copilot-extensibility-1.md` - Microsoft 365 Copilot extensibility documentation covering declarative agents, app packages, connectors, API plugins, custom engine agents, Copilot Studio, Microsoft 365 admin controls, MCP/federated connector surfaces, and secure implementation concerns for untrusted data and sensitive actions.\n",
+  "plainText": "Enterprise Agent Extension Architecture Enterprise agent extension architecture is the layer that turns a general assistant into an organization specific agent through knowledge connectors, custom instructions, actions, app packages, admin controls, and security boundaries. Why this matters The Microsoft 365 Copilot extensibility source is useful because it shows agent deployment as enterprise platform architecture rather than as a standalone chatbot. The agent is not only a model. It is a packaged experience connected to tenant data, external systems, action APIs, policy controls, app governance, and human approval surfaces. That matters because enterprise agents usually fail or become risky at the boundaries: what data the agent can retrieve which tools or APIs it can call who can install or enable the agent whether action outputs can be trusted how untrusted content is handled whether admins can approve, disable, monitor, and scope use whether the agent is in context inside a larger assistant or an immersive app experience This page should be read with Agent Execution Systems, AI Safety & Control, and AI Native Organizations. Core thesis Enterprise agent extension is a control plane problem. The durable design question is not just \"can the model call tools?\" It is whether the organization can package, govern, approve, secure, and maintain tool using agents inside its existing data and identity boundary. The Microsoft source contributes several durable distinctions: declarative agents create custom Microsoft 365 Copilot experiences with instructions, knowledge, conversation starters, and actions connectors make external organizational data discoverable to Copilot, either by indexing it into Microsoft Graph or retrieving it at runtime API plugins/actions expose REST APIs through OpenAPI descriptions so agents can perform work MCP connectors and tools add a live tool layer for selected federated or real time data scenarios custom engine agents are separate agent applications that can use Microsoft 365 data while controlling more of their own runtime admin controls decide which apps, agents, connectors, and plugins can be acquired, enabled, disabled, or scoped to groups security design has to assume untrusted content can influence an agent if connectors or actions bring in emails, tickets, documents, or external data The useful abstraction is: Framework / model 1. Separate knowledge extension from action extension Knowledge extension changes what the agent can know. Action extension changes what the agent can do. That difference matters: Extension type Primary risk Control question Connector knowledge Retrieval of stale, sensitive, or untrusted data What data is indexed or retrieved, and under whose permissions? API plugin or action Incorrect or unsafe external operation What can the API change, and when does a human approve? Declarative instructions Mis scoped agent behavior Are instructions narrow, testable, and aligned with allowed data/actions? Immersive app experience User confusion and overtrust Does the UI make scope, authority, and confirmation clear? 2. Tenant governance is part of the product Enterprise agents need install, approval, and enablement controls. A useful architecture lets administrators: review app packages approve or block agents enable agents for groups or individuals govern which connectors are available manage API plugins and actions distinguish store bought, internally built, and user created agents Without this layer, every useful agent becomes a shadow IT risk. 3. Retrieval mode changes risk The source distinguishes between external data indexed into Microsoft Graph and data retrieved in real time through federated or MCP style connectors. Indexed retrieval can improve discoverability and search, but it expands the indexed corpus. Federated retrieval can keep data live or outside the index, but it adds runtime dependency and connector security risk. Neither is automatically safer; the choice depends on sensitivity, freshness, permissions, and auditability. 4. Untrusted action data can become prompt injection If an action returns data from support tickets, emails, webpages, or other untrusted systems, the returned content can try to steer the agent. Enterprise design therefore needs breach minded defaults: avoid giving agents sensitive write capabilities when untrusted data is in the context require confirmations for consequential operations keep action scopes narrow treat tool output as data, not trusted instruction test connectors and plugins against hostile content 5. Agent packaging should preserve human legibility The manifest, app package, connector definitions, OpenAPI descriptions, and admin surfaces should make the agent's scope inspectable. The stronger pattern is not a mysterious assistant with many hidden powers. It is an agent whose data sources, actions, instructions, and deployment scope can be reviewed. Failure modes / limitations Treating Copilot extension as just a prompt file Instructions are only one part of the system. The real product includes data connectors, action surfaces, app packaging, permissioning, deployment, and monitoring. Giving actions too much authority An agent that can read untrusted tickets and then call sensitive APIs needs stronger controls than an agent that only drafts a response. Hiding admin governance until after rollout If admins cannot see and control agents, connectors, and plugins, adoption becomes fragile even when the end user experience is strong. Confusing indexed knowledge with safe knowledge Content can be permissioned and still be misleading, stale, adversarial, or irrelevant. Retrieval needs quality and trust controls, not only access control. Practical implications design enterprise agents around four surfaces: instructions, knowledge, actions, and governance require explicit approval for sensitive or irreversible actions use narrow API descriptions and least privilege connectors separate indexed data, federated retrieval, and action APIs in the architecture review treat app approval, group scoping, and connector governance as first class product requirements test untrusted tool outputs as prompt injection surfaces document what the agent can read, what it can do, and when it must ask a human Related Agent Execution Systems AI Safety & Control AI Native Organizations Coding Agent Workflows AI Automation Builders Source notes raw/microsoft 365 copilot extensibility (1).pdf and outputs/pdf extract/microsoft 365 copilot extensibility 1.md Microsoft 365 Copilot extensibility documentation covering declarative agents, app packages, connectors, API plugins, custom engine agents, Copilot Studio, Microsoft 365 admin controls, MCP/federated connector surfaces, and secure implementation concerns for untrusted data and sensitive actions.",
+  "wordCount": 983,
+  "readingMinutes": 4,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/enterprise-agent-extension-architecture.svg",
+  "contentHash": "d14dc7e5786437b577a5b0d0213bd6bd787a93e73601e8bc0942007f18299a4b"
+}
