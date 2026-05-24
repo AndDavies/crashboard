@@ -73,8 +73,40 @@ export const wikiReaderPaths: WikiReaderPath[] = [
   },
 ];
 
+const clusterLabels: Record<string, string> = {
+  "ai-software": "AI, Agents & Software",
+  assurance: "Trust, Assurance & Boundaries",
+  "canada-policy": "Canada, Sovereignty & Public Policy",
+  communication: "Communication, Persuasion & Taste",
+  foundations: "Start Here",
+  health: "Life, Health & Energy",
+  judgment: "Legacy Judgment Hub",
+  "knowledge-learning": "Knowledge, Learning & Publishing",
+  "leadership-work": "Work & Operating Systems",
+  money: "Money, Wealth & Markets",
+  navigation: "Operational Navigation",
+  "self-meaning": "Philosophy, Self & Meaning",
+  venture: "Business, Venture & Money",
+};
+
+const clusterOrder = [
+  "navigation",
+  "health",
+  "leadership-work",
+  "venture",
+  "money",
+  "canada-policy",
+  "ai-software",
+  "knowledge-learning",
+  "communication",
+  "self-meaning",
+  "assurance",
+  "judgment",
+  "foundations",
+];
+
 export function clusterLabel(cluster: string) {
-  if (cluster === "foundations") return "Start Here";
+  if (clusterLabels[cluster]) return clusterLabels[cluster];
   return cluster
     .split(/[-_ ]+/)
     .filter(Boolean)
@@ -84,8 +116,11 @@ export function clusterLabel(cluster: string) {
 
 export function sortClustersForReaders(index: PublicWikiIndex) {
   return index.clusters.toSorted((a, b) => {
-    if (a.id === "foundations") return -1;
-    if (b.id === "foundations") return 1;
+    const aIndex = clusterOrder.indexOf(a.id);
+    const bIndex = clusterOrder.indexOf(b.id);
+    if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex;
+    if (aIndex >= 0) return -1;
+    if (bIndex >= 0) return 1;
     return clusterLabel(a.label).localeCompare(clusterLabel(b.label));
   });
 }

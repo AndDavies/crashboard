@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { WikiExplorer } from "@/components/wiki/wiki-explorer";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import {
+  clusterLabel,
   getReaderPathPages,
   getReaderPathPrimaryPage,
+  sortClustersForReaders,
   wikiReaderPaths,
 } from "@/lib/public-wiki/reader-paths";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -36,6 +38,8 @@ export default function WikiPage() {
     0,
   );
   const linkedEdges = index.graph.edges.length;
+  const clusterTotal = index.clusters.reduce((sum, item) => sum + item.count, 0);
+  const clusterDistribution = sortClustersForReaders(index);
   const readerPaths = wikiReaderPaths.map((path) => ({
     ...path,
     primaryPage: getReaderPathPrimaryPage(path, index.pages),
@@ -56,6 +60,11 @@ export default function WikiPage() {
       label: "Links",
       value: linkedEdges.toLocaleString(),
       hint: "Internal connections",
+    },
+    {
+      label: "Domains",
+      value: index.clusters.length.toLocaleString(),
+      hint: "Cluster map",
     },
   ];
 
@@ -94,8 +103,8 @@ export default function WikiPage() {
           <span className="accent-rule mt-6" aria-hidden />
           <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
             This wiki turns private Obsidian notes into public, source-backed
-            synthesis on AI workflows, knowledge systems, strategy, and venture
-            judgment.
+            synthesis across work, health, money, policy, AI systems,
+            communication, learning, and philosophy.
           </p>
         </div>
         <dl className="grid gap-px border border-border/80 bg-border/80">
@@ -120,6 +129,53 @@ export default function WikiPage() {
         Pick a path, read the synthesis, then follow trails into related pages
         and source-backed context.
       </p>
+
+      <section className="mt-10 border border-border/80 bg-card/70">
+        <div className="grid gap-px bg-border/80 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.45fr)]">
+          <div className="bg-background/90 p-5 md:p-6">
+            <p className="eyebrow">Cluster distribution</p>
+            <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+              What the published wiki currently emphasizes.
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              These domains come directly from each page&apos;s `kb_cluster`
+              frontmatter during `/kb-publish`; the trails below are curated
+              entry routes through the same exported data.
+            </p>
+          </div>
+          <div className="grid gap-px bg-border/80 md:grid-cols-2">
+            {clusterDistribution.map((item) => {
+              const percent =
+                clusterTotal > 0 ? Math.round((item.count / clusterTotal) * 100) : 0;
+              return (
+                <div key={item.id} className="bg-background/90 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="meta-tag">{item.id}</p>
+                      <h3 className="mt-1 text-sm font-semibold leading-snug text-foreground">
+                        {clusterLabel(item.id)}
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-heading text-2xl font-light tabular-nums text-foreground">
+                        {item.count}
+                      </p>
+                      <p className="meta-tag">{percent}%</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden bg-muted">
+                    <div
+                      className="h-full bg-accent"
+                      style={{ width: `${Math.max(percent, 3)}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       <section className="mt-10">
         <WikiExplorer index={index} readerPaths={readerPaths} />
