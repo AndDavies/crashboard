@@ -3,7 +3,7 @@
   "title": "AI Foundations & Model Adaptation",
   "description": "AI systems become valuable when broad model capability is turned into useful behavior through architecture, adaptation, grounding, routing, and surrounding workflow design.",
   "role": "hub",
-  "cluster": "foundations",
+  "cluster": "ai-software",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -127,5 +127,5 @@
   "readingMinutes": 12,
   "charts": [],
   "heroImage": "/wiki/generated-images/ai-foundations-and-model-adaptation.svg",
-  "contentHash": "a17b9518bb3984601c16703c753326a0322e06f6287d78d4bb8d4ee166c3408a"
+  "contentHash": "383c9daacb72770222be8c01d5167b32c428438cf7790066d7348d2e012f8910"
 }

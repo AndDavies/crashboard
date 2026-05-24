@@ -3,7 +3,7 @@
   "title": "AI-Assisted Content Systems",
   "description": "AI-assisted content systems are personal publishing engines where capture, note-linking, retrieval, prompting, and performance feedback compound over time so writing starts from a rich vault instead of a blank page.",
   "role": "reference",
-  "cluster": "knowledge",
+  "cluster": "knowledge-learning",
   "visualStatus": "none",
   "headings": [
     {
@@ -187,5 +187,5 @@
   "readingMinutes": 8,
   "charts": [],
   "heroImage": "/wiki/generated-images/ai-assisted-content-systems.svg",
-  "contentHash": "6406f63012721a6458c6328f5fcf1257712e34b756548bb9894c1c39d7b58735"
+  "contentHash": "4afa1cded02536198b77e866dfdb66696d0ea0c37f0c22990c6e9ade0534f427"
 }

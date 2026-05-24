@@ -1,0 +1,71 @@
+{
+  "slug": "open-loops",
+  "title": "Open Loops",
+  "description": "Use this page for unresolved questions, missing evidence, contradictions, stale claims, and follow up work that should not disappear into chat history.",
+  "role": "operational",
+  "cluster": "navigation",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Open Loops",
+      "id": "open-loops"
+    },
+    {
+      "level": 2,
+      "text": "Loop table",
+      "id": "loop-table"
+    },
+    {
+      "level": 2,
+      "text": "File-back rules",
+      "id": "file-back-rules"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Health, Energy & Readiness",
+    "Venture Opportunity Discovery",
+    "Claim Review",
+    "Canadian Prosperity Agenda",
+    "AI, Agents & Software Systems",
+    "Agent Execution Systems",
+    "Self, Meaning & Attention",
+    "Source Intake Guide",
+    "Research Leads",
+    "Decision Log",
+    "Start Here For Me"
+  ],
+  "linkedSlugs": [
+    "health-energy-and-readiness",
+    "venture-opportunity-discovery",
+    "claim-review",
+    "canadian-prosperity-agenda",
+    "ai-agents-and-software-systems",
+    "agent-execution-systems",
+    "self-meaning-and-attention",
+    "source-intake-guide",
+    "research-leads",
+    "decision-log",
+    "start-here-for-me"
+  ],
+  "sourceNotes": [
+    "`outputs/kb-vault-review-2026-05-24.md` - recommended a central open-loop surface so unresolved questions become part of the maintained wiki."
+  ],
+  "markdown": "# Open Loops\n\nUse this page for unresolved questions, missing evidence, contradictions, stale claims, and follow-up work that should not disappear into chat history.\n\n## Loop table\n\n| Status | Domain | Question or loop | Next action | Related |\n| --- | --- | --- | --- | --- |\n| Open | health | Which health and energy experiments should become recurring personal practice? | Capture typed raw experiment notes before changing evergreen pages. | [Health, Energy & Readiness](/wiki/health-energy-and-readiness) |\n| Open | venture | Which recurring venture patterns are actual demand versus creator hype? | Separate mechanics from revenue claims and verify outside the source. | [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery), [Claim Review](/wiki/claim-review) |\n| Open | canada-policy | Which Canada policy claims are durable ideas versus current political claims? | Route external-use claims to claim review before publication. | [Canadian Prosperity Agenda](/wiki/canadian-prosperity-agenda), [Claim Review](/wiki/claim-review) |\n| Open | ai-software | Which AI-agent practices are durable systems principles versus fast-aging product features? | Mark product feature claims as time-sensitive. | [AI, Agents & Software Systems](/wiki/ai-agents-and-software-systems), [Agent Execution Systems](/wiki/agent-execution-systems) |\n| Open | self-meaning | Which personal philosophy and attention notes should be treated as private synthesis rather than source-backed claims? | Capture personal reflections as typed raw sources. | [Self, Meaning & Attention](/wiki/self-meaning-and-attention), [Source Intake Guide](/wiki/source-intake-guide) |\n\n## File-back rules\n\n- Add a loop here when a query produces an unresolved but durable question.\n- Link to the relevant domain page.\n- Move claims needing verification to [Claim Review](/wiki/claim-review).\n- Move good source trails to [Research Leads](/wiki/research-leads).\n- Move chosen actions or commitments to [Decision Log](/wiki/decision-log).\n\n## Related\n\n- [Start Here For Me](/wiki/start-here-for-me)\n- [Claim Review](/wiki/claim-review)\n- [Research Leads](/wiki/research-leads)\n- [Decision Log](/wiki/decision-log)\n- [Source Intake Guide](/wiki/source-intake-guide)\n\n## Source notes\n\n- `outputs/kb-vault-review-2026-05-24.md` - recommended a central open-loop surface so unresolved questions become part of the maintained wiki.\n",
+  "plainText": "Open Loops Use this page for unresolved questions, missing evidence, contradictions, stale claims, and follow up work that should not disappear into chat history. Loop table Status Domain Question or loop Next action Related Open health Which health and energy experiments should become recurring personal practice? Capture typed raw experiment notes before changing evergreen pages. Health, Energy & Readiness Open venture Which recurring venture patterns are actual demand versus creator hype? Separate mechanics from revenue claims and verify outside the source. Venture Opportunity Discovery, Claim Review Open canada policy Which Canada policy claims are durable ideas versus current political claims? Route external use claims to claim review before publication. Canadian Prosperity Agenda, Claim Review Open ai software Which AI agent practices are durable systems principles versus fast aging product features? Mark product feature claims as time sensitive. AI, Agents & Software Systems, Agent Execution Systems Open self meaning Which personal philosophy and attention notes should be treated as private synthesis rather than source backed claims? Capture personal reflections as typed raw sources. Self, Meaning & Attention, Source Intake Guide File back rules Add a loop here when a query produces an unresolved but durable question. Link to the relevant domain page. Move claims needing verification to Claim Review. Move good source trails to Research Leads. Move chosen actions or commitments to Decision Log. Related Start Here For Me Claim Review Research Leads Decision Log Source Intake Guide Source notes outputs/kb vault review 2026 05 24.md recommended a central open loop surface so unresolved questions become part of the maintained wiki.",
+  "wordCount": 260,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/open-loops.svg",
+  "contentHash": "17c1d69cf358404b6214950814030ff2620fca84d8dcdd739c0170d9564a7310"
+}

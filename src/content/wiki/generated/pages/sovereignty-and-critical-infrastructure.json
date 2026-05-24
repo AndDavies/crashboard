@@ -3,7 +3,7 @@
   "title": "Sovereignty & Critical Infrastructure",
   "description": "Sovereignty is not only legal independence. It is practical control over compute, data, manufacturing, mission systems, cyber readiness, orbital services, and the specialized suppliers that keep critical operations working.",
   "role": "hub",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -121,5 +121,5 @@
   "readingMinutes": 12,
   "charts": [],
   "heroImage": "/wiki/generated-images/sovereignty-and-critical-infrastructure.svg",
-  "contentHash": "1b25685409bf212b85cf2194bab86b834ef9b5b309a3fb0fe39713dd73db0a9a"
+  "contentHash": "8c1ed162507c158b370dc12260a7478e1bb51a5b6b7654fe9ffa5b3fb12f552a"
 }

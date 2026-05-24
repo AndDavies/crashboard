@@ -1,0 +1,70 @@
+{
+  "slug": "source-intake-guide",
+  "title": "Source Intake Guide",
+  "description": "Use this page when adding material to raw/ . The goal is simple: every source should be easy to classify, compile, verify, and cite later.",
+  "role": "operational",
+  "cluster": "navigation",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Source Intake Guide",
+      "id": "source-intake-guide"
+    },
+    {
+      "level": 2,
+      "text": "Core rule",
+      "id": "core-rule"
+    },
+    {
+      "level": 2,
+      "text": "Recommended frontmatter",
+      "id": "recommended-frontmatter"
+    },
+    {
+      "level": 2,
+      "text": "Capture standards",
+      "id": "capture-standards"
+    },
+    {
+      "level": 2,
+      "text": "Compile routing",
+      "id": "compile-routing"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Open Loops",
+    "Research Leads",
+    "Decision Log",
+    "Claim Review",
+    "Start Here For Me"
+  ],
+  "linkedSlugs": [
+    "open-loops",
+    "research-leads",
+    "decision-log",
+    "claim-review",
+    "start-here-for-me"
+  ],
+  "sourceNotes": [
+    "`raw/README.md` - root capture convention for immutable source files.",
+    "`AGENTS.md` - root schema for compiling typed raw sources into flat wiki pages."
+  ],
+  "markdown": "# Source Intake Guide\n\nUse this page when adding material to `raw/`. The goal is simple: every source should be easy to classify, compile, verify, and cite later.\n\n## Core rule\n\nKeep knowledge content in two places:\n\n- `raw/` for immutable source evidence\n- `wiki/` for compiled synthesis and maintained operating pages\n\nDo not create new knowledge folders for notes, decisions, open loops, research leads, claims, projects, or personal observations.\n\n## Recommended frontmatter\n\n```yaml\nsource_type: external_source | book_note | podcast_or_interview | market_signal | technical_reference | personal_observation | personal_experiment | decision_note | reflection\ndomain: health | leadership-work | venture | money | canada-policy | ai-software | knowledge-learning | communication | self-meaning | assurance\nsource_quality: primary | credible_secondary | useful_secondary | useful_practitioner_signal | thin_or_unknown\ntime_sensitivity: durable_or_unknown | time_sensitive\nintended_use: wiki_synthesis | claim_review | personal_synthesis | decision_log | research_lead\nneeds_verification: true | false\n```\n\n## Capture standards\n\n- One source per file.\n- Preserve title, URL, author, date, and full useful body when available.\n- For personal observations, record date, context, what happened, interpretation, and what it might change.\n- For decisions, record options considered and review date.\n- For market, health, policy, finance, or product claims, set `needs_verification: true` unless already checked against a current primary source.\n\n## Compile routing\n\n| Source pattern | Default destination |\n| --- | --- |\n| unresolved question | [Open Loops](/wiki/open-loops) |\n| source trail or author/publication lead | [Research Leads](/wiki/research-leads) |\n| chosen action or durable decision | [Decision Log](/wiki/decision-log) |\n| stale, speculative, contradicted, or public-use claim | [Claim Review](/wiki/claim-review) |\n| personal weekly orientation | [Start Here For Me](/wiki/start-here-for-me) |\n| durable domain synthesis | the smallest fitting domain or concept page |\n\n## Related\n\n- [Start Here For Me](/wiki/start-here-for-me)\n- [Open Loops](/wiki/open-loops)\n- [Research Leads](/wiki/research-leads)\n- [Decision Log](/wiki/decision-log)\n- [Claim Review](/wiki/claim-review)\n\n## Source notes\n\n- `raw/README.md` - root capture convention for immutable source files.\n- `AGENTS.md` - root schema for compiling typed raw sources into flat wiki pages.\n",
+  "plainText": "Source Intake Guide Use this page when adding material to raw/ . The goal is simple: every source should be easy to classify, compile, verify, and cite later. Core rule Keep knowledge content in two places: raw/ for immutable source evidence wiki/ for compiled synthesis and maintained operating pages Do not create new knowledge folders for notes, decisions, open loops, research leads, claims, projects, or personal observations. Recommended frontmatter Capture standards One source per file. Preserve title, URL, author, date, and full useful body when available. For personal observations, record date, context, what happened, interpretation, and what it might change. For decisions, record options considered and review date. For market, health, policy, finance, or product claims, set needs verification: true unless already checked against a current primary source. Compile routing Source pattern Default destination unresolved question Open Loops source trail or author/publication lead Research Leads chosen action or durable decision Decision Log stale, speculative, contradicted, or public use claim Claim Review personal weekly orientation Start Here For Me durable domain synthesis the smallest fitting domain or concept page Related Start Here For Me Open Loops Research Leads Decision Log Claim Review Source notes raw/README.md root capture convention for immutable source files. AGENTS.md root schema for compiling typed raw sources into flat wiki pages.",
+  "wordCount": 213,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/source-intake-guide.svg",
+  "contentHash": "9b07849d0a3752c11981b1b9dbe611ec6d99e114c57c3b38f6f45389cbe34d09"
+}

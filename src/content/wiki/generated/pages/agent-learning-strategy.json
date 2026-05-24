@@ -3,7 +3,7 @@
   "title": "Agent Learning Strategy",
   "description": "In a fast-moving agent field, the durable skill is not keeping up with every launch. It is learning which primitives compound, which surface changes can be skipped, and which artifacts prove real capability.",
   "role": "reference",
-  "cluster": "execution",
+  "cluster": "ai-software",
   "visualStatus": "image",
   "headings": [
     {
@@ -99,5 +99,5 @@
   "readingMinutes": 3,
   "charts": [],
   "heroImage": "/wiki/generated-images/agent-learning-strategy.svg",
-  "contentHash": "11446340f57e9bca12723bebb9436fd9fdd605afcaea00664b7af451fc97925c"
+  "contentHash": "fafb211a6e8066c68458bb1264ecdf7c8a718434eb4ad6fd4d53df37db3df602"
 }

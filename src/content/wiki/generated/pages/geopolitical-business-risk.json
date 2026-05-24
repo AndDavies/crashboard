@@ -3,7 +3,7 @@
   "title": "Geopolitical Business Risk",
   "description": "Geopolitical business risk is the operating problem of translating trade realignment, tariffs, regulatory divergence, supply disruption, and regional volatility into value-at-stake decisions a company can actually act on.",
   "role": "reference",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "table",
   "headings": [
     {
@@ -111,5 +111,5 @@
   "readingMinutes": 4,
   "charts": [],
   "heroImage": "/wiki/generated-images/geopolitical-business-risk.svg",
-  "contentHash": "80ba144653f7f5f869e60d10b23ffd430ce1499beee23b6c0bca3df24567e35c"
+  "contentHash": "297779d2b4037fdc15fa94a285f616184ed8c9ec87bdf0fe91d5926a62697315"
 }

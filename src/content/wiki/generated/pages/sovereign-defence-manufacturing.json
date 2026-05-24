@@ -3,7 +3,7 @@
   "title": "Sovereign Defence Manufacturing",
   "description": "Sovereign defence manufacturing is the ability to design, build, sustain, modernize, and upgrade national defence capability through a domestic industrial base, even when that base relies on foreign technical partners, allied platforms, or imported know-how.",
   "role": "concept",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -176,5 +176,5 @@
   "readingMinutes": 10,
   "charts": [],
   "heroImage": "/wiki/generated-images/sovereign-defence-manufacturing.svg",
-  "contentHash": "509eb911cddddba85b4b69b4fa74e15e620a9615ba807323b5f4db3aaeb88e32"
+  "contentHash": "1854ba97b426e8bbbf9d18799f1049873a13da0ce4fc3556140145e521a0f2e0"
 }

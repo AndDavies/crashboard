@@ -3,7 +3,7 @@
   "title": "Memory Transfer Learning",
   "description": "Memory transfer learning is the design pattern where agents reuse memories from heterogeneous prior task domains, not just the current benchmark or problem family, so that transferable operational knowledge can compound across different kinds of work.",
   "role": "reference",
-  "cluster": "memory",
+  "cluster": "ai-software",
   "visualStatus": "none",
   "headings": [
     {
@@ -162,5 +162,5 @@
   "readingMinutes": 7,
   "charts": [],
   "heroImage": "/wiki/generated-images/memory-transfer-learning.svg",
-  "contentHash": "58a054eee9f36cc12529582b9bfbc872a51621adbcc976997fd721b4ea8024b8"
+  "contentHash": "6e2d78c7f00a5d5baa38e6b498d29fce0837d7d78da6f3850d8113ebd04bacdb"
 }

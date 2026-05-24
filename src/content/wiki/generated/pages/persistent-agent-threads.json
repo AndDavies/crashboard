@@ -3,7 +3,7 @@
   "title": "Persistent Agent Threads",
   "description": "Persistent agent threads are long-running execution environments where an agent returns to the same thread repeatedly, accumulates working context and habits, updates external systems, and advances a standing queue of mixed tasks over time.",
   "role": "concept",
-  "cluster": "execution",
+  "cluster": "ai-software",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -182,5 +182,5 @@
   "readingMinutes": 12,
   "charts": [],
   "heroImage": "/wiki/generated-images/persistent-agent-threads.svg",
-  "contentHash": "bd237f369ad09688ce7d9caf14a16651f59d33304b2702a8028028f4635b073b"
+  "contentHash": "0cc0336109ec812593850302ed347aaa8a72cfdfe619e584e183c965216ee3bb"
 }

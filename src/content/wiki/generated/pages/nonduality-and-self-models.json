@@ -2,8 +2,8 @@
   "slug": "nonduality-and-self-models",
   "title": "Nonduality & Self-Models",
   "description": "Nonduality, in this source, is less a claim that the person or body does not exist and more an inquiry into whether the felt inner owner of experience is findable in direct experience.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "self-meaning",
   "visualStatus": "none",
   "headings": [
     {
@@ -88,5 +88,5 @@
   "readingMinutes": 3,
   "charts": [],
   "heroImage": "/wiki/generated-images/nonduality-and-self-models.svg",
-  "contentHash": "80f93f0b7a3b89910434ccda8f4b50420163a1682edafbe98ce4820c877dd8e9"
+  "contentHash": "3187960346e1d8fab00a7d757001ccd8e3c1e666909e4a81b649918e2b6ba22e"
 }

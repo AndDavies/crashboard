@@ -3,7 +3,7 @@
   "title": "Regional Tech Ecosystems",
   "description": "Regional tech ecosystems are not built only by startups, investors, or government programs. They often compound through repeated convening, trusted institutions, local talent loops, and community-built infrastructure that makes a place legible to itself.",
   "role": "concept",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "none",
   "headings": [
     {
@@ -221,5 +221,5 @@
   "readingMinutes": 13,
   "charts": [],
   "heroImage": "/wiki/generated-images/regional-tech-ecosystems.svg",
-  "contentHash": "532caea44bb302eeec38d2795ee4d5adf66f635c3efc5e173e1cf2c857a79d3d"
+  "contentHash": "70b21cfca748e2ea99f4f75fd388df552fdc9f07cbefb17e7bfead633a2a4350"
 }

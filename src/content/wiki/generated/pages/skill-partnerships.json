@@ -3,7 +3,7 @@
   "title": "Skill Partnerships",
   "description": "Skill partnerships describe how work is reorganized when people, agents, and robots collaborate across the same workflow, with human value shifting toward judgment, oversight, care, interpretation, teaching, adaptation, and cross-role mobility rather than disappearing outright.",
   "role": "concept",
-  "cluster": "judgment",
+  "cluster": "leadership-work",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -197,5 +197,5 @@
   "readingMinutes": 13,
   "charts": [],
   "heroImage": "/wiki/generated-images/skill-partnerships.svg",
-  "contentHash": "3b2e1436aee17ff3669eb9c88c15a8fd9ddb39322e5ec9ef0be4a28bc4eb1a0e"
+  "contentHash": "f4152bcb4630c61a9af7fac80e104191ecd73c9461748fbe272f42512071f3ef"
 }

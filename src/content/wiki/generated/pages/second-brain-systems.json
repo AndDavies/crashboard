@@ -3,7 +3,7 @@
   "title": "Second Brain Systems",
   "description": "A second-brain system is a persistent personal operating layer where raw work history, retrieval infrastructure, profile files, distilled context, tool connectors, and learning loops combine so an agent can think with your history instead of starting from zero each session.",
   "role": "concept",
-  "cluster": "knowledge",
+  "cluster": "knowledge-learning",
   "visualStatus": "none",
   "headings": [
     {
@@ -195,5 +195,5 @@
   "readingMinutes": 22,
   "charts": [],
   "heroImage": "/wiki/generated-images/second-brain-systems.svg",
-  "contentHash": "1cd7261be1ba004e849f681d1fa02e34cca44099c5ab9d29a842ef13702de2e7"
+  "contentHash": "939cda6cd7562d7c5a1ffdd362447a0263533c1e2186407d626b9742d0b9e1cf"
 }

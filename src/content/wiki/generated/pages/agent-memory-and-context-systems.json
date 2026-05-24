@@ -3,7 +3,7 @@
   "title": "Agent Memory & Context Systems",
   "description": "Agent memory is not one feature. It is a stack of capture, compression, retrieval, ownership, evaluation, and workflow design choices that determine whether an agent becomes more useful over time or merely repeats itself with confidence.",
   "role": "hub",
-  "cluster": "memory",
+  "cluster": "ai-software",
   "visualStatus": "image",
   "headings": [
     {
@@ -141,5 +141,5 @@
   "readingMinutes": 9,
   "charts": [],
   "heroImage": "/wiki/generated-images/agent-memory-and-context-systems.svg",
-  "contentHash": "56085436111798ca66f6be966a8fde2794dbd3fb336afb4ecea821b6bfd9ccb3"
+  "contentHash": "7aaf523c90a3d3291c47aeaf099b8f44353635e38facb181656f65af010e023b"
 }

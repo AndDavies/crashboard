@@ -3,7 +3,7 @@
   "title": "Corporate Wellness Opportunity Strategy",
   "description": "Corporate wellness becomes fundable when it stops sounding like a generic wellbeing service and starts reading as risk reduction, workforce resilience, workplace infrastructure, productivity protection, or measurable operating capacity.",
   "role": "concept",
-  "cluster": "judgment",
+  "cluster": "health",
   "visualStatus": "table",
   "headings": [
     {
@@ -160,5 +160,5 @@
   "readingMinutes": 10,
   "charts": [],
   "heroImage": "/wiki/generated-images/corporate-wellness-opportunity-strategy.svg",
-  "contentHash": "6bb911f20257ea11d2a108ec9784603768b968ebe4a341e94bea8d2fb2ecdb06"
+  "contentHash": "890e6c410a03c748226d20409d6a73460c16f44d1c07462586827454d2bcb7e4"
 }

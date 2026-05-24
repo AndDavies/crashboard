@@ -3,7 +3,7 @@
   "title": "Enterprise Agent Extension Architecture",
   "description": "Enterprise agent extension architecture is the layer that turns a general assistant into an organization-specific agent through knowledge connectors, custom instructions, actions, app packages, admin controls, and security boundaries.",
   "role": "reference",
-  "cluster": "agents",
+  "cluster": "ai-software",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -115,5 +115,5 @@
   "readingMinutes": 4,
   "charts": [],
   "heroImage": "/wiki/generated-images/enterprise-agent-extension-architecture.svg",
-  "contentHash": "d14dc7e5786437b577a5b0d0213bd6bd787a93e73601e8bc0942007f18299a4b"
+  "contentHash": "4a701e8696a269f7a6b0bb70cbc5c869591f0e59df030a8148b61eb1d2889e7f"
 }

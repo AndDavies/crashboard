@@ -2,8 +2,8 @@
   "slug": "health-and-discipline",
   "title": "Health & Discipline",
   "description": "Health and discipline compound through simple repeated actions that reinforce identity. The highest-value moves are often boring, visible only in hindsight, and powerful precisely because they are sustainable.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "health",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -121,5 +121,5 @@
   "readingMinutes": 3,
   "charts": [],
   "heroImage": "/wiki/generated-images/health-and-discipline.svg",
-  "contentHash": "20d6328f8a5c7fe5e18e647f52981f6d6e02680b3baf327abce6ee3890e5266d"
+  "contentHash": "81b526bae0b60dbdaf76c85f16da60398dbaf13b82d57363e31c65e76046a86c"
 }

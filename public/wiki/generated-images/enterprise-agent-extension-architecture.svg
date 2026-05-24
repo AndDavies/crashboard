@@ -20,7 +20,7 @@
     <circle cx="832" cy="226" r="13"/>
     <circle cx="964" cy="246" r="13"/>
   </g>
-  <text x="142" y="158" fill="#263238" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">AGENTS / REFERENCE</text>
+  <text x="142" y="158" fill="#263238" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">AI-SOFTWARE / REFERENCE</text>
   <foreignObject x="140" y="190" width="700" height="190">
     <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #263238; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Enterprise Agent Extension Architecture</div>
   </foreignObject>

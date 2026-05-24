@@ -3,7 +3,7 @@
   "title": "Military Cyber Operations",
   "description": "Military cyber operations are not just IT protection for armed forces. They are the integrated defence, exploitation, and contestation of the digital and electromagnetic systems that make modern command, sensing, communications, and force projection possible.",
   "role": "reference",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "table",
   "headings": [
     {
@@ -267,5 +267,5 @@
   "readingMinutes": 16,
   "charts": [],
   "heroImage": "/wiki/generated-images/military-cyber-operations.svg",
-  "contentHash": "cd9005e59b3a256c2a03f0f7b223b0d63c52af7a9cc942dc241f34ff53dcc481"
+  "contentHash": "b80be3366e26c64146c1265da7fa94521bce91b7552b550791d105774070e07a"
 }

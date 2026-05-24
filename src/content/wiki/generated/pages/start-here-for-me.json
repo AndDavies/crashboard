@@ -1,0 +1,91 @@
+{
+  "slug": "start-here-for-me",
+  "title": "Start Here For Me",
+  "description": "This is the personal operating surface for the Knowledge Base. Use it to orient the week, choose what to read next, and decide what should be captured, compiled, verified, or turned into action.",
+  "role": "operational",
+  "cluster": "navigation",
+  "visualStatus": "none",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Start Here For Me",
+      "id": "start-here-for-me"
+    },
+    {
+      "level": 2,
+      "text": "Current shape",
+      "id": "current-shape"
+    },
+    {
+      "level": 2,
+      "text": "Primary domains",
+      "id": "primary-domains"
+    },
+    {
+      "level": 2,
+      "text": "Weekly use",
+      "id": "weekly-use"
+    },
+    {
+      "level": 2,
+      "text": "What good looks like",
+      "id": "what-good-looks-like"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Health, Energy & Readiness",
+    "Leadership Systems",
+    "Venture Opportunity Discovery",
+    "Money, Wealth & Markets",
+    "Canadian Prosperity Agenda",
+    "Sovereignty & Critical Infrastructure",
+    "AI, Agents & Software Systems",
+    "Compiled Knowledge Systems",
+    "Second Brain Systems",
+    "Communication, Persuasion & Taste",
+    "Self, Meaning & Attention",
+    "Open Loops",
+    "Source Intake Guide",
+    "Claim Review",
+    "Decision Log",
+    "Research Leads"
+  ],
+  "linkedSlugs": [
+    "health-energy-and-readiness",
+    "leadership-systems",
+    "venture-opportunity-discovery",
+    "money-wealth-and-markets",
+    "canadian-prosperity-agenda",
+    "sovereignty-and-critical-infrastructure",
+    "ai-agents-and-software-systems",
+    "compiled-knowledge-systems",
+    "second-brain-systems",
+    "communication-persuasion-and-taste",
+    "self-meaning-and-attention",
+    "open-loops",
+    "source-intake-guide",
+    "claim-review",
+    "decision-log",
+    "research-leads"
+  ],
+  "sourceNotes": [
+    "`outputs/kb-vault-review-2026-05-24.md` - identified the need to broaden the reader map while keeping the Karpathy raw/wiki model simple."
+  ],
+  "markdown": "# Start Here For Me\n\nThis is the personal operating surface for the Knowledge Base. Use it to orient the week, choose what to read next, and decide what should be captured, compiled, verified, or turned into action.\n\n## Current shape\n\nThe vault is a simple Karpathy-style second brain:\n\n- `raw/` holds immutable source material, including typed personal observations and decisions.\n- `wiki/` holds the maintained synthesis, domain maps, open loops, research leads, decisions, and claim review.\n- `wiki/index.md` is the broad reader map.\n- `wiki/log.md` is the chronological operation record.\n\nThe current direction is broader than AI agents. AI remains a major domain, but the vault should also support life, health, work, money, policy, communication, learning, and philosophy.\n\n## Primary domains\n\n| Domain | Start here |\n| --- | --- |\n| Life, health, energy | [Health, Energy & Readiness](/wiki/health-energy-and-readiness) |\n| Work and operating systems | [Leadership Systems](/wiki/leadership-systems) |\n| Business, venture, money | [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery), [Money, Wealth & Markets](/wiki/money-wealth-and-markets) |\n| Canada and public policy | [Canadian Prosperity Agenda](/wiki/canadian-prosperity-agenda), [Sovereignty & Critical Infrastructure](/wiki/sovereignty-and-critical-infrastructure) |\n| AI, agents, software | [AI, Agents & Software Systems](/wiki/ai-agents-and-software-systems) |\n| Knowledge and learning | [Compiled Knowledge Systems](/wiki/compiled-knowledge-systems), [Second Brain Systems](/wiki/second-brain-systems) |\n| Communication and taste | [Communication, Persuasion & Taste](/wiki/communication-persuasion-and-taste) |\n| Philosophy and inner life | [Self, Meaning & Attention](/wiki/self-meaning-and-attention) |\n\n## Weekly use\n\n1. Review [Open Loops](/wiki/open-loops) for unresolved questions.\n2. Add important external sources or personal observations to `raw/` with the source profile fields from [Source Intake Guide](/wiki/source-intake-guide).\n3. Compile high-signal sources into existing wiki pages before creating new pages.\n4. Send time-sensitive or public-use claims to [Claim Review](/wiki/claim-review).\n5. Record durable decisions in [Decision Log](/wiki/decision-log).\n6. Add good publications, people, and source trails to [Research Leads](/wiki/research-leads).\n\n## What good looks like\n\n- The index feels like a map of life and work, not a list of AI-agent artifacts.\n- High-signal raw sources become durable claims, frameworks, questions, and decisions in the wiki.\n- Useful answers from queries are filed back into the smallest appropriate wiki page.\n- Public-facing claims are checked before reuse.\n- Personal experiments and reflections improve the same evergreen pages as external sources.\n\n## Related\n\n- [Open Loops](/wiki/open-loops)\n- [Research Leads](/wiki/research-leads)\n- [Decision Log](/wiki/decision-log)\n- [Claim Review](/wiki/claim-review)\n- [Source Intake Guide](/wiki/source-intake-guide)\n- [Second Brain Systems](/wiki/second-brain-systems)\n- [Compiled Knowledge Systems](/wiki/compiled-knowledge-systems)\n\n## Source notes\n\n- `outputs/kb-vault-review-2026-05-24.md` - identified the need to broaden the reader map while keeping the Karpathy raw/wiki model simple.\n",
+  "plainText": "Start Here For Me This is the personal operating surface for the Knowledge Base. Use it to orient the week, choose what to read next, and decide what should be captured, compiled, verified, or turned into action. Current shape The vault is a simple Karpathy style second brain: raw/ holds immutable source material, including typed personal observations and decisions. wiki/ holds the maintained synthesis, domain maps, open loops, research leads, decisions, and claim review. wiki/index.md is the broad reader map. wiki/log.md is the chronological operation record. The current direction is broader than AI agents. AI remains a major domain, but the vault should also support life, health, work, money, policy, communication, learning, and philosophy. Primary domains Domain Start here Life, health, energy Health, Energy & Readiness Work and operating systems Leadership Systems Business, venture, money Venture Opportunity Discovery, Money, Wealth & Markets Canada and public policy Canadian Prosperity Agenda, Sovereignty & Critical Infrastructure AI, agents, software AI, Agents & Software Systems Knowledge and learning Compiled Knowledge Systems, Second Brain Systems Communication and taste Communication, Persuasion & Taste Philosophy and inner life Self, Meaning & Attention Weekly use 1. Review Open Loops for unresolved questions. 2. Add important external sources or personal observations to raw/ with the source profile fields from Source Intake Guide. 3. Compile high signal sources into existing wiki pages before creating new pages. 4. Send time sensitive or public use claims to Claim Review. 5. Record durable decisions in Decision Log. 6. Add good publications, people, and source trails to Research Leads. What good looks like The index feels like a map of life and work, not a list of AI agent artifacts. High signal raw sources become durable claims, frameworks, questions, and decisions in the wiki. Useful answers from queries are filed back into the smallest appropriate wiki page. Public facing claims are checked before reuse. Personal experiments and reflections improve the same evergreen pages as external sources. Related Open Loops Research Leads Decision Log Claim Review Source Intake Guide Second Brain Systems Compiled Knowledge Systems Source notes outputs/kb vault review 2026 05 24.md identified the need to broaden the reader map while keeping the Karpathy raw/wiki model simple.",
+  "wordCount": 363,
+  "readingMinutes": 2,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/start-here-for-me.svg",
+  "contentHash": "c161603d0d88cdb4782543fc0e2af784af00e6fe3147cdd4ffd507be6917f46c"
+}

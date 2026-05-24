@@ -1,0 +1,65 @@
+{
+  "slug": "communication-persuasion-and-taste",
+  "title": "Communication, Persuasion & Taste",
+  "description": "This is the domain map for speaking, writing, persuasion, brand, taste, teaching, campaign logic, and idea transfer.",
+  "role": "hub",
+  "cluster": "communication",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Communication, Persuasion & Taste",
+      "id": "communication-persuasion-and-taste"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Current map",
+      "id": "current-map"
+    },
+    {
+      "level": 2,
+      "text": "Practical questions",
+      "id": "practical-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Communication & Idea Transfer",
+    "Persuasion & Demand Creation",
+    "Venture Opportunity Discovery",
+    "AI-Assisted Content Systems",
+    "Research Leads"
+  ],
+  "linkedSlugs": [
+    "communication-and-idea-transfer",
+    "persuasion-and-demand-creation",
+    "venture-opportunity-discovery",
+    "ai-assisted-content-systems",
+    "research-leads"
+  ],
+  "sourceNotes": [
+    "`wiki/Communication & Idea Transfer.md` - existing synthesis on speaking and idea transfer.",
+    "`wiki/Persuasion & Demand Creation.md` - existing synthesis on persuasion, trust, and demand creation."
+  ],
+  "markdown": "# Communication, Persuasion & Taste\n\nThis is the domain map for speaking, writing, persuasion, brand, taste, teaching, campaign logic, and idea transfer.\n\n## Why this matters\n\nCommunication is a practical force multiplier across work, venture, leadership, public policy, and personal learning. The useful material in this domain should become reusable models, not just notes about individual speeches or marketing sources.\n\n## Current map\n\n| Page | Role |\n| --- | --- |\n| [Communication & Idea Transfer](/wiki/communication-and-idea-transfer) | Speaking, slide discipline, pacing, contribution-focused endings, and teaching. |\n| [Persuasion & Demand Creation](/wiki/persuasion-and-demand-creation) | Brand promises, contrast, trust, permission, hospitality, and demand. |\n| [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery) | Demand testing and audience signal where communication meets market selection. |\n| [AI-Assisted Content Systems](/wiki/ai-assisted-content-systems) | Capture, drafting, voice conditioning, content operations, and feedback loops. |\n\n## Practical questions\n\n- What makes an idea move from information to transfer?\n- Which persuasion models are durable enough to reuse?\n- What writing and speaking patterns fit the user's voice and goals?\n- Which content systems create useful learning rather than volume?\n\n## Related\n\n- [Communication & Idea Transfer](/wiki/communication-and-idea-transfer)\n- [Persuasion & Demand Creation](/wiki/persuasion-and-demand-creation)\n- [AI-Assisted Content Systems](/wiki/ai-assisted-content-systems)\n- [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery)\n- [Research Leads](/wiki/research-leads)\n\n## Source notes\n\n- `wiki/Communication & Idea Transfer.md` - existing synthesis on speaking and idea transfer.\n- `wiki/Persuasion & Demand Creation.md` - existing synthesis on persuasion, trust, and demand creation.\n",
+  "plainText": "Communication, Persuasion & Taste This is the domain map for speaking, writing, persuasion, brand, taste, teaching, campaign logic, and idea transfer. Why this matters Communication is a practical force multiplier across work, venture, leadership, public policy, and personal learning. The useful material in this domain should become reusable models, not just notes about individual speeches or marketing sources. Current map Page Role Communication & Idea Transfer Speaking, slide discipline, pacing, contribution focused endings, and teaching. Persuasion & Demand Creation Brand promises, contrast, trust, permission, hospitality, and demand. Venture Opportunity Discovery Demand testing and audience signal where communication meets market selection. AI Assisted Content Systems Capture, drafting, voice conditioning, content operations, and feedback loops. Practical questions What makes an idea move from information to transfer? Which persuasion models are durable enough to reuse? What writing and speaking patterns fit the user's voice and goals? Which content systems create useful learning rather than volume? Related Communication & Idea Transfer Persuasion & Demand Creation AI Assisted Content Systems Venture Opportunity Discovery Research Leads Source notes wiki/Communication & Idea Transfer.md existing synthesis on speaking and idea transfer. wiki/Persuasion & Demand Creation.md existing synthesis on persuasion, trust, and demand creation.",
+  "wordCount": 195,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/communication-persuasion-and-taste.svg",
+  "contentHash": "131b2d8aac3fe9c2eb559809deb91efdf1dac5364fcbf6cb809bb7f4a28fa5dc"
+}

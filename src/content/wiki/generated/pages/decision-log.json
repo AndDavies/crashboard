@@ -1,0 +1,57 @@
+{
+  "slug": "decision-log",
+  "title": "Decision Log",
+  "description": "Use this page for durable decisions that should shape future compilation, querying, and personal operating behavior.",
+  "role": "operational",
+  "cluster": "navigation",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Decision Log",
+      "id": "decision-log"
+    },
+    {
+      "level": 2,
+      "text": "Decisions",
+      "id": "decisions"
+    },
+    {
+      "level": 2,
+      "text": "Decision note template",
+      "id": "decision-note-template"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Start Here For Me",
+    "Source Intake Guide",
+    "Open Loops",
+    "Claim Review"
+  ],
+  "linkedSlugs": [
+    "start-here-for-me",
+    "source-intake-guide",
+    "open-loops",
+    "claim-review"
+  ],
+  "sourceNotes": [
+    "`outputs/kb-vault-review-2026-05-24.md` - recommended decision records so the second brain preserves why choices were made, not just what sources said."
+  ],
+  "markdown": "# Decision Log\n\nUse this page for durable decisions that should shape future compilation, querying, and personal operating behavior.\n\n## Decisions\n\n| Date | Decision | Rationale | Review |\n| --- | --- | --- | --- |\n| 2026-05-24 | Keep the Knowledge Base simple: durable knowledge content lives in `raw/` and `wiki/`. | This preserves the Karpathy raw-source to compiled-wiki pattern and avoids folder sprawl. | Revisit only if the flat wiki becomes unmanageable. |\n| 2026-05-24 | Treat AI, agents, and software as one major domain, not the whole vault identity. | The corpus now includes health, money, Canada policy, communication, philosophy, venture, and work. | Revisit after the next full curation pass. |\n| 2026-05-24 | Store personal observations and experiments as typed raw files. | Personal experience should be evidence, while wiki pages remain maintained synthesis. | Revisit after several personal-source compiles. |\n| 2026-05-24 | Use flat operational wiki pages for open loops, decisions, research leads, and claim review. | These are part of the second-brain interface and should compound like other wiki artifacts. | Revisit if operational pages become too large. |\n\n## Decision note template\n\n```yaml\nsource_type: decision_note\ndomain: health | leadership-work | venture | money | canada-policy | ai-software | knowledge-learning | communication | self-meaning | assurance\ncreated: YYYY-MM-DD\nneeds_verification: false\n```\n\nRecord:\n\n- decision\n- context\n- options considered\n- rationale\n- expected review date\n- related wiki pages\n\n## Related\n\n- [Start Here For Me](/wiki/start-here-for-me)\n- [Source Intake Guide](/wiki/source-intake-guide)\n- [Open Loops](/wiki/open-loops)\n- [Claim Review](/wiki/claim-review)\n\n## Source notes\n\n- `outputs/kb-vault-review-2026-05-24.md` - recommended decision records so the second brain preserves why choices were made, not just what sources said.\n",
+  "plainText": "Decision Log Use this page for durable decisions that should shape future compilation, querying, and personal operating behavior. Decisions Date Decision Rationale Review 2026 05 24 Keep the Knowledge Base simple: durable knowledge content lives in raw/ and wiki/ . This preserves the Karpathy raw source to compiled wiki pattern and avoids folder sprawl. Revisit only if the flat wiki becomes unmanageable. 2026 05 24 Treat AI, agents, and software as one major domain, not the whole vault identity. The corpus now includes health, money, Canada policy, communication, philosophy, venture, and work. Revisit after the next full curation pass. 2026 05 24 Store personal observations and experiments as typed raw files. Personal experience should be evidence, while wiki pages remain maintained synthesis. Revisit after several personal source compiles. 2026 05 24 Use flat operational wiki pages for open loops, decisions, research leads, and claim review. These are part of the second brain interface and should compound like other wiki artifacts. Revisit if operational pages become too large. Decision note template Record: decision context options considered rationale expected review date related wiki pages Related Start Here For Me Source Intake Guide Open Loops Claim Review Source notes outputs/kb vault review 2026 05 24.md recommended decision records so the second brain preserves why choices were made, not just what sources said.",
+  "wordCount": 219,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/decision-log.svg",
+  "contentHash": "bbc7df40edf0eab30c68779d326e82fc80c9460555d8f90c142a9b5c110a4eac"
+}

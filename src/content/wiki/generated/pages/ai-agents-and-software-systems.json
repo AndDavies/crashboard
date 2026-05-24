@@ -1,0 +1,100 @@
+{
+  "slug": "ai-agents-and-software-systems",
+  "title": "AI, Agents & Software Systems",
+  "description": "This is the domain map for AI, agents, coding workflows, software systems, model foundations, memory, safety, and verification.",
+  "role": "hub",
+  "cluster": "ai-software",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "AI, Agents & Software Systems",
+      "id": "ai-agents-and-software-systems"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Current map",
+      "id": "current-map"
+    },
+    {
+      "level": 2,
+      "text": "Reliability rule",
+      "id": "reliability-rule"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "AI Foundations & Model Adaptation",
+    "AI Safety & Control",
+    "Agent Execution Systems",
+    "Agentic Engineering",
+    "Agent Skills",
+    "Coding Agent Workflows",
+    "Persistent Agent Threads",
+    "Agent Memory & Context Systems",
+    "LLM Memory",
+    "Agent Memory Architectures",
+    "Context Compaction",
+    "Memory Transfer Learning",
+    "Open Harnesses",
+    "Agent Evaluation & Verification",
+    "Enterprise Agent Extension Architecture",
+    "Proactive Agents",
+    "Trust Boundaries & Assurance",
+    "AI-Native Organizations",
+    "Skill Partnerships",
+    "AI Automation Builders",
+    "Claim Review",
+    "Source Intake Guide"
+  ],
+  "linkedSlugs": [
+    "ai-foundations-and-model-adaptation",
+    "ai-safety-and-control",
+    "agent-execution-systems",
+    "agentic-engineering",
+    "agent-skills",
+    "coding-agent-workflows",
+    "persistent-agent-threads",
+    "agent-memory-and-context-systems",
+    "llm-memory",
+    "agent-memory-architectures",
+    "context-compaction",
+    "memory-transfer-learning",
+    "open-harnesses",
+    "agent-evaluation-and-verification",
+    "enterprise-agent-extension-architecture",
+    "proactive-agents",
+    "trust-boundaries-and-assurance",
+    "ai-native-organizations",
+    "skill-partnerships",
+    "ai-automation-builders",
+    "claim-review",
+    "source-intake-guide"
+  ],
+  "sourceNotes": [
+    "`wiki/Agent Execution Systems.md` - existing execution-system hub.",
+    "`wiki/Agent Memory & Context Systems.md` - existing memory/context hub.",
+    "`wiki/AI Foundations & Model Adaptation.md` - existing model-foundations hub."
+  ],
+  "markdown": "# AI, Agents & Software Systems\n\nThis is the domain map for AI, agents, coding workflows, software systems, model foundations, memory, safety, and verification.\n\n## Why this matters\n\nAI and agents are still a major strength of the vault, but they should no longer dominate the whole second-brain map. This page collects the AI/software material as one strong domain so other life and work domains can stand beside it.\n\n## Current map\n\n| Area | Pages |\n| --- | --- |\n| Foundations | [AI Foundations & Model Adaptation](/wiki/ai-foundations-and-model-adaptation), [AI Safety & Control](/wiki/ai-safety-and-control) |\n| Execution | [Agent Execution Systems](/wiki/agent-execution-systems), [Agentic Engineering](/wiki/agentic-engineering), [Agent Skills](/wiki/agent-skills), [Coding Agent Workflows](/wiki/coding-agent-workflows), [Persistent Agent Threads](/wiki/persistent-agent-threads) |\n| Memory and context | [Agent Memory & Context Systems](/wiki/agent-memory-and-context-systems), [LLM Memory](/wiki/llm-memory), [Agent Memory Architectures](/wiki/agent-memory-architectures), [Context Compaction](/wiki/context-compaction), [Memory Transfer Learning](/wiki/memory-transfer-learning), [Open Harnesses](/wiki/open-harnesses) |\n| Evaluation and governance | [Agent Evaluation & Verification](/wiki/agent-evaluation-and-verification), [Enterprise Agent Extension Architecture](/wiki/enterprise-agent-extension-architecture), [Proactive Agents](/wiki/proactive-agents), [Trust Boundaries & Assurance](/wiki/trust-boundaries-and-assurance) |\n| Organizations and work | [AI-Native Organizations](/wiki/ai-native-organizations), [Skill Partnerships](/wiki/skill-partnerships), [AI Automation Builders](/wiki/ai-automation-builders) |\n\n## Reliability rule\n\nSeparate durable systems principles from fast-aging product claims. Product names, model capabilities, release notes, API behavior, prices, and current platform features belong in [Claim Review](/wiki/claim-review) before external reuse.\n\n## Related\n\n- [Agent Execution Systems](/wiki/agent-execution-systems)\n- [Agent Memory & Context Systems](/wiki/agent-memory-and-context-systems)\n- [AI Foundations & Model Adaptation](/wiki/ai-foundations-and-model-adaptation)\n- [AI Safety & Control](/wiki/ai-safety-and-control)\n- [Claim Review](/wiki/claim-review)\n- [Source Intake Guide](/wiki/source-intake-guide)\n\n## Source notes\n\n- `wiki/Agent Execution Systems.md` - existing execution-system hub.\n- `wiki/Agent Memory & Context Systems.md` - existing memory/context hub.\n- `wiki/AI Foundations & Model Adaptation.md` - existing model-foundations hub.\n",
+  "plainText": "AI, Agents & Software Systems This is the domain map for AI, agents, coding workflows, software systems, model foundations, memory, safety, and verification. Why this matters AI and agents are still a major strength of the vault, but they should no longer dominate the whole second brain map. This page collects the AI/software material as one strong domain so other life and work domains can stand beside it. Current map Area Pages Foundations AI Foundations & Model Adaptation, AI Safety & Control Execution Agent Execution Systems, Agentic Engineering, Agent Skills, Coding Agent Workflows, Persistent Agent Threads Memory and context Agent Memory & Context Systems, LLM Memory, Agent Memory Architectures, Context Compaction, Memory Transfer Learning, Open Harnesses Evaluation and governance Agent Evaluation & Verification, Enterprise Agent Extension Architecture, Proactive Agents, Trust Boundaries & Assurance Organizations and work AI Native Organizations, Skill Partnerships, AI Automation Builders Reliability rule Separate durable systems principles from fast aging product claims. Product names, model capabilities, release notes, API behavior, prices, and current platform features belong in Claim Review before external reuse. Related Agent Execution Systems Agent Memory & Context Systems AI Foundations & Model Adaptation AI Safety & Control Claim Review Source Intake Guide Source notes wiki/Agent Execution Systems.md existing execution system hub. wiki/Agent Memory & Context Systems.md existing memory/context hub. wiki/AI Foundations & Model Adaptation.md existing model foundations hub.",
+  "wordCount": 224,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/ai-agents-and-software-systems.svg",
+  "contentHash": "735f4a6b92cf2e440ff3a3fa45617ea40e3f67a6448fce773bd0343c29475ccd"
+}

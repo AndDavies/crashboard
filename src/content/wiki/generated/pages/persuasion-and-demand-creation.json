@@ -2,8 +2,8 @@
   "slug": "persuasion-and-demand-creation",
   "title": "Persuasion & Demand Creation",
   "description": "Persuasion is rarely about brute-force efficiency. It is about understanding how people choose, what they compare, what they trust, and how human experience reshapes perceived value.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "communication",
   "visualStatus": "table",
   "headings": [
     {
@@ -144,5 +144,5 @@
   "readingMinutes": 6,
   "charts": [],
   "heroImage": "/wiki/generated-images/persuasion-and-demand-creation.svg",
-  "contentHash": "a102f1a131398107e0c386db743bffb6b6a153a542ece95e66be59b3f07122b9"
+  "contentHash": "f912d91523c1c78a1fb599a7c0d070ce77f492a79e4bed6933b65053f463506e"
 }

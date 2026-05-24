@@ -3,7 +3,7 @@
   "title": "Space-Enabled Military Infrastructure",
   "description": "Space is no longer a specialist layer above military operations. It is a hidden infrastructure layer beneath navigation, communications, targeting, weather awareness, missile warning, logistics, timing, and command coherence.",
   "role": "reference",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "image",
   "headings": [
     {
@@ -96,5 +96,5 @@
   "readingMinutes": 3,
   "charts": [],
   "heroImage": "/wiki/generated-images/space-enabled-military-infrastructure.svg",
-  "contentHash": "3c8b8137f16a14f997d9c81629173be3b0552ca1e6a9749317eaba318a219a6a"
+  "contentHash": "f1b8cb282772a54052dcac83442c0a8660ab17e4265d9d6396393b4b1eedb5c4"
 }

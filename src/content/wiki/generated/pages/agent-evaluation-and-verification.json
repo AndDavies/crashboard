@@ -3,7 +3,7 @@
   "title": "Agent Evaluation & Verification",
   "description": "Agent evaluation is not just scoring outputs. It is the systems problem of deciding whether an agent actually succeeded, which evidence counts, how process and outcome should be judged, and how benchmark results avoid being distorted by compute, retrieval, or verifier failure.",
   "role": "reference",
-  "cluster": "execution",
+  "cluster": "ai-software",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -196,5 +196,5 @@
   "readingMinutes": 9,
   "charts": [],
   "heroImage": "/wiki/generated-images/agent-evaluation-and-verification.svg",
-  "contentHash": "19b57116428bb2a7a2138af66ad7c6823eda53028d72d79535ba9cb0c915f725"
+  "contentHash": "be589f83206080a92e81bbbf63f7061ab8ef569b9d2e0839978512eaf907f243"
 }

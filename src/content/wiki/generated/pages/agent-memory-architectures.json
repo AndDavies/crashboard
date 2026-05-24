@@ -3,7 +3,7 @@
   "title": "Agent Memory Architectures",
   "description": "Agent memory architecture is the systems design problem of deciding what an agent stores, how it retrieves it, how different memory types are represented, and which combination of raw history, semantic search, relational structure, and provenance can support real multi-step work.",
   "role": "reference",
-  "cluster": "memory",
+  "cluster": "ai-software",
   "visualStatus": "table",
   "headings": [
     {
@@ -218,5 +218,5 @@
   "readingMinutes": 13,
   "charts": [],
   "heroImage": "/wiki/generated-images/agent-memory-architectures.svg",
-  "contentHash": "c4aa143e65ead5f9ea0861f00c8f347ad4b0c47a789cb966b198febcc90cdad1"
+  "contentHash": "2b6da88abfb07d37261cabe47f21f08f0a18a15537f3574c830fadc96b24ef9b"
 }

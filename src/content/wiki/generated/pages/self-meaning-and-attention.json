@@ -1,0 +1,66 @@
+{
+  "slug": "self-meaning-and-attention",
+  "title": "Self, Meaning & Attention",
+  "description": "This is the domain map for self models, attention, identity, inner life, philosophy, nonduality, impostor dynamics, and failure first personal reflection.",
+  "role": "hub",
+  "cluster": "self-meaning",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Self, Meaning & Attention",
+      "id": "self-meaning-and-attention"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Current map",
+      "id": "current-map"
+    },
+    {
+      "level": 2,
+      "text": "Practical questions",
+      "id": "practical-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Nonduality & Self-Models",
+    "Impostor Syndrome",
+    "Inversion Thinking",
+    "Health, Energy & Readiness",
+    "Source Intake Guide"
+  ],
+  "linkedSlugs": [
+    "nonduality-and-self-models",
+    "impostor-syndrome",
+    "inversion-thinking",
+    "health-energy-and-readiness",
+    "source-intake-guide"
+  ],
+  "sourceNotes": [
+    "`wiki/Nonduality & Self-Models.md` - existing synthesis on self-models and direct experience.",
+    "`wiki/Impostor Syndrome.md` - existing synthesis on identity lag and role transition.",
+    "`wiki/Inversion Thinking.md` - existing synthesis on failure-first reasoning."
+  ],
+  "markdown": "# Self, Meaning & Attention\n\nThis is the domain map for self-models, attention, identity, inner life, philosophy, nonduality, impostor dynamics, and failure-first personal reflection.\n\n## Why this matters\n\nThis domain should preserve thoughtful private synthesis without pretending every inner-life claim is externally verified. Personal reflections can be captured in `raw/` and compiled into this area when they clarify durable patterns.\n\n## Current map\n\n| Page | Role |\n| --- | --- |\n| [Nonduality & Self-Models](/wiki/nonduality-and-self-models) | Direct-experience inquiry, no-self language, and the felt inner controller. |\n| [Impostor Syndrome](/wiki/impostor-syndrome) | Role transitions, identity lag, perfectionism, fear, and self-trust. |\n| [Inversion Thinking](/wiki/inversion-thinking) | Failure-first reasoning, misery inversion, resilience, and disconfirmation. |\n| [Health, Energy & Readiness](/wiki/health-energy-and-readiness) | The body and energy side of personal operating capacity. |\n\n## Practical questions\n\n- Which ideas are private practice versus externally supportable claims?\n- Which self-models improve behavior, attention, and resilience?\n- Which personal observations should be captured as raw reflections?\n- Which failure patterns are worth designing against?\n\n## Related\n\n- [Nonduality & Self-Models](/wiki/nonduality-and-self-models)\n- [Impostor Syndrome](/wiki/impostor-syndrome)\n- [Inversion Thinking](/wiki/inversion-thinking)\n- [Health, Energy & Readiness](/wiki/health-energy-and-readiness)\n- [Source Intake Guide](/wiki/source-intake-guide)\n\n## Source notes\n\n- `wiki/Nonduality & Self-Models.md` - existing synthesis on self-models and direct experience.\n- `wiki/Impostor Syndrome.md` - existing synthesis on identity lag and role transition.\n- `wiki/Inversion Thinking.md` - existing synthesis on failure-first reasoning.\n",
+  "plainText": "Self, Meaning & Attention This is the domain map for self models, attention, identity, inner life, philosophy, nonduality, impostor dynamics, and failure first personal reflection. Why this matters This domain should preserve thoughtful private synthesis without pretending every inner life claim is externally verified. Personal reflections can be captured in raw/ and compiled into this area when they clarify durable patterns. Current map Page Role Nonduality & Self Models Direct experience inquiry, no self language, and the felt inner controller. Impostor Syndrome Role transitions, identity lag, perfectionism, fear, and self trust. Inversion Thinking Failure first reasoning, misery inversion, resilience, and disconfirmation. Health, Energy & Readiness The body and energy side of personal operating capacity. Practical questions Which ideas are private practice versus externally supportable claims? Which self models improve behavior, attention, and resilience? Which personal observations should be captured as raw reflections? Which failure patterns are worth designing against? Related Nonduality & Self Models Impostor Syndrome Inversion Thinking Health, Energy & Readiness Source Intake Guide Source notes wiki/Nonduality & Self Models.md existing synthesis on self models and direct experience. wiki/Impostor Syndrome.md existing synthesis on identity lag and role transition. wiki/Inversion Thinking.md existing synthesis on failure first reasoning.",
+  "wordCount": 197,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/self-meaning-and-attention.svg",
+  "contentHash": "e0fe8a5c1cdfdc43a3bd67f235a628493e570693009238bb984143bcc227ac70"
+}

@@ -1,0 +1,64 @@
+{
+  "slug": "money-wealth-and-markets",
+  "title": "Money, Wealth & Markets",
+  "description": "This is the domain map for wealth, investing, compounding, capital allocation, market cycles, and financial judgment.",
+  "role": "hub",
+  "cluster": "money",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Money, Wealth & Markets",
+      "id": "money-wealth-and-markets"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Current map",
+      "id": "current-map"
+    },
+    {
+      "level": 2,
+      "text": "Practical questions",
+      "id": "practical-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Wealth & Market Cycles",
+    "Venture Opportunity Discovery",
+    "Claim Review",
+    "Research Leads",
+    "Decision Log"
+  ],
+  "linkedSlugs": [
+    "wealth-and-market-cycles",
+    "venture-opportunity-discovery",
+    "claim-review",
+    "research-leads",
+    "decision-log"
+  ],
+  "sourceNotes": [
+    "`wiki/Wealth & Market Cycles.md` - existing synthesis on behavior, compounding, market cycles, and platform shifts."
+  ],
+  "markdown": "# Money, Wealth & Markets\n\nThis is the domain map for wealth, investing, compounding, capital allocation, market cycles, and financial judgment.\n\n## Why this matters\n\nMoney pages should help distinguish durable financial behavior from time-sensitive market claims. The vault can preserve investing ideas and market observations, but public-use or action-oriented claims need verification and context.\n\n## Current map\n\n| Page | Role |\n| --- | --- |\n| [Wealth & Market Cycles](/wiki/wealth-and-market-cycles) | Behavior, compounding, market cycles, AI bubble framing, and platform-shift discipline. |\n| [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery) | Opportunity selection and demand testing where market judgment overlaps with business building. |\n| [Claim Review](/wiki/claim-review) | Market, return, pricing, and forecast claims that should not be reused unverified. |\n| [Research Leads](/wiki/research-leads) | High-quality investing, market, and economics sources to revisit. |\n\n## Practical questions\n\n- Which principles remain useful across cycles?\n- Which claims are merely current market commentary?\n- Which sources deserve rereading before money-related decisions?\n- Which ideas are private thinking versus externally defensible analysis?\n\n## Related\n\n- [Wealth & Market Cycles](/wiki/wealth-and-market-cycles)\n- [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery)\n- [Claim Review](/wiki/claim-review)\n- [Research Leads](/wiki/research-leads)\n- [Decision Log](/wiki/decision-log)\n\n## Source notes\n\n- `wiki/Wealth & Market Cycles.md` - existing synthesis on behavior, compounding, market cycles, and platform shifts.\n",
+  "plainText": "Money, Wealth & Markets This is the domain map for wealth, investing, compounding, capital allocation, market cycles, and financial judgment. Why this matters Money pages should help distinguish durable financial behavior from time sensitive market claims. The vault can preserve investing ideas and market observations, but public use or action oriented claims need verification and context. Current map Page Role Wealth & Market Cycles Behavior, compounding, market cycles, AI bubble framing, and platform shift discipline. Venture Opportunity Discovery Opportunity selection and demand testing where market judgment overlaps with business building. Claim Review Market, return, pricing, and forecast claims that should not be reused unverified. Research Leads High quality investing, market, and economics sources to revisit. Practical questions Which principles remain useful across cycles? Which claims are merely current market commentary? Which sources deserve rereading before money related decisions? Which ideas are private thinking versus externally defensible analysis? Related Wealth & Market Cycles Venture Opportunity Discovery Claim Review Research Leads Decision Log Source notes wiki/Wealth & Market Cycles.md existing synthesis on behavior, compounding, market cycles, and platform shifts.",
+  "wordCount": 177,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/money-wealth-and-markets.svg",
+  "contentHash": "dc46dde2421fd2b33659c50a7f3c248ddbc422364e86e703be837e22c6318aad"
+}

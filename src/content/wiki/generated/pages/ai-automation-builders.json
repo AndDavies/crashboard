@@ -3,7 +3,7 @@
   "title": "AI Automation Builders",
   "description": "An AI automation builder is a workflow-first operator who connects LLMs to real business tools, rebuilds repetitive processes as reliable pipelines, and sells measurable business outcomes rather than frontier-model novelty.",
   "role": "concept",
-  "cluster": "judgment",
+  "cluster": "venture",
   "visualStatus": "none",
   "headings": [
     {
@@ -244,5 +244,5 @@
   "readingMinutes": 23,
   "charts": [],
   "heroImage": "/wiki/generated-images/ai-automation-builders.svg",
-  "contentHash": "e06b4b97dca9cbd0258b538e31c7f73744cc023a6bf451f990ec61afdbd00cd0"
+  "contentHash": "26c772bfb00fc9e5c1afcd88d6e72ff07bdea37b15810d35ec6a51d32b563099"
 }

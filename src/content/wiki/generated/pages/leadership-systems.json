@@ -3,7 +3,7 @@
   "title": "Leadership Systems",
   "description": "Strong leadership systems are built less on charisma than on incentives, follow-through, cultural clarity, human development, and the repeated reinforcement of standards that let ordinary teams do uncommon work.",
   "role": "concept",
-  "cluster": "judgment",
+  "cluster": "leadership-work",
   "visualStatus": "none",
   "headings": [
     {
@@ -189,5 +189,5 @@
   "readingMinutes": 13,
   "charts": [],
   "heroImage": "/wiki/generated-images/leadership-systems.svg",
-  "contentHash": "3e0052094cfea7ef80eca41b82d1df9cc0c6102907a8990e57f9dfd638d8de4f"
+  "contentHash": "a6bc7b97bc2c8d2d442c203ec7ea561b98b1a2d6da0635594bbcaf3c2e05384e"
 }

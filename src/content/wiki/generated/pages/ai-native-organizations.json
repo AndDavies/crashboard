@@ -3,7 +3,7 @@
   "title": "AI-Native Organizations",
   "description": "AI-native organizations are not defined only by using AI tools. They are defined by redesigning work, incentives, interfaces, team structure, and human capability around the fact that intelligence and execution can now be delegated much more cheaply.",
   "role": "concept",
-  "cluster": "judgment",
+  "cluster": "leadership-work",
   "visualStatus": "none",
   "headings": [
     {
@@ -203,5 +203,5 @@
   "readingMinutes": 18,
   "charts": [],
   "heroImage": "/wiki/generated-images/ai-native-organizations.svg",
-  "contentHash": "7b78cf81b93c14ec236243def5e8f2cca915200665a98ca72f390d1d3926d253"
+  "contentHash": "b268df323519d16c530c18cfec5dec730dfd20cdedf40f8eda6afd44bab5939d"
 }

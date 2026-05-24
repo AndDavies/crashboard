@@ -11,18 +11,18 @@
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="88" y="84" width="1024" height="462" rx="28" fill="#fffdf8" stroke="#d8cdbb" filter="url(#shadow)"/>
-  <path d="M142 444 C280 328, 380 454, 520 340 S800 236, 1028 316" fill="none" stroke="#c890b9" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
-  <path d="M184 392 C318 256, 478 340, 610 250 S790 202, 964 246" fill="none" stroke="#3a2f3e" stroke-width="3" stroke-linecap="round" opacity="0.28"/>
-  <g fill="#3a2f3e" opacity="0.92">
+  <path d="M142 444 C280 328, 380 454, 520 340 S800 236, 1028 316" fill="none" stroke="#71b7a8" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+  <path d="M184 392 C318 256, 478 340, 610 250 S790 202, 964 246" fill="none" stroke="#23383a" stroke-width="3" stroke-linecap="round" opacity="0.28"/>
+  <g fill="#23383a" opacity="0.92">
     <circle cx="184" cy="392" r="13"/>
     <circle cx="372" cy="362" r="13"/>
     <circle cx="610" cy="250" r="13"/>
     <circle cx="832" cy="226" r="13"/>
     <circle cx="964" cy="246" r="13"/>
   </g>
-  <text x="142" y="158" fill="#3a2f3e" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">SOVEREIGNTY / CONCEPT</text>
+  <text x="142" y="158" fill="#23383a" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">CANADA-POLICY / CONCEPT</text>
   <foreignObject x="140" y="190" width="700" height="190">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #3a2f3e; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Regional Tech Ecosystems</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #23383a; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Regional Tech Ecosystems</div>
   </foreignObject>
   <text x="142" y="506" fill="#6b6358" font-family="Inter, ui-sans-serif, system-ui" font-size="24">2,837 words · 13 min read · 5 source notes</text>
 </svg>

@@ -1,0 +1,61 @@
+{
+  "slug": "research-leads",
+  "title": "Research Leads",
+  "description": "Use this page to preserve source trails worth revisiting: publications, people, organizations, search terms, reports, and source types that repeatedly improve the wiki.",
+  "role": "operational",
+  "cluster": "navigation",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Research Leads",
+      "id": "research-leads"
+    },
+    {
+      "level": 2,
+      "text": "Lead table",
+      "id": "lead-table"
+    },
+    {
+      "level": 2,
+      "text": "Source quality guide",
+      "id": "source-quality-guide"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Canadian Prosperity Agenda",
+    "Venture Opportunity Discovery",
+    "Communication, Persuasion & Taste",
+    "Source Intake Guide",
+    "Claim Review",
+    "Open Loops"
+  ],
+  "linkedSlugs": [
+    "canadian-prosperity-agenda",
+    "venture-opportunity-discovery",
+    "communication-persuasion-and-taste",
+    "source-intake-guide",
+    "claim-review",
+    "open-loops"
+  ],
+  "sourceNotes": [
+    "`outputs/kb-vault-review-2026-05-24.md` - recommended a durable research-leads surface for future source discovery and quality tracking."
+  ],
+  "markdown": "# Research Leads\n\nUse this page to preserve source trails worth revisiting: publications, people, organizations, search terms, reports, and source types that repeatedly improve the wiki.\n\n## Lead table\n\n| Domain | Lead | Why it matters | Follow-up |\n| --- | --- | --- | --- |\n| ai-software | Official model, API, SDK, and product docs | Product and tooling details age quickly and should be checked at the source. | Verify before updating public-facing AI claims. |\n| canada-policy | Canadian government, defence, infrastructure, and economic-policy primary sources | Policy claims need primary-source support before external use. | Prefer official docs and reports for [Canadian Prosperity Agenda](/wiki/canadian-prosperity-agenda). |\n| health | Primary health, sleep, longevity, and occupational-health sources | Health claims can become misleading without current evidence. | Treat practitioner claims as leads, not facts. |\n| venture | Customer language, procurement pages, job posts, forums, and buyer interviews | Venture pages need demand evidence, not only creator claims. | Connect leads to [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery). |\n| communication | Strong speeches, campaigns, and writing craft sources | Communication pages benefit from concrete examples and repeatable models. | Route durable frameworks to [Communication, Persuasion & Taste](/wiki/communication-persuasion-and-taste). |\n\n## Source quality guide\n\n- `primary`: official documents, standards, datasets, laws, original research, first-party technical docs.\n- `credible_secondary`: established institutions, expert reports, high-quality journalism, serious practitioner analysis.\n- `useful_secondary`: plausible explainers or case studies that add structure but need corroboration.\n- `useful_practitioner_signal`: useful market or workflow signal with claims that should not be repeated unverified.\n- `thin_or_unknown`: keep only if it contributes a concrete lead, example, or question.\n\n## Related\n\n- [Source Intake Guide](/wiki/source-intake-guide)\n- [Claim Review](/wiki/claim-review)\n- [Open Loops](/wiki/open-loops)\n- [Venture Opportunity Discovery](/wiki/venture-opportunity-discovery)\n- [Canadian Prosperity Agenda](/wiki/canadian-prosperity-agenda)\n\n## Source notes\n\n- `outputs/kb-vault-review-2026-05-24.md` - recommended a durable research-leads surface for future source discovery and quality tracking.\n",
+  "plainText": "Research Leads Use this page to preserve source trails worth revisiting: publications, people, organizations, search terms, reports, and source types that repeatedly improve the wiki. Lead table Domain Lead Why it matters Follow up ai software Official model, API, SDK, and product docs Product and tooling details age quickly and should be checked at the source. Verify before updating public facing AI claims. canada policy Canadian government, defence, infrastructure, and economic policy primary sources Policy claims need primary source support before external use. Prefer official docs and reports for Canadian Prosperity Agenda. health Primary health, sleep, longevity, and occupational health sources Health claims can become misleading without current evidence. Treat practitioner claims as leads, not facts. venture Customer language, procurement pages, job posts, forums, and buyer interviews Venture pages need demand evidence, not only creator claims. Connect leads to Venture Opportunity Discovery. communication Strong speeches, campaigns, and writing craft sources Communication pages benefit from concrete examples and repeatable models. Route durable frameworks to Communication, Persuasion & Taste. Source quality guide primary : official documents, standards, datasets, laws, original research, first party technical docs. credible secondary : established institutions, expert reports, high quality journalism, serious practitioner analysis. useful secondary : plausible explainers or case studies that add structure but need corroboration. useful practitioner signal : useful market or workflow signal with claims that should not be repeated unverified. thin or unknown : keep only if it contributes a concrete lead, example, or question. Related Source Intake Guide Claim Review Open Loops Venture Opportunity Discovery Canadian Prosperity Agenda Source notes outputs/kb vault review 2026 05 24.md recommended a durable research leads surface for future source discovery and quality tracking.",
+  "wordCount": 277,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/research-leads.svg",
+  "contentHash": "f1c549fa353b3fdb9fddf37f6f83d406e0bd1ff1cffca7b7c01061d6c55a1dce"
+}

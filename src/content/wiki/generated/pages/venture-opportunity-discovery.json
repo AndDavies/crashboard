@@ -3,7 +3,7 @@
   "title": "Venture Opportunity Discovery",
   "description": "AI-era venture discovery is less about inventing ideas from imagination and more about reading visible friction: repeated prompts, manual service work, bad reviews, messy spreadsheets, workflow tutorials, recurring meeting prep, and revenue that looks exciting before it proves durable.",
   "role": "concept",
-  "cluster": "judgment",
+  "cluster": "venture",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -287,5 +287,5 @@
   "readingMinutes": 31,
   "charts": [],
   "heroImage": "/wiki/generated-images/venture-opportunity-discovery.svg",
-  "contentHash": "c07882f5c987718c2fbaf33b4701016121c220939f675063aa3f5c79b48706a2"
+  "contentHash": "eb856a9a8f42f7d4dbb1ee0ef7f22f85e3ff968dcd49f07a18ce2f93de160ab7"
 }

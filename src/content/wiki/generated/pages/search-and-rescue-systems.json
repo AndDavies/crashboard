@@ -3,7 +3,7 @@
   "title": "Search and Rescue Systems",
   "description": "Search and rescue systems are operational stacks that combine sensing, communications, modeling, and field deployment tools to reduce uncertainty fast enough for responders to find people, vessels, or aircraft before time and environment erase the opportunity.",
   "role": "reference",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "none",
   "headings": [
     {
@@ -171,5 +171,5 @@
   "readingMinutes": 8,
   "charts": [],
   "heroImage": "/wiki/generated-images/search-and-rescue-systems.svg",
-  "contentHash": "dcc1d1d02a73e5d8467a1624fffdba69b290dbfcf88188a90f4f90b210cbda15"
+  "contentHash": "249716e2f51f8d1fc38a424e76475c302d4ffa0f8e20823eaac81b64fd0e68ce"
 }

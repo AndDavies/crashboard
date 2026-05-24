@@ -3,7 +3,7 @@
   "title": "Personal Knowledge Systems",
   "description": "A strong personal knowledge system is not a prettier note app. It is a durable compilation loop: raw inputs come in, an agent organizes them into interlinked pages, and the resulting graph becomes a living interface for thinking.",
   "role": "concept",
-  "cluster": "knowledge",
+  "cluster": "knowledge-learning",
   "visualStatus": "none",
   "headings": [
     {
@@ -160,5 +160,5 @@
   "readingMinutes": 7,
   "charts": [],
   "heroImage": "/wiki/generated-images/personal-knowledge-systems.svg",
-  "contentHash": "81f2fffbeb4cd730c87738c0330ca23b49655f0b5b69478b4384b2086358d5f5"
+  "contentHash": "49e95647a3fc43d781bcd9c1c6c4dd0b41d5578adb0db0a7f4905da6a3c6343a"
 }

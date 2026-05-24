@@ -1,0 +1,67 @@
+{
+  "slug": "health-energy-and-readiness",
+  "title": "Health, Energy & Readiness",
+  "description": "This is the domain map for health, energy, readiness, habits, burnout, longevity, sleep, recovery, and wellness related work.",
+  "role": "hub",
+  "cluster": "health",
+  "visualStatus": "table",
+  "headings": [
+    {
+      "level": 1,
+      "text": "Health, Energy & Readiness",
+      "id": "health-energy-and-readiness"
+    },
+    {
+      "level": 2,
+      "text": "Why this matters",
+      "id": "why-this-matters"
+    },
+    {
+      "level": 2,
+      "text": "Current map",
+      "id": "current-map"
+    },
+    {
+      "level": 2,
+      "text": "Practical questions",
+      "id": "practical-questions"
+    },
+    {
+      "level": 2,
+      "text": "Related",
+      "id": "related"
+    },
+    {
+      "level": 2,
+      "text": "Source notes",
+      "id": "source-notes"
+    }
+  ],
+  "related": [
+    "Claim Review",
+    "Health & Discipline",
+    "Corporate Wellness Opportunity Strategy",
+    "Impostor Syndrome",
+    "Open Loops",
+    "Source Intake Guide"
+  ],
+  "linkedSlugs": [
+    "claim-review",
+    "health-and-discipline",
+    "corporate-wellness-opportunity-strategy",
+    "impostor-syndrome",
+    "open-loops",
+    "source-intake-guide"
+  ],
+  "sourceNotes": [
+    "`wiki/Health & Discipline.md` - existing synthesis on identity-based habits, circadian leverage, and discipline.",
+    "`wiki/Corporate Wellness Opportunity Strategy.md` - existing synthesis on readiness, workforce risk, and corporate wellness opportunity."
+  ],
+  "markdown": "# Health, Energy & Readiness\n\nThis is the domain map for health, energy, readiness, habits, burnout, longevity, sleep, recovery, and wellness-related work.\n\n## Why this matters\n\nHealth is not only a private self-improvement topic. In this vault it connects personal energy, identity-based discipline, workforce readiness, corporate wellness, ageing, resilience, and the built environment.\n\nThe useful posture is evidence-aware and practical: capture personal experiments in `raw/`, compile durable lessons into the wiki, and send public-use health or market claims to [Claim Review](/wiki/claim-review).\n\n## Current map\n\n| Page | Role |\n| --- | --- |\n| [Health & Discipline](/wiki/health-and-discipline) | Personal habits, circadian leverage, discipline, and energy management. |\n| [Corporate Wellness Opportunity Strategy](/wiki/corporate-wellness-opportunity-strategy) | Business-development and market-intelligence lens on wellness, readiness, and workforce risk. |\n| [Impostor Syndrome](/wiki/impostor-syndrome) | Identity lag, over-preparation, role transition, and self-trust. |\n| [Open Loops](/wiki/open-loops) | Health experiments and unresolved questions. |\n| [Claim Review](/wiki/claim-review) | Health, wellness, GLP-1, burnout, and market-size claims needing verification. |\n\n## Practical questions\n\n- What improves energy reliably enough to become a personal operating rule?\n- Which health claims are durable enough to act on?\n- Which wellness claims are market leads rather than verified facts?\n- Which personal experiments should be captured as typed raw sources?\n\n## Related\n\n- [Health & Discipline](/wiki/health-and-discipline)\n- [Corporate Wellness Opportunity Strategy](/wiki/corporate-wellness-opportunity-strategy)\n- [Open Loops](/wiki/open-loops)\n- [Claim Review](/wiki/claim-review)\n- [Source Intake Guide](/wiki/source-intake-guide)\n\n## Source notes\n\n- `wiki/Health & Discipline.md` - existing synthesis on identity-based habits, circadian leverage, and discipline.\n- `wiki/Corporate Wellness Opportunity Strategy.md` - existing synthesis on readiness, workforce risk, and corporate wellness opportunity.\n",
+  "plainText": "Health, Energy & Readiness This is the domain map for health, energy, readiness, habits, burnout, longevity, sleep, recovery, and wellness related work. Why this matters Health is not only a private self improvement topic. In this vault it connects personal energy, identity based discipline, workforce readiness, corporate wellness, ageing, resilience, and the built environment. The useful posture is evidence aware and practical: capture personal experiments in raw/ , compile durable lessons into the wiki, and send public use health or market claims to Claim Review. Current map Page Role Health & Discipline Personal habits, circadian leverage, discipline, and energy management. Corporate Wellness Opportunity Strategy Business development and market intelligence lens on wellness, readiness, and workforce risk. Impostor Syndrome Identity lag, over preparation, role transition, and self trust. Open Loops Health experiments and unresolved questions. Claim Review Health, wellness, GLP 1, burnout, and market size claims needing verification. Practical questions What improves energy reliably enough to become a personal operating rule? Which health claims are durable enough to act on? Which wellness claims are market leads rather than verified facts? Which personal experiments should be captured as typed raw sources? Related Health & Discipline Corporate Wellness Opportunity Strategy Open Loops Claim Review Source Intake Guide Source notes wiki/Health & Discipline.md existing synthesis on identity based habits, circadian leverage, and discipline. wiki/Corporate Wellness Opportunity Strategy.md existing synthesis on readiness, workforce risk, and corporate wellness opportunity.",
+  "wordCount": 233,
+  "readingMinutes": 1,
+  "charts": [],
+  "heroImage": "/wiki/generated-images/health-energy-and-readiness.svg",
+  "contentHash": "86b98be2804f990b73f2bdab66b33ae34b56043a6df00cf4e15abdc9912bff6b"
+}

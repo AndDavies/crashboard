@@ -3,7 +3,7 @@
   "title": "LLM Memory",
   "description": "Long-term memory for LLM systems remains unsolved because useful memory requires preserving meaning over time without losing fidelity, over-compressing context, or making retrieval too expensive and unreliable.",
   "role": "reference",
-  "cluster": "memory",
+  "cluster": "ai-software",
   "visualStatus": "none",
   "headings": [
     {
@@ -227,5 +227,5 @@
   "readingMinutes": 12,
   "charts": [],
   "heroImage": "/wiki/generated-images/llm-memory.svg",
-  "contentHash": "cd33d8401b4f3a84e882144932fa19b4332c8d153a4795fb857707eba6f5d243"
+  "contentHash": "583ea1449255ad59c4b74304f278621574c7ce9c032f4f406e6a5da8f276eb89"
 }

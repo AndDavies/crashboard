@@ -3,7 +3,7 @@
   "title": "Context Compaction",
   "description": "Context compaction is the problem of preserving enough intermediate state for a model to keep reasoning effectively without carrying the full cost of its entire visible history at every step.",
   "role": "reference",
-  "cluster": "memory",
+  "cluster": "ai-software",
   "visualStatus": "none",
   "headings": [
     {
@@ -136,5 +136,5 @@
   "readingMinutes": 4,
   "charts": [],
   "heroImage": "/wiki/generated-images/context-compaction.svg",
-  "contentHash": "0d4970209545deb6722001cafc443f4db5c2e9043237501cca2725bb289bc56c"
+  "contentHash": "dba000b6600c328308faa6c2049dbc2ae7c4119b85b296f3abb441dfc96d54b3"
 }

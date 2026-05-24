@@ -3,7 +3,7 @@
   "title": "Open Harnesses",
   "description": "Open harnesses matter because agent memory is not a detachable add-on. It is part of how the harness manages context, state, compaction, retrieval, and portability, which means closed harnesses can turn memory into platform lock-in.",
   "role": "reference",
-  "cluster": "memory",
+  "cluster": "ai-software",
   "visualStatus": "none",
   "headings": [
     {
@@ -173,5 +173,5 @@
   "readingMinutes": 8,
   "charts": [],
   "heroImage": "/wiki/generated-images/open-harnesses.svg",
-  "contentHash": "dc76cf76369ffba84e2ffc0778692d42d0995fe420ccd343e66006082a19866c"
+  "contentHash": "1a2b435a40ef7f471b930d631ea418391e1beb609a458b9a317f289bbce63919"
 }

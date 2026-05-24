@@ -3,7 +3,7 @@
   "title": "Sovereign AI Compute",
   "description": "Sovereign AI compute is the domestic capacity to finance, own, govern, and reliably access large-scale AI and digital infrastructure in ways that support national research, industrial competitiveness, data control, resilient timing and connectivity, and strategic autonomy.",
   "role": "concept",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "none",
   "headings": [
     {
@@ -176,5 +176,5 @@
   "readingMinutes": 12,
   "charts": [],
   "heroImage": "/wiki/generated-images/sovereign-ai-compute.svg",
-  "contentHash": "2d51a8a7988c78c69d71b1d022dbe72bf86fcd03279e4df71423c5c490d44bd0"
+  "contentHash": "9f19886b886a4368381ff82648b6ae8d566fb5ac22385cce952d25dc3c312665"
 }

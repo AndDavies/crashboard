@@ -3,7 +3,7 @@
   "title": "Compiled Knowledge Systems",
   "description": "A compiled knowledge system turns raw capture into durable understanding by maintaining a smaller, linked synthesis layer that improves through ingest, curation, query, and file-back.",
   "role": "hub",
-  "cluster": "knowledge",
+  "cluster": "knowledge-learning",
   "visualStatus": "image",
   "headings": [
     {
@@ -147,5 +147,5 @@
   "readingMinutes": 8,
   "charts": [],
   "heroImage": "/wiki/generated-images/compiled-knowledge-systems.svg",
-  "contentHash": "b70919305fb10823ffcda7700c16f4cca2e196d3dff70c3fdc85fea6a65fbc55"
+  "contentHash": "692e5db4d73011af0469378ca0a14329e126b5350fadb7f3d8b229d40567d215"
 }

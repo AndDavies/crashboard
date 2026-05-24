@@ -3,7 +3,7 @@
   "title": "Canadian Prosperity Agenda",
   "description": "The Canadian prosperity agenda is a policy-and-state-capacity thesis: Canada can only improve productivity, sovereignty, housing, talent retention, and national confidence if it rebuilds the machinery that lets people build, invest, deploy technology, and execute public priorities quickly.",
   "role": "concept",
-  "cluster": "sovereignty",
+  "cluster": "canada-policy",
   "visualStatus": "table",
   "headings": [
     {
@@ -208,5 +208,5 @@
   "readingMinutes": 11,
   "charts": [],
   "heroImage": "/wiki/generated-images/canadian-prosperity-agenda.svg",
-  "contentHash": "46930fdeeff148434f84fbab2207478c383f0965ddcfd1ecad0dfec90e504dd0"
+  "contentHash": "c435d7a06bc25c46492d136bcaa83135af29a6339200c785107b3d480019d681"
 }

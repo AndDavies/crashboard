@@ -2,8 +2,8 @@
   "slug": "wealth-and-market-cycles",
   "title": "Wealth & Market Cycles",
   "description": "Wealth compounds through behavior, patience, and survival. Market cycles punish certainty, overconfidence, and the assumption that every new technological wave will reward all participants equally.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "money",
   "visualStatus": "none",
   "headings": [
     {
@@ -134,5 +134,5 @@
   "readingMinutes": 5,
   "charts": [],
   "heroImage": "/wiki/generated-images/wealth-and-market-cycles.svg",
-  "contentHash": "ff2aa39aaeadf52fd511bcb106517d7e6a58f79ef8ea52ea88e7414b947ea1f7"
+  "contentHash": "f203462795765b0662f9687329c383502d9015d6062ce0248708d5a8683a3c1e"
 }

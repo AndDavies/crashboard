@@ -2,8 +2,8 @@
   "slug": "inversion-thinking",
   "title": "Inversion Thinking",
   "description": "Inversion thinking is the discipline of solving for success by first studying the causes of failure, error, or misery, then structuring behavior to avoid those conditions.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "self-meaning",
   "visualStatus": "none",
   "headings": [
     {
@@ -178,5 +178,5 @@
   "readingMinutes": 9,
   "charts": [],
   "heroImage": "/wiki/generated-images/inversion-thinking.svg",
-  "contentHash": "88ab726680c6e97ff571337bc8b17fa0125a50474e14dbdb7551e8415612d84e"
+  "contentHash": "d1675f288c0125d41519308c523d29484685064392db55a9b33cbda411951e98"
 }

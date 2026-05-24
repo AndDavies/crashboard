@@ -3,7 +3,7 @@
   "title": "Chief of Staff Agents",
   "description": "A chief-of-staff agent is an operator-style assistant designed not merely to answer questions, but to maintain executive context, prepare decisions, track commitments, filter noise, and improve the surrounding workflow over time.",
   "role": "concept",
-  "cluster": "knowledge",
+  "cluster": "leadership-work",
   "visualStatus": "none",
   "headings": [
     {
@@ -211,5 +211,5 @@
   "readingMinutes": 15,
   "charts": [],
   "heroImage": "/wiki/generated-images/chief-of-staff-agents.svg",
-  "contentHash": "db8805042d35ffa7fdcb08a485467890e9accc9e792f136d75eabcfad4c7a418"
+  "contentHash": "d38bff04216bb1797edd0d1a1dae3a6334feba50ee41ca3eae5c7128d6525052"
 }

@@ -2,8 +2,8 @@
   "slug": "communication-and-idea-transfer",
   "title": "Communication & Idea Transfer",
   "description": "Communication is the operating system for getting ideas valued, remembered, and acted on. The speaker's job is not to display information; it is to transfer a usable mental model into the audience.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "communication",
   "visualStatus": "mermaid",
   "headings": [
     {
@@ -102,5 +102,5 @@
   "readingMinutes": 3,
   "charts": [],
   "heroImage": "/wiki/generated-images/communication-and-idea-transfer.svg",
-  "contentHash": "11ee4dddf1290e4afb53d2f7a38197c46efb53af42e3d72c9b8e1e716d875545"
+  "contentHash": "6076e331f998bde60d41c17b3cc8f02808c62c00f370d3e1c966c9b07097ce8f"
 }

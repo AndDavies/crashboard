@@ -2,8 +2,8 @@
   "slug": "impostor-syndrome",
   "title": "Impostor Syndrome",
   "description": "Impostor syndrome is a recurring pattern where capable people interpret success as luck, discount evidence of competence, and fear being exposed as less capable than others believe.",
-  "role": "reference",
-  "cluster": "judgment",
+  "role": "concept",
+  "cluster": "self-meaning",
   "visualStatus": "none",
   "headings": [
     {
@@ -158,5 +158,5 @@
   "readingMinutes": 6,
   "charts": [],
   "heroImage": "/wiki/generated-images/impostor-syndrome.svg",
-  "contentHash": "6db6048fc29583fb64053e4c677181481c6721639ab5a702e19159f4c9448812"
+  "contentHash": "3762a611017fc6f2465a35aaf5cbe24748253afcf02811e0397bd46ab6621b65"
 }

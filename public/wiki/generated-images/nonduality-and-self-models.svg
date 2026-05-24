@@ -11,18 +11,18 @@
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="88" y="84" width="1024" height="462" rx="28" fill="#fffdf8" stroke="#d8cdbb" filter="url(#shadow)"/>
-  <path d="M142 444 C280 328, 380 454, 520 340 S800 236, 1028 316" fill="none" stroke="#c88f5a" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
-  <path d="M184 392 C318 256, 478 340, 610 250 S790 202, 964 246" fill="none" stroke="#3d3327" stroke-width="3" stroke-linecap="round" opacity="0.28"/>
-  <g fill="#3d3327" opacity="0.92">
+  <path d="M142 444 C280 328, 380 454, 520 340 S800 236, 1028 316" fill="none" stroke="#d69d45" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+  <path d="M184 392 C318 256, 478 340, 610 250 S790 202, 964 246" fill="none" stroke="#263238" stroke-width="3" stroke-linecap="round" opacity="0.28"/>
+  <g fill="#263238" opacity="0.92">
     <circle cx="184" cy="392" r="13"/>
     <circle cx="372" cy="362" r="13"/>
     <circle cx="610" cy="250" r="13"/>
     <circle cx="832" cy="226" r="13"/>
     <circle cx="964" cy="246" r="13"/>
   </g>
-  <text x="142" y="158" fill="#3d3327" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">JUDGMENT / REFERENCE</text>
+  <text x="142" y="158" fill="#263238" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700" letter-spacing="4">SELF-MEANING / CONCEPT</text>
   <foreignObject x="140" y="190" width="700" height="190">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #3d3327; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Nonduality &amp; Self-Models</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Inter, ui-sans-serif, system-ui; color: #263238; font-size: 56px; line-height: 1.02; font-weight: 760; letter-spacing: -1px;">Nonduality &amp; Self-Models</div>
   </foreignObject>
   <text x="142" y="506" fill="#6b6358" font-family="Inter, ui-sans-serif, system-ui" font-size="24">604 words · 3 min read · 1 source notes</text>
 </svg>

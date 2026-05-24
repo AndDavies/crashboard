@@ -3,7 +3,7 @@
   "title": "Proactive Agents",
   "description": "Proactive agents are AI systems that do not wait for explicit prompts on every turn. They infer latent user needs from ongoing context, decide whether intervention is warranted, and deliver timely assistance while managing the risk of interruption, error, and overreach.",
   "role": "reference",
-  "cluster": "execution",
+  "cluster": "ai-software",
   "visualStatus": "none",
   "headings": [
     {
@@ -175,5 +175,5 @@
   "readingMinutes": 7,
   "charts": [],
   "heroImage": "/wiki/generated-images/proactive-agents.svg",
-  "contentHash": "86854c95850ad9a42cb4502a895b2263f23262e11462959a829be19a739ca570"
+  "contentHash": "245379dd456bf5833cb1f27b54dbe5f1013ff538213a75b66b442e716ba60b73"
 }
