@@ -162,7 +162,7 @@ export function DashboardShell({ children, userEmail }: Props) {
           {children}
         </main>
 
-        <footer className="mt-auto border-t border-border/60 py-3 text-center text-[11px] text-muted-foreground">
+        <footer className="mt-auto border-t border-border/80 py-3 text-center text-[11px] text-muted-foreground">
           <Link
             href="/"
             className="underline-offset-4 hover:text-foreground hover:underline"

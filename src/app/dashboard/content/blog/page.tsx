@@ -29,10 +29,8 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
     <div className="space-y-8">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
-            CMS
-          </p>
-          <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
+          <p className="eyebrow">CMS</p>
+          <h2 className="mt-2 font-heading text-3xl font-semibold tracking-tight text-foreground">
             Blog posts
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -46,12 +44,12 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
         </Button>
       </section>
 
-      <form className="grid gap-3 rounded-xl border border-foreground/15 bg-card p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] md:grid-cols-[1fr_12rem_auto]">
+      <form className="grid gap-3 border border-border/80 bg-card p-4 md:grid-cols-[1fr_12rem_auto]">
         <Input name="q" placeholder="Search articles" defaultValue={filters.q ?? ""} />
         <select
           name="status"
           defaultValue={filters.status ?? "all"}
-          className="h-8 rounded-lg border border-foreground/20 bg-white px-2.5 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-8 border border-border/80 bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
         >
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
@@ -59,15 +57,16 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
           <option value="scheduled">Scheduled</option>
           <option value="archived">Archived</option>
         </select>
-        <Button type="submit" variant="outline" className="bg-white">
+        <Button type="submit" variant="outline">
           Filter
         </Button>
       </form>
 
-      <section className="rounded-xl border border-foreground/15 bg-card p-5 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
+      <section className="border border-border/80 bg-card p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <h3 className="font-heading text-lg font-semibold text-foreground">
+            <p className="eyebrow">Templates</p>
+            <h3 className="mt-2 font-heading text-xl font-semibold text-foreground">
               Starter drafts
             </h3>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
@@ -76,12 +75,12 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <div className="mt-5 grid gap-px border border-border/80 bg-border/80 lg:grid-cols-3">
           {blogStarterPosts.map((starter) => (
             <Link
               key={starter.id}
               href={`/dashboard/content/blog/new?starter=${encodeURIComponent(starter.id)}`}
-              className="group rounded-lg border border-foreground/15 bg-white p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group flex flex-col bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <Badge variant="outline" className="font-normal">
                 {starter.focusTopic}
@@ -92,7 +91,7 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
               <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                 {starter.answerSummary}
               </p>
-              <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-foreground">
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent">
                 Use template
                 <ArrowRightIcon
                   className="size-4 transition-transform group-hover:translate-x-1"
@@ -105,11 +104,11 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
       </section>
 
       {posts.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-px border border-border/80 bg-border/80 md:grid-cols-2">
           {posts.map((post) => (
             <article
               key={post.id}
-              className="flex min-h-56 flex-col justify-between rounded-xl border border-foreground/15 bg-card p-5 shadow-[0_14px_40px_rgba(15,23,42,0.05)]"
+              className="flex min-h-56 flex-col justify-between bg-card p-5"
             >
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -125,7 +124,9 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
                 <h3 className="mt-4 font-heading text-xl font-semibold tracking-tight text-foreground">
                   {post.title}
                 </h3>
-                <p className="mt-1 text-sm text-muted-foreground">/{post.slug}</p>
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  /{post.slug}
+                </p>
                 {post.excerpt ? (
                   <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                     {post.excerpt}
@@ -139,7 +140,6 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="bg-white"
                   nativeButton={false}
                   render={<Link href={`/dashboard/content/blog/${post.id}`} />}
                 >
@@ -150,7 +150,7 @@ export default async function DashboardBlogPage({ searchParams }: Props) {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border/80 bg-muted/15 px-5 py-10 text-center">
+        <div className="border border-dashed border-border/80 bg-muted/15 px-5 py-10 text-center">
           <h3 className="font-heading text-lg font-semibold text-foreground">
             No articles yet
           </h3>

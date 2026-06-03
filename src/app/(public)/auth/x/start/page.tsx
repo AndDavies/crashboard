@@ -22,7 +22,7 @@ export default function XOAuthStartPage() {
 
   return (
     <MarketingPageFrame className="flex min-h-[min(70vh,40rem)] flex-col justify-center py-16 md:py-24">
-      <Card className="mx-auto w-full max-w-lg shadow-sm">
+      <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="text-center sm:text-left">
           <CardTitle className="font-heading text-2xl">X app OAuth (xurl)</CardTitle>
           <CardDescription>

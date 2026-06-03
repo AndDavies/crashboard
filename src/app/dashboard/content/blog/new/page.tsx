@@ -15,10 +15,8 @@ export default async function NewBlogPostPage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <section>
-        <p className="text-xs font-semibold uppercase text-muted-foreground">
-          CMS
-        </p>
-        <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
+        <p className="eyebrow">CMS</p>
+        <h2 className="mt-2 font-heading text-3xl font-semibold tracking-tight text-foreground">
           New blog post
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">

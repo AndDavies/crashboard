@@ -44,11 +44,15 @@ function NavLink({
   const Icon = item.icon;
 
   const className = cn(
-    "flex items-center gap-2.5 rounded-lg text-sm font-medium outline-none transition-colors",
-    collapsed ? "size-9 justify-center px-0" : "px-2.5 py-2",
+    "flex items-center gap-2.5 text-sm font-medium outline-none transition-colors",
+    collapsed ? "size-9 justify-center px-0" : "border-l-2 px-2.5 py-2",
     active
-      ? "bg-muted text-foreground"
-      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+      ? collapsed
+        ? "bg-accent/10 text-accent"
+        : "border-accent bg-accent/10 font-semibold text-accent"
+      : collapsed
+        ? "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+        : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-muted/60 hover:text-foreground",
     "focus-visible:ring-2 focus-visible:ring-ring",
   );
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Newsreader, Sofia_Sans } from "next/font/google";
 import { getPublicSiteOrigin } from "@/lib/site-url";
 import {
   SEO_DEFAULT_DESCRIPTION,
@@ -11,9 +11,17 @@ import { getGoogleSiteVerification } from "@/lib/analytics/google";
 import { GoogleConsentDefaultScript } from "@/components/analytics/google-tracking";
 import "./globals.css";
 
-const geistSans = Geist({
+const sofiaSans = Sofia_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const newsreader = Newsreader({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
 });
 
 const geistMono = Geist_Mono({
@@ -59,7 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sofiaSans.variable} ${newsreader.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <GoogleConsentDefaultScript />

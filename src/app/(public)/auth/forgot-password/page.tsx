@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function ForgotPasswordPage() {
   return (
     <MarketingPageFrame className="flex min-h-[min(70vh,40rem)] flex-col justify-center py-16 md:py-24">
-      <Card className="mx-auto w-full max-w-md shadow-sm">
+      <Card className="mx-auto w-full max-w-md">
         <CardHeader className="text-center sm:text-left">
           <CardTitle className="font-heading text-2xl">Reset password</CardTitle>
           <CardDescription>

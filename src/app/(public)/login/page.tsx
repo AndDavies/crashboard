@@ -25,9 +25,12 @@ export default async function LoginPage({ searchParams }: Props) {
 
   return (
     <MarketingPageFrame className="flex min-h-[min(70vh,40rem)] flex-col justify-center py-16 md:py-24">
-      <Card className="mx-auto w-full max-w-md shadow-sm">
+      <Card className="mx-auto w-full max-w-md">
         <CardHeader className="text-center sm:text-left">
-          <CardTitle className="font-heading text-2xl">Sign in</CardTitle>
+          <p className="eyebrow">Dashboard access</p>
+          <CardTitle className="font-heading text-3xl font-semibold">
+            Sign in
+          </CardTitle>
           <CardDescription>
             Use the email and password for your Supabase user. You’ll stay signed
             in until you sign out.

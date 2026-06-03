@@ -45,7 +45,7 @@ export default async function BlogPreviewPage({ params }: Props) {
       </section>
 
       {post.coverImageUrl ? (
-        <div className="relative aspect-[1200/630] overflow-hidden rounded-xl border border-border/80">
+        <figure className="relative aspect-[1200/630] overflow-hidden border border-border/80">
           <Image
             src={post.coverImageUrl}
             alt=""
@@ -54,7 +54,7 @@ export default async function BlogPreviewPage({ params }: Props) {
             className="object-cover"
             unoptimized
           />
-        </div>
+        </figure>
       ) : null}
 
       <BlogPostBody html={post.contentHtml} />

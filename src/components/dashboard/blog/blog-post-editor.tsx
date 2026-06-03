@@ -64,14 +64,13 @@ const EMPTY_DOC: JSONContent = {
   content: [{ type: "paragraph" }],
 };
 
-const panelClass =
-  "rounded-xl border border-foreground/15 bg-card p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]";
+const panelClass = "border border-border/80 bg-card p-5";
 const fieldClass =
-  "h-10 rounded-md border border-foreground/20 bg-white px-3 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.06)] outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-foreground/45 focus-visible:ring-2 focus-visible:ring-accent/45";
+  "h-10 border border-border/80 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 const textareaClass =
-  "w-full rounded-md border border-foreground/20 bg-white px-3 py-2.5 text-sm leading-relaxed shadow-[0_1px_2px_rgba(15,23,42,0.06)] outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-foreground/45 focus-visible:ring-2 focus-visible:ring-accent/45";
+  "w-full border border-border/80 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 const selectClass =
-  "h-10 w-full rounded-md border border-foreground/20 bg-white px-3 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.06)] outline-none transition-colors focus-visible:border-foreground/45 focus-visible:ring-2 focus-visible:ring-accent/45";
+  "h-10 w-full border border-border/80 bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 const helperClass = "text-xs leading-relaxed text-muted-foreground";
 
 function sourceLinksToText(links: BlogSourceLink[]) {
@@ -116,8 +115,8 @@ function ToolbarButton({
       title={label}
       onClick={onClick}
       className={cn(
-        "inline-flex size-8 items-center justify-center rounded-md border border-foreground/15 bg-white text-muted-foreground shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45",
-        active && "border-foreground/30 bg-muted text-foreground",
+        "inline-flex size-8 items-center justify-center border border-border/80 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active && "border-foreground/40 bg-accent/10 text-accent",
       )}
     >
       {children}
@@ -127,10 +126,8 @@ function ToolbarButton({
 
 function PreviewField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-foreground/15 bg-white p-3 shadow-sm">
-      <p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
-        {label}
-      </p>
+    <div className="border border-border/80 bg-card p-3">
+      <p className="meta-tag">{label}</p>
       <p className="mt-2 text-sm leading-relaxed text-foreground">{value}</p>
     </div>
   );
@@ -146,7 +143,7 @@ function GeneratedPromptCard({
   onCopy: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-foreground/15 bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-border/80 bg-background p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-foreground">{prompt.label}</p>
@@ -159,7 +156,7 @@ function GeneratedPromptCard({
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
-      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap rounded-md border border-foreground/15 bg-muted/25 p-3 text-xs leading-5 text-muted-foreground">
+      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap rounded-md border border-border/80 bg-muted/25 p-3 text-xs leading-5 text-muted-foreground">
         {prompt.prompt}
       </pre>
     </div>
@@ -510,9 +507,9 @@ export function BlogPostEditor({
       <input type="hidden" name="ogImagePath" value={ogImagePath} />
 
       <section className={panelClass}>
-        <div className="flex flex-col gap-4 border-b border-foreground/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border/80 pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
+            <p className="eyebrow">
               Article fields
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
@@ -555,7 +552,7 @@ export function BlogPostEditor({
 
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="space-y-5">
-            <div className="rounded-lg border border-foreground/10 bg-muted/15 p-4">
+            <div className="rounded-lg border border-border/80 bg-muted/15 p-4">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h3 className="font-heading text-lg font-semibold text-foreground">
@@ -639,7 +636,7 @@ export function BlogPostEditor({
               </div>
             </div>
 
-            <div className="rounded-lg border border-foreground/10 bg-muted/15 p-4">
+            <div className="rounded-lg border border-border/80 bg-muted/15 p-4">
               <div className="mb-4">
                 <h3 className="font-heading text-lg font-semibold text-foreground">
                   SEO and answer metadata
@@ -747,7 +744,7 @@ export function BlogPostEditor({
                     name="noindex"
                     checked={noindexValue}
                     onChange={(event) => setNoindexValue(event.target.checked)}
-                    className="size-4 rounded border-foreground/30 bg-white"
+                    className="size-4 rounded border-foreground/30 bg-background"
                   />
                   Noindex this post
                 </label>
@@ -756,9 +753,9 @@ export function BlogPostEditor({
           </div>
 
           <aside className="space-y-4">
-            <div className="rounded-lg border border-foreground/10 bg-muted/15 p-4">
+            <div className="rounded-lg border border-border/80 bg-muted/15 p-4">
               <p className="text-sm font-medium text-foreground">Cover image</p>
-              <div className="relative mt-3 aspect-[1200/630] overflow-hidden rounded-md border border-foreground/15 bg-white shadow-sm">
+              <div className="relative mt-3 aspect-[1200/630] overflow-hidden rounded-md border border-border/80 bg-background">
                 {coverImageUrl ? (
                   <Image
                     src={coverImageUrl}
@@ -786,7 +783,7 @@ export function BlogPostEditor({
               <Button
                 type="button"
                 variant="outline"
-                className="mt-3 w-full bg-white"
+                className="mt-3 w-full bg-background"
                 onClick={() => coverInputRef.current?.click()}
                 disabled={uploading}
               >
@@ -797,7 +794,7 @@ export function BlogPostEditor({
               ) : null}
             </div>
 
-            <div className="space-y-3 rounded-lg border border-foreground/10 bg-muted/15 p-4">
+            <div className="space-y-3 rounded-lg border border-border/80 bg-muted/15 p-4">
               <div className="flex items-center gap-2 text-sm">
                 {seoWarnings.length === 0 && publishWarnings.length === 0 ? (
                   <>
@@ -861,7 +858,7 @@ export function BlogPostEditor({
         </div>
 
         {enrichment ? (
-          <div className="mt-5 rounded-lg border border-foreground/10 bg-muted/15 p-4">
+          <div className="mt-5 rounded-lg border border-border/80 bg-muted/15 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="font-heading text-lg font-semibold text-foreground">
@@ -875,7 +872,7 @@ export function BlogPostEditor({
               <Button
                 type="button"
                 variant="outline"
-                className="bg-white"
+                className="bg-background"
                 onClick={() => void copyGeneratedPrompt("all", generatedPromptText())}
               >
                 <CopyIcon className="size-4" />
@@ -932,9 +929,9 @@ export function BlogPostEditor({
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-foreground/15 bg-card shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-        <div className="border-b border-foreground/10 p-5">
-          <p className="font-mono text-xs tracking-[0.16em] text-muted-foreground uppercase">
+      <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
+        <div className="border-b border-border/80 p-5">
+          <p className="eyebrow">
             Body
           </p>
           <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
@@ -945,7 +942,7 @@ export function BlogPostEditor({
             reads when it fills the metadata section above.
           </p>
         </div>
-        <div className="flex flex-wrap gap-1 border-b border-foreground/10 bg-muted/25 p-3">
+        <div className="flex flex-wrap gap-1 border-b border-border/80 bg-muted/25 p-3">
           <ToolbarButton
             label="Heading 1"
             active={editor?.isActive("heading", { level: 1 })}
@@ -1040,12 +1037,12 @@ export function BlogPostEditor({
             }}
           />
         </div>
-        <div className="blog-editor bg-white">
+        <div className="blog-editor bg-background">
           <EditorContent editor={editor} />
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-xl border border-foreground/15 bg-card p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex flex-col gap-3 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           {isEditing
             ? `Last updated ${new Date(editorPost.updatedAt).toLocaleString()}`
@@ -1056,17 +1053,17 @@ export function BlogPostEditor({
             <Button
               nativeButton={false}
               variant="outline"
-              className="bg-white"
+              className="bg-background"
               render={<Link href={`/dashboard/content/blog/${editorPost.id}/preview`} />}
             >
               Preview
             </Button>
           ) : null}
-          <Button type="submit" name="intent" value="save" variant="outline" className="bg-white">
+          <Button type="submit" name="intent" value="save" variant="outline" className="bg-background">
             <SaveIcon className="size-4" />
             Save draft
           </Button>
-          <Button type="submit" name="intent" value="schedule" variant="outline" className="bg-white">
+          <Button type="submit" name="intent" value="schedule" variant="outline" className="bg-background">
             Schedule
           </Button>
           <Button type="submit" name="intent" value="publish">
@@ -1075,11 +1072,11 @@ export function BlogPostEditor({
           </Button>
           {isEditing ? (
             <>
-              <Button type="submit" name="intent" value="archive" variant="outline" className="bg-white">
+              <Button type="submit" name="intent" value="archive" variant="outline" className="bg-background">
                 Archive
               </Button>
               {editorPost.deletedAt ? (
-                <Button type="submit" name="intent" value="restore" variant="outline" className="bg-white">
+                <Button type="submit" name="intent" value="restore" variant="outline" className="bg-background">
                   Restore
                 </Button>
               ) : (
@@ -1094,7 +1091,7 @@ export function BlogPostEditor({
       </section>
 
       <section className={panelClass}>
-        <div className="flex flex-col gap-3 border-b border-foreground/10 pb-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border/80 pb-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="font-heading text-base font-semibold text-foreground">
               Image system
@@ -1107,7 +1104,7 @@ export function BlogPostEditor({
           <Button
             type="button"
             variant="outline"
-            className="bg-white"
+            className="bg-background"
             onClick={() => void copyImagePrompt()}
           >
             <CopyIcon className="size-4" />
@@ -1119,7 +1116,7 @@ export function BlogPostEditor({
 	          {BLOG_IMAGE_FORMATS.map((format) => (
             <div
               key={format.id}
-              className="rounded-lg border border-foreground/15 bg-white p-4 shadow-sm"
+              className="rounded-lg border border-border/80 bg-background p-4"
             >
               <p className="text-sm font-medium text-foreground">{format.label}</p>
               <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -1135,7 +1132,7 @@ export function BlogPostEditor({
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div>
             <p className="text-sm font-medium text-foreground">Prompt template</p>
-            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-foreground/15 bg-white p-4 text-xs leading-6 text-muted-foreground shadow-sm">{BLOG_IMAGE_PROMPT_TEMPLATE}</pre>
+            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-border/80 bg-background p-4 text-xs leading-6 text-muted-foreground">{BLOG_IMAGE_PROMPT_TEMPLATE}</pre>
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">Style rules</p>

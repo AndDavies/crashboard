@@ -19,12 +19,11 @@ export default function WhoopPrivacyPolicyPage() {
 
   return (
     <MarketingPageFrame>
-      <p className="text-xs font-semibold text-muted-foreground uppercase">
-        Legal
-      </p>
-      <h1 className="mt-3 font-heading text-3xl font-semibold text-foreground md:text-4xl">
+      <p className="eyebrow">Legal</p>
+      <h1 className="mt-3 font-heading text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
         Privacy Policy — WHOOP
       </h1>
+      <span className="accent-rule mt-6" aria-hidden />
       <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
         Effective date: {effectiveDate}
       </p>
