@@ -740,7 +740,7 @@ function SectionHeader({
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
         <p className="eyebrow">{eyebrow}</p>
-        <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+        <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
           {title}
         </h2>
         {description ? (
@@ -780,7 +780,7 @@ function ReaderPathCard({
     >
       <div className="flex flex-1 flex-col gap-4 p-5">
         <p className="eyebrow">Start here</p>
-        <h3 className="font-heading text-2xl font-light leading-tight text-foreground">
+        <h3 className="font-heading text-2xl font-semibold leading-tight text-foreground">
           {path.title}
         </h3>
         <p className="text-base leading-relaxed text-foreground">{path.promise}</p>
@@ -897,7 +897,7 @@ function MapMode({
             >
               <span>
                 <span className="eyebrow block">Tap to reveal</span>
-                <span className="mt-2 block font-heading text-2xl font-light text-foreground">
+                <span className="mt-2 block font-heading text-2xl font-semibold text-foreground">
                   Map
                 </span>
                 <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">
@@ -963,7 +963,7 @@ function ReadingTrailCard({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="eyebrow">Reading trail</p>
-            <h3 className="mt-2 font-heading text-2xl font-light leading-tight text-foreground">
+            <h3 className="mt-2 font-heading text-2xl font-semibold leading-tight text-foreground">
               {trail.title}
             </h3>
           </div>
@@ -1149,7 +1149,7 @@ function IndexRow({
         <button
           type="button"
           onClick={() => onSelect(page.slug)}
-          className="block w-full text-left font-heading text-xl font-light leading-tight text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="block w-full text-left font-heading text-xl font-semibold leading-tight text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {page.title}
         </button>
@@ -1273,7 +1273,7 @@ function PageHoverPreview({
       <p className="meta-tag">
         {clusterLabel(page.cluster)} · {label(page.role)}
       </p>
-      <p className="mt-2 font-heading text-lg font-light leading-tight text-foreground">
+      <p className="mt-2 font-heading text-lg font-semibold leading-tight text-foreground">
         {page.title}
       </p>
       <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
@@ -1323,7 +1323,7 @@ function PageDrawer({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Selected page</p>
-                <h2 className="mt-3 font-heading text-3xl font-light leading-tight text-foreground">
+                <h2 className="mt-3 font-heading text-3xl font-semibold leading-tight text-foreground">
                   {page.title}
                 </h2>
               </div>
@@ -1355,7 +1355,7 @@ function PageDrawer({
         ) : (
           <div>
             <p className="eyebrow">Select a page</p>
-            <h2 className="mt-3 font-heading text-2xl font-light leading-tight text-foreground">
+            <h2 className="mt-3 font-heading text-2xl font-semibold leading-tight text-foreground">
               Click a card, row, or graph node.
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -1537,7 +1537,7 @@ function RelationList({
 function EmptyState() {
   return (
     <div className="border-t border-border/80 bg-card/70 p-10 text-center">
-      <h2 className="font-heading text-xl font-light text-foreground">
+      <h2 className="font-heading text-xl font-semibold text-foreground">
         No pages match those filters.
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">

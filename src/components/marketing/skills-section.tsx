@@ -18,7 +18,7 @@ export function SkillsSection() {
             <span className="ordinal">
               {String(index + 1).padStart(2, "0")}
             </span>
-            <h3 className="font-heading text-lg font-light text-foreground">
+            <h3 className="font-heading text-lg font-semibold text-foreground">
               {field.field}
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">

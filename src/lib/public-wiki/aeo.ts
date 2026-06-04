@@ -95,3 +95,45 @@ export function getPageAnswerQuestion(page: PublicWikiPage | PublicWikiIndexPage
   const topic = page.title.replace(/\s+/g, " ").trim();
   return `What should readers understand about ${topic}?`;
 }
+
+export type WikiFaqEntry = { question: string; answer: string };
+
+function compactAnswer(input: string, maxLength = 320) {
+  const normalized = input.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  const slice = normalized.slice(0, maxLength - 1);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${(lastSpace > 120 ? slice.slice(0, lastSpace) : slice).trim()}…`;
+}
+
+/**
+ * Build genuine question/answer pairs for a wiki page so answer engines
+ * (Google AI Overviews, Perplexity, etc.) can extract a direct response.
+ */
+export function buildWikiPageFaq(
+  page: PublicWikiPage | PublicWikiIndexPage,
+  extraTakeaways: string[] = [],
+): WikiFaqEntry[] {
+  const entries: WikiFaqEntry[] = [];
+  const seenQuestions = new Set<string>();
+
+  const push = (question: string, answer: string) => {
+    const key = question.trim().toLowerCase();
+    if (!question || !answer || seenQuestions.has(key)) return;
+    seenQuestions.add(key);
+    entries.push({ question: question.trim(), answer: compactAnswer(answer) });
+  };
+
+  push(getPageAnswerQuestion(page), page.description);
+
+  for (const target of getWikiAeoTargetsForPage(page)) {
+    push(target.question, target.answer);
+  }
+
+  for (const takeaway of extraTakeaways) {
+    if (entries.length >= 5) break;
+    push(`What is a key takeaway about ${page.title}?`, takeaway);
+  }
+
+  return entries.slice(0, 6);
+}

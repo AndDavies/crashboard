@@ -10,7 +10,7 @@ export function ProjectCard({ project }: { project: ProjectItem }) {
   const card = (
     <article className="flex h-full flex-col border border-border/80 bg-card/70 motion-safe:transition-colors group-hover:bg-card group-focus-visible:bg-card group-focus-visible:ring-2 group-focus-visible:ring-ring">
       <header className="border-b border-border/80 p-5">
-        <h3 className="font-heading text-xl font-light leading-tight text-foreground">
+        <h3 className="font-heading text-xl font-semibold leading-tight text-foreground">
           {project.title}
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -27,8 +27,8 @@ export function ProjectCard({ project }: { project: ProjectItem }) {
         </div>
       </div>
       {project.href ? (
-        <footer className="flex items-center justify-between border-t border-border/80 px-5 py-3 motion-safe:transition-colors group-hover:bg-foreground group-hover:text-background">
-          <span className="text-sm font-medium">
+        <footer className="flex items-center justify-between border-t border-border/80 px-5 py-3 text-accent motion-safe:transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
+          <span className="text-sm font-semibold tracking-tight">
             {project.label ?? "Open"}
           </span>
           <Icon

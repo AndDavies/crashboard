@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { MenuIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -20,7 +22,13 @@ type Props = {
   brandWordmark: string;
 };
 
+function isActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function MobileNav({ links, signedIn, brandWordmark }: Props) {
+  const pathname = usePathname();
   return (
     <Sheet>
       <SheetTrigger
@@ -45,15 +53,24 @@ export function MobileNav({ links, signedIn, brandWordmark }: Props) {
           className="grid gap-px border border-border/80 bg-border/80"
           aria-label="Mobile"
         >
-          {links.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="bg-card/70 px-4 py-3 text-sm font-medium text-foreground outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-            >
-              {label}
-            </Link>
-          ))}
+          {links.map(({ href, label }) => {
+            const active = isActive(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex items-center border-l-2 px-4 py-3 text-sm font-medium outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                  active
+                    ? "border-l-accent bg-card font-semibold text-foreground"
+                    : "border-l-transparent bg-card/70 text-muted-foreground hover:bg-card hover:text-foreground focus-visible:bg-card",
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </nav>
         <Separator className="my-4" />
         <div className="flex flex-col gap-2">

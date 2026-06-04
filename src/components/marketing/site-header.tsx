@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { siteConfig } from "@/lib/marketing/site-config";
+import { MainNav } from "@/components/marketing/main-nav";
 import { MobileNav, type NavItem } from "@/components/marketing/mobile-nav";
 
 const mainNav: NavItem[] = [
@@ -31,20 +32,7 @@ export async function SiteHeader() {
           <span className="mt-1 block h-0.5 w-14 bg-accent motion-safe:transition-[width] motion-safe:group-hover:w-20" />
         </Link>
 
-        <nav
-          className="hidden items-center gap-0.5 md:flex"
-          aria-label="Primary"
-        >
-          {mainNav.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="px-3 py-2 text-sm text-muted-foreground motion-safe:transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <MainNav items={mainNav} />
 
         <div className="flex items-center gap-2">
           {signedIn ? (
@@ -57,9 +45,9 @@ export async function SiteHeader() {
           ) : (
             <Link
               href="/login"
-              className="hidden border border-border/80 bg-background px-4 py-1.5 text-sm font-medium text-foreground motion-safe:transition-colors hover:border-foreground/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+              className="hidden border border-border/80 bg-background px-4 py-1.5 text-sm font-medium text-foreground motion-safe:transition-colors hover:border-foreground hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
             >
-              Dashboard
+              Log in
             </Link>
           )}
           <MobileNav

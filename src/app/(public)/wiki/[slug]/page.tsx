@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { WikiPageView } from "@/components/wiki/wiki-page-view";
 import { StructuredData } from "@/components/seo/structured-data";
-import { getPageAnswerQuestion, getWikiAeoTargetsForPage } from "@/lib/public-wiki/aeo";
+import {
+  buildWikiPageFaq,
+  getPageAnswerQuestion,
+  getWikiAeoTargetsForPage,
+} from "@/lib/public-wiki/aeo";
+import { deriveWikiKeyTakeaways } from "@/lib/public-wiki/article-summary";
+import { clusterLabel } from "@/lib/public-wiki/reader-paths";
 import {
   getPublicWikiIndex,
   getPublicWikiPage,
@@ -36,12 +42,16 @@ export async function generateMetadata({
     title: `${page.title} | Wiki`,
     description,
     alternates: { canonical },
+    keywords: [page.cluster, clusterLabel(page.cluster), page.role, page.title],
+    authors: [{ name: SEO_AUTHOR_NAME, url: absoluteSiteUrl("/about") }],
     openGraph: {
       title: page.title,
       description,
       url: canonical,
       images: [{ url: page.heroImage, width: 1200, height: 630 }],
       type: "article",
+      authors: [SEO_AUTHOR_NAME],
+      section: clusterLabel(page.cluster),
     },
     twitter: {
       card: "summary_large_image",
@@ -65,46 +75,95 @@ export default async function PublicWikiDetailPage({
 
   if (!page) notFound();
   const answerTargets = getWikiAeoTargetsForPage(page);
+  const canonical = canonicalUrl(`/wiki/${page.slug}`);
+  const faq = buildWikiPageFaq(page, deriveWikiKeyTakeaways(page));
 
   return (
     <>
       <StructuredData
         data={{
           "@context": "https://schema.org",
-          "@type": "Article",
-          headline: page.title,
-          description: compactDescription(page.description),
-          image: absoluteSiteUrl(page.heroImage),
-          author: {
-            "@type": "Person",
-            name: SEO_AUTHOR_NAME,
-            url: absoluteSiteUrl("/about"),
-          },
-          publisher: { "@type": "Person", name: SEO_AUTHOR_NAME },
-          isPartOf: {
-            "@type": "WebSite",
-            name: SEO_SITE_NAME,
-            url: absoluteSiteUrl("/"),
-          },
-          mainEntityOfPage: canonicalUrl(`/wiki/${page.slug}`),
-          articleSection: page.cluster,
-          about: {
-            "@type": "Thing",
-            name: getPageAnswerQuestion(page),
-            description: page.description,
-          },
-          mentions: answerTargets.map((target) => ({
-            "@type": "Thing",
-            name: target.topic,
-            description: target.question,
-          })),
-          keywords: [
-            page.cluster,
-            page.role,
-            ...answerTargets.map((target) => target.topic),
+          "@graph": [
+            {
+              "@type": "TechArticle",
+              "@id": `${canonical}#article`,
+              headline: page.title,
+              description: compactDescription(page.description),
+              image: absoluteSiteUrl(page.heroImage),
+              inLanguage: "en",
+              author: {
+                "@type": "Person",
+                name: SEO_AUTHOR_NAME,
+                url: absoluteSiteUrl("/about"),
+              },
+              publisher: { "@type": "Person", name: SEO_AUTHOR_NAME },
+              isPartOf: {
+                "@type": "WebSite",
+                name: SEO_SITE_NAME,
+                url: absoluteSiteUrl("/"),
+              },
+              mainEntityOfPage: canonical,
+              articleSection: clusterLabel(page.cluster),
+              about: {
+                "@type": "Thing",
+                name: getPageAnswerQuestion(page),
+                description: page.description,
+              },
+              mentions: answerTargets.map((target) => ({
+                "@type": "Thing",
+                name: target.topic,
+                description: target.question,
+              })),
+              keywords: [
+                clusterLabel(page.cluster),
+                page.role,
+                ...answerTargets.map((target) => target.topic),
+              ],
+              wordCount: page.wordCount,
+              timeRequired: `PT${Math.max(1, page.readingMinutes)}M`,
+              dateModified: index.generatedAt,
+            },
+            {
+              "@type": "BreadcrumbList",
+              "@id": `${canonical}#breadcrumb`,
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "Home",
+                  item: absoluteSiteUrl("/"),
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "Wiki",
+                  item: absoluteSiteUrl("/wiki"),
+                },
+                {
+                  "@type": "ListItem",
+                  position: 3,
+                  name: page.title,
+                  item: canonical,
+                },
+              ],
+            },
+            ...(faq.length > 0
+              ? [
+                  {
+                    "@type": "FAQPage",
+                    "@id": `${canonical}#faq`,
+                    mainEntity: faq.map((entry) => ({
+                      "@type": "Question",
+                      name: entry.question,
+                      acceptedAnswer: {
+                        "@type": "Answer",
+                        text: entry.answer,
+                      },
+                    })),
+                  },
+                ]
+              : []),
           ],
-          wordCount: page.wordCount,
-          dateModified: index.generatedAt,
         }}
       />
       <WikiPageView page={page} index={index} />

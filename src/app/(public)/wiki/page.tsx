@@ -9,6 +9,7 @@ import {
   wikiReaderPaths,
 } from "@/lib/public-wiki/reader-paths";
 import { StructuredData } from "@/components/seo/structured-data";
+import { wikiAeoTargets } from "@/lib/public-wiki/aeo";
 import {
   SEO_AUTHOR_NAME,
   SEO_DEFAULT_IMAGE,
@@ -73,22 +74,70 @@ export default function WikiPage() {
       <StructuredData
         data={{
           "@context": "https://schema.org",
-          "@type": "CollectionPage",
-          name: "Crashboard Wiki",
-          url: absoluteSiteUrl("/wiki"),
-          description:
-            "A public web version of Andrew Davies' compiled wiki: source-backed notes, concepts, workflows, and synthesis.",
-          author: { "@type": "Person", name: SEO_AUTHOR_NAME },
-          isPartOf: {
-            "@type": "WebSite",
-            name: SEO_SITE_NAME,
-            url: absoluteSiteUrl("/"),
-          },
-          about: wikiReaderPaths.map((path) => ({
-            "@type": "Thing",
-            name: path.title,
-            description: path.promise,
-          })),
+          "@graph": [
+            {
+              "@type": "CollectionPage",
+              "@id": `${absoluteSiteUrl("/wiki")}#collection`,
+              name: "Crashboard Wiki",
+              url: absoluteSiteUrl("/wiki"),
+              description:
+                "A public web version of Andrew Davies' compiled wiki: source-backed notes, concepts, workflows, and synthesis.",
+              inLanguage: "en",
+              author: { "@type": "Person", name: SEO_AUTHOR_NAME },
+              isPartOf: {
+                "@type": "WebSite",
+                name: SEO_SITE_NAME,
+                url: absoluteSiteUrl("/"),
+              },
+              about: wikiReaderPaths.map((path) => ({
+                "@type": "Thing",
+                name: path.title,
+                description: path.promise,
+              })),
+            },
+            {
+              "@type": "ItemList",
+              "@id": `${absoluteSiteUrl("/wiki")}#pages`,
+              name: "Crashboard wiki pages",
+              numberOfItems: index.pages.length,
+              itemListElement: index.pages.map((page, i) => ({
+                "@type": "ListItem",
+                position: i + 1,
+                url: absoluteSiteUrl(`/wiki/${page.slug}`),
+                name: page.title,
+              })),
+            },
+            {
+              "@type": "BreadcrumbList",
+              "@id": `${absoluteSiteUrl("/wiki")}#breadcrumb`,
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "Home",
+                  item: absoluteSiteUrl("/"),
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "Wiki",
+                  item: absoluteSiteUrl("/wiki"),
+                },
+              ],
+            },
+            {
+              "@type": "FAQPage",
+              "@id": `${absoluteSiteUrl("/wiki")}#faq`,
+              mainEntity: wikiAeoTargets.map((target) => ({
+                "@type": "Question",
+                name: target.question,
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: target.answer,
+                },
+              })),
+            },
+          ],
         }}
       />
       <section className="technical-grid -mx-4 grid gap-10 border-b border-border/80 bg-card px-4 py-16 sm:-mx-6 sm:px-6 md:py-24 lg:grid-cols-[1fr_22rem] lg:items-start">
@@ -97,7 +146,7 @@ export default function WikiPage() {
             <span className="h-1 w-10 bg-accent" aria-hidden />
             Public wiki
           </p>
-          <h1 className="mt-4 max-w-4xl font-heading text-5xl font-light leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-4 max-w-4xl font-heading text-5xl font-semibold leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
             Choose a path through my public knowledge system.
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
@@ -117,7 +166,7 @@ export default function WikiPage() {
                 <dt className="eyebrow">{stat.label}</dt>
                 <p className="meta-tag mt-2">{stat.hint}</p>
               </div>
-              <dd className="font-heading text-4xl font-light tabular-nums text-foreground md:text-5xl">
+              <dd className="font-heading text-4xl font-semibold tabular-nums text-foreground md:text-5xl">
                 {stat.value}
               </dd>
             </div>
@@ -134,7 +183,7 @@ export default function WikiPage() {
         <div className="grid gap-px bg-border/80 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.45fr)]">
           <div className="bg-background/90 p-5 md:p-6">
             <p className="eyebrow">Cluster distribution</p>
-            <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+            <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
               What the published wiki currently emphasizes.
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -157,7 +206,7 @@ export default function WikiPage() {
                       </h3>
                     </div>
                     <div className="text-right">
-                      <p className="font-heading text-2xl font-light tabular-nums text-foreground">
+                      <p className="font-heading text-2xl font-semibold tabular-nums text-foreground">
                         {item.count}
                       </p>
                       <p className="meta-tag">{percent}%</p>

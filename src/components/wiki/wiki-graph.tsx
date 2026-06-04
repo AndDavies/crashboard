@@ -218,7 +218,7 @@ export function WikiGraph({
       <div className="flex flex-col gap-3 border-b border-border/80 px-4 py-3">
         <div>
           <p className="eyebrow">Graph</p>
-          <h2 className="font-heading text-lg font-light text-foreground">
+          <h2 className="font-heading text-lg font-semibold text-foreground">
             Page relationships
           </h2>
         </div>

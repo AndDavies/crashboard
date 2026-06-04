@@ -37,7 +37,7 @@ export function WritingSection() {
                     className="group grid gap-4 p-5 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[1fr_auto]"
                   >
                     <div>
-                      <h3 className="font-heading text-xl font-light text-foreground">
+                      <h3 className="font-heading text-xl font-semibold text-foreground">
                         {post.title}
                       </h3>
                       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -55,7 +55,7 @@ export function WritingSection() {
           ) : (
             <div className="max-w-xl p-6">
               <p className="eyebrow">Awaiting CMS content</p>
-              <h3 className="mt-3 font-heading text-3xl leading-tight font-light text-foreground">
+              <h3 className="mt-3 font-heading text-3xl leading-tight font-semibold text-foreground">
                 The archive starts when there is something worth publishing.
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -65,7 +65,7 @@ export function WritingSection() {
               </p>
               <Link
                 href="/blog"
-                className="group mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
+                className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
               >
                 Open the blog
                 <ArrowRightIcon

@@ -84,7 +84,7 @@ export default async function BlogPage({ searchParams }: Props) {
             <span className="h-1 w-10 bg-accent" aria-hidden />
             Blog
           </p>
-          <h1 className="mt-6 font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-6 font-heading text-5xl leading-[0.98] font-semibold tracking-[-0.02em] text-foreground md:text-7xl">
             Notes on AI work, source-backed research, and strategy.
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
@@ -100,7 +100,7 @@ export default async function BlogPage({ searchParams }: Props) {
         <div>
           <div className="mb-8">
             <p className="eyebrow">Posts</p>
-            <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+            <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground">
               {selectedTag ? `Tagged ${selectedTag}` : "Published notes"}
             </h2>
             {allTags.length > 0 ? (
@@ -136,7 +136,7 @@ export default async function BlogPage({ searchParams }: Props) {
                         : "Scheduled"}
                     </div>
                     <div>
-                      <h3 className="font-heading text-2xl leading-tight font-light text-foreground">
+                      <h3 className="font-heading text-2xl leading-tight font-semibold text-foreground">
                         {post.title}
                       </h3>
                       {post.excerpt ? (
@@ -168,7 +168,7 @@ export default async function BlogPage({ searchParams }: Props) {
             </ol>
           ) : (
             <div className="border border-border/80 bg-card/70 px-6 py-10">
-              <h3 className="font-heading text-2xl font-light text-foreground">
+              <h3 className="font-heading text-2xl font-semibold text-foreground">
                 No public posts yet.
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
@@ -177,7 +177,7 @@ export default async function BlogPage({ searchParams }: Props) {
               </p>
               <Link
                 href="/wiki"
-                className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
               >
                 Browse the wiki
                 <ArrowRightIcon className="size-4" aria-hidden />
@@ -188,7 +188,7 @@ export default async function BlogPage({ searchParams }: Props) {
 
         <aside className="border border-border/80 bg-card/70 p-6 lg:sticky lg:top-24 lg:self-start">
           <p className="eyebrow">Start here</p>
-          <h2 className="mt-3 font-heading text-2xl font-light text-foreground">
+          <h2 className="mt-3 font-heading text-2xl font-semibold text-foreground">
             Current public corpus
           </h2>
           <div className="mt-5 space-y-4">
@@ -209,7 +209,7 @@ export default async function BlogPage({ searchParams }: Props) {
           </div>
           <Link
             href="/wiki"
-            className="group mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
+            className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
           >
             Browse wiki
             <ArrowRightIcon

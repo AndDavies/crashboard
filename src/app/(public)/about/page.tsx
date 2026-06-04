@@ -70,7 +70,7 @@ export default function AboutPage() {
         <span className="h-1 w-10 bg-accent" aria-hidden />
         About
       </p>
-      <h1 className="mt-6 max-w-4xl font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+      <h1 className="mt-6 max-w-4xl font-heading text-5xl leading-[0.98] font-semibold tracking-[-0.02em] text-foreground md:text-7xl">
         I use Crashboard to turn private research into public working notes.
       </h1>
       <span className="accent-rule mt-6" aria-hidden />
@@ -112,7 +112,7 @@ export default function AboutPage() {
       <div className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Link
           href="/wiki"
-          className="group inline-flex items-center justify-between gap-3 border border-foreground bg-foreground px-5 py-3 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group inline-flex items-center justify-between gap-3 border border-accent bg-accent px-5 py-3 text-sm font-semibold tracking-tight text-accent-foreground motion-safe:transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span className="inline-flex items-center gap-2">
             <NetworkIcon className="size-4" aria-hidden />
@@ -125,7 +125,7 @@ export default function AboutPage() {
         </Link>
         <Link
           href="/blog"
-          className="group inline-flex items-center justify-between gap-3 border border-border/80 bg-card/70 px-5 py-3 text-sm font-medium text-foreground motion-safe:transition-colors hover:border-foreground/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group inline-flex items-center justify-between gap-3 border border-border bg-card/70 px-5 py-3 text-sm font-semibold tracking-tight text-foreground motion-safe:transition-colors hover:border-foreground hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="inline-flex items-center gap-2">
             <BookOpenIcon className="size-4" aria-hidden />

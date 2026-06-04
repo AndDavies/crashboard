@@ -13,6 +13,7 @@ import { WikiMarkdown } from "@/components/wiki/wiki-markdown";
 import { WikiPageToc, WikiReadingProgress } from "@/components/wiki/wiki-page-toc";
 import { deriveWikiArticleSummary } from "@/lib/public-wiki/article-summary";
 import {
+  buildWikiPageFaq,
   getPageAnswerQuestion,
   getWikiAeoTargetsForPage,
 } from "@/lib/public-wiki/aeo";
@@ -45,6 +46,7 @@ export function WikiPageView({
   const answerQuestion = getPageAnswerQuestion(page);
   const answerTargets = getWikiAeoTargetsForPage(page).slice(0, 3);
   const articleSummary = deriveWikiArticleSummary(page, index);
+  const faq = buildWikiPageFaq(page, articleSummary.keyTakeaways);
 
   return (
     <article
@@ -71,7 +73,7 @@ export function WikiPageView({
             <span aria-hidden>·</span>
             <span>{page.sourceNotes.length} sources</span>
           </p>
-          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-light leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-semibold leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
             {page.title}
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
@@ -103,10 +105,38 @@ export function WikiPageView({
 
           <WikiMarkdown markdown={page.markdown} charts={page.charts} />
 
+          {faq.length > 0 ? (
+            <section
+              id="faq"
+              className="mt-14 border-t border-border/80 pt-8"
+              aria-labelledby="faq-heading"
+            >
+              <p className="eyebrow">Answers</p>
+              <h2
+                id="faq-heading"
+                className="mt-2 font-heading text-3xl font-semibold text-foreground"
+              >
+                Frequently asked
+              </h2>
+              <dl className="mt-6 grid gap-px border border-border/80 bg-border/80">
+                {faq.map((entry) => (
+                  <div key={entry.question} className="bg-card/70 p-5">
+                    <dt className="font-heading text-lg font-semibold tracking-tight text-foreground">
+                      {entry.question}
+                    </dt>
+                    <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {entry.answer}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+
           {related.length > 0 ? (
             <section id="related-pages" className="mt-14 border-t border-border/80 pt-8">
               <p className="eyebrow">Related</p>
-              <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+              <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
                 Related Pages
               </h2>
               <div className="mt-6 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2">
@@ -117,7 +147,7 @@ export function WikiPageView({
                     className="group flex flex-col bg-card/70 p-5 motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <p className="eyebrow">{clusterLabel(item.cluster)}</p>
-                    <h3 className="mt-3 font-heading text-lg font-light text-foreground">
+                    <h3 className="mt-3 font-heading text-lg font-semibold text-foreground">
                       {item.title}
                     </h3>
                     <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
@@ -139,7 +169,7 @@ export function WikiPageView({
           {page.sourceNotes.length > 0 ? (
             <section className="mt-14 border-t border-border/80 pt-8">
               <p className="eyebrow">Evidence</p>
-              <h2 className="mt-2 font-heading text-3xl font-light text-foreground">
+              <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
                 Source Notes
               </h2>
               <ol className="mt-6 grid gap-px border border-border/80 bg-border/80">
@@ -223,7 +253,7 @@ function ArticleSummaryBlock({
     <section className="mb-10 grid gap-px border border-border/80 bg-border/80 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="flex flex-col bg-card/80 p-5">
         <p className="eyebrow">What to use this for</p>
-        <h2 className="mt-3 font-heading text-2xl font-light text-foreground">
+        <h2 className="mt-3 font-heading text-2xl font-semibold text-foreground">
           {answerQuestion}
         </h2>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">
@@ -264,7 +294,7 @@ function ArticleSummaryBlock({
           {summary.relatedNextRead ? (
             <Link
               href={`/wiki/${summary.relatedNextRead.slug}`}
-              className="block font-heading text-lg font-light leading-tight text-foreground underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:decoration-foreground"
+              className="block font-heading text-lg font-semibold leading-tight text-foreground underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:decoration-foreground"
             >
               {summary.relatedNextRead.title}
             </Link>

@@ -47,7 +47,7 @@ export function SectionHeading({
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="font-heading text-4xl leading-[1.02] font-light tracking-[-0.01em] text-foreground md:text-6xl">
+      <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.01em] text-foreground md:text-6xl">
         {title}
       </h2>
       {accentRule ? (

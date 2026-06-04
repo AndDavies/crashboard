@@ -135,7 +135,7 @@ export default async function BlogPostPage({ params }: Props) {
               ? new Date(post.publishedAt).toLocaleDateString()
               : "Blog"}
           </p>
-          <h1 className="mt-6 font-heading text-5xl leading-[0.98] font-light tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-6 font-heading text-5xl leading-[0.98] font-semibold tracking-[-0.02em] text-foreground md:text-7xl">
             {post.title}
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
@@ -183,7 +183,7 @@ export default async function BlogPostPage({ params }: Props) {
         {post.sourceLinks.length > 0 ? (
           <section className="mt-14 border-t border-border/80 pt-8">
             <p className="eyebrow">Sources and references</p>
-            <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+            <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground">
               Where the post points
             </h2>
             <ol className="mt-6 grid gap-px border border-border/80 bg-border/80">
@@ -223,7 +223,7 @@ export default async function BlogPostPage({ params }: Props) {
             {relatedWikiPages.length > 0 ? (
               <div>
                 <p className="eyebrow">Related wiki pages</p>
-                <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+                <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground">
                   Continue the trail
                 </h2>
                 <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
@@ -249,7 +249,7 @@ export default async function BlogPostPage({ params }: Props) {
             {relatedPosts.length > 0 ? (
               <div>
                 <p className="eyebrow">Related posts</p>
-                <h2 className="mt-3 font-heading text-3xl font-light text-foreground">
+                <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground">
                   More from the blog
                 </h2>
                 <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">

@@ -23,11 +23,11 @@ export function ProjectsSection() {
             className="card-grid-cell group p-6"
           >
             <div className="flex items-start justify-between gap-4">
-              <h3 className="font-heading text-xl leading-tight font-light text-foreground">
+              <h3 className="font-heading text-xl leading-tight font-semibold text-foreground">
                 {page.title}
               </h3>
               <ArrowRightIcon
-                className="mt-1 size-4 text-muted-foreground motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
+                className="mt-1 size-4 text-muted-foreground motion-safe:transition-all motion-safe:group-hover:translate-x-1 group-hover:text-accent"
                 aria-hidden
               />
             </div>
@@ -44,7 +44,7 @@ export function ProjectsSection() {
       </div>
       <Link
         href="/wiki"
-        className="group mt-8 inline-flex items-center gap-2 text-sm font-medium text-foreground underline decoration-accent decoration-2 underline-offset-4 hover:decoration-foreground"
+        className="group mt-8 inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
       >
         Browse all {index.pages.length} wiki pages
         <ArrowRightIcon
