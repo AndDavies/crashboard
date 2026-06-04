@@ -1,0 +1,496 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "Andrew DaviesCrashboard" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - text: Andrew DaviesCrashboard
+      - navigation "Primary" [ref=e6]:
+        - link "Home" [ref=e7] [cursor=pointer]:
+          - /url: /
+        - link "Blog" [ref=e8] [cursor=pointer]:
+          - /url: /blog
+        - link "Wiki" [ref=e9] [cursor=pointer]:
+          - /url: /wiki
+          - text: Wiki
+        - link "About" [ref=e11] [cursor=pointer]:
+          - /url: /about
+      - link "Log in" [ref=e13] [cursor=pointer]:
+        - /url: /login
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: Public wiki
+          - heading "Choose a path through my public knowledge system." [level=1] [ref=e20]
+          - paragraph [ref=e22]: This wiki turns private Obsidian notes into public, source-backed synthesis across work, health, money, policy, AI systems, communication, learning, and philosophy.
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - generic [ref=e25]:
+              - term [ref=e26]: Pages
+              - paragraph [ref=e27]: Public synthesis
+            - definition [ref=e28]: "63"
+          - generic [ref=e29]:
+            - generic [ref=e30]:
+              - term [ref=e31]: Sources
+              - paragraph [ref=e32]: Cited notes
+            - definition [ref=e33]: "477"
+          - generic [ref=e34]:
+            - generic [ref=e35]:
+              - term [ref=e36]: Links
+              - paragraph [ref=e37]: Internal connections
+            - definition [ref=e38]: "425"
+          - generic [ref=e39]:
+            - generic [ref=e40]:
+              - term [ref=e41]: Domains
+              - paragraph [ref=e42]: Cluster map
+            - definition [ref=e43]: "12"
+      - paragraph [ref=e44]: Pick a path, read the synthesis, then follow trails into related pages and source-backed context.
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - paragraph [ref=e48]: Cluster distribution
+          - heading "What the published wiki currently emphasizes." [level=2] [ref=e49]
+          - paragraph [ref=e50]: "These domains come directly from each page's `kb_cluster` frontmatter during `/kb-publish`; the trails below are curated entry routes through the same exported data."
+        - generic [ref=e51]:
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - paragraph [ref=e55]: navigation
+              - heading "Operational Navigation" [level=3] [ref=e56]
+            - generic [ref=e57]:
+              - paragraph [ref=e58]: "6"
+              - paragraph [ref=e59]: 10%
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - paragraph [ref=e65]: health
+              - heading "Life, Health & Energy" [level=3] [ref=e66]
+            - generic [ref=e67]:
+              - paragraph [ref=e68]: "3"
+              - paragraph [ref=e69]: 5%
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - paragraph [ref=e75]: leadership-work
+              - heading "Work & Operating Systems" [level=3] [ref=e76]
+            - generic [ref=e77]:
+              - paragraph [ref=e78]: "4"
+              - paragraph [ref=e79]: 6%
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - paragraph [ref=e85]: venture
+              - heading "Business, Venture & Money" [level=3] [ref=e86]
+            - generic [ref=e87]:
+              - paragraph [ref=e88]: "2"
+              - paragraph [ref=e89]: 3%
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - paragraph [ref=e95]: money
+              - heading "Money, Wealth & Markets" [level=3] [ref=e96]
+            - generic [ref=e97]:
+              - paragraph [ref=e98]: "2"
+              - paragraph [ref=e99]: 3%
+          - generic [ref=e103]:
+            - generic [ref=e104]:
+              - paragraph [ref=e105]: canada-policy
+              - heading "Canada, Sovereignty & Public Policy" [level=3] [ref=e106]
+            - generic [ref=e107]:
+              - paragraph [ref=e108]: "9"
+              - paragraph [ref=e109]: 14%
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - paragraph [ref=e115]: ai-software
+              - heading "AI, Agents & Software" [level=3] [ref=e116]
+            - generic [ref=e117]:
+              - paragraph [ref=e118]: "17"
+              - paragraph [ref=e119]: 27%
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - paragraph [ref=e125]: knowledge-learning
+              - heading "Knowledge, Learning & Publishing" [level=3] [ref=e126]
+            - generic [ref=e127]:
+              - paragraph [ref=e128]: "4"
+              - paragraph [ref=e129]: 6%
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - paragraph [ref=e135]: communication
+              - heading "Communication, Persuasion & Taste" [level=3] [ref=e136]
+            - generic [ref=e137]:
+              - paragraph [ref=e138]: "3"
+              - paragraph [ref=e139]: 5%
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - paragraph [ref=e145]: self-meaning
+              - heading "Philosophy, Self & Meaning" [level=3] [ref=e146]
+            - generic [ref=e147]:
+              - paragraph [ref=e148]: "4"
+              - paragraph [ref=e149]: 6%
+          - generic [ref=e153]:
+            - generic [ref=e154]:
+              - paragraph [ref=e155]: assurance
+              - heading "Trust, Assurance & Boundaries" [level=3] [ref=e156]
+            - generic [ref=e157]:
+              - paragraph [ref=e158]: "8"
+              - paragraph [ref=e159]: 13%
+          - generic [ref=e163]:
+            - generic [ref=e164]:
+              - paragraph [ref=e165]: judgment
+              - heading "Legacy Judgment Hub" [level=3] [ref=e166]
+            - generic [ref=e167]:
+              - paragraph [ref=e168]: "1"
+              - paragraph [ref=e169]: 2%
+      - generic [ref=e173]:
+        - region "Explorer controls" [ref=e174]:
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - paragraph [ref=e177]: Reader view
+              - tablist "Reader view" [ref=e178]:
+                - tab "Paths" [ref=e179]:
+                  - img [ref=e180]
+                  - text: Paths
+                - tab "All pages" [selected] [ref=e182]:
+                  - img [ref=e183]
+                  - text: All pages
+                - tab "Map" [ref=e184]:
+                  - img [ref=e185]
+                  - text: Map
+            - generic [ref=e187]:
+              - generic [ref=e188]: 17 pages
+              - button "Reset" [ref=e472]
+          - generic [ref=e473]:
+            - generic [ref=e474]:
+              - generic [ref=e475]:
+                - img [ref=e476]
+                - text: Search
+              - textbox "Search" [ref=e479]:
+                - /placeholder: Search concepts, workflows, source notes...
+            - generic [ref=e480]:
+              - generic [ref=e481]: Cluster
+              - combobox "Cluster" [ref=e482]:
+                - generic [ref=e483]: AI, Agents & Software (17)
+                - img [ref=e485]
+              - textbox [ref=e487]: ai-software
+            - generic [ref=e488]:
+              - generic [ref=e489]: Role
+              - combobox "Role" [ref=e490]:
+                - generic [ref=e491]: All roles
+                - img [ref=e493]
+              - textbox [ref=e495]: all
+            - generic [ref=e496]:
+              - generic [ref=e497]:
+                - img [ref=e498]
+                - text: Sort
+              - combobox "Sort" [ref=e501]:
+                - generic [ref=e502]: Cluster
+                - img [ref=e504]
+              - textbox [ref=e506]: cluster
+        - region "Trail progress" [ref=e507]:
+          - generic [ref=e508]:
+            - generic [ref=e509]:
+              - img [ref=e511]
+              - generic [ref=e515]:
+                - paragraph [ref=e516]: Following · step 2 of 4
+                - paragraph [ref=e517]: AI, Agents & Software trail
+            - generic [ref=e518]:
+              - group "Trail steps" [ref=e519]:
+                - 'button "Go to step 1: Agent Execution Systems" [ref=e520]'
+                - 'button "Go to step 2: AI, Agents & Software Systems" [ref=e521]'
+                - 'button "Go to step 3: Agentic Engineering" [ref=e522]'
+                - 'button "Go to step 4: Agent Memory & Context Systems" [ref=e523]'
+              - button "Previous step" [ref=e822]:
+                - img
+              - button "Next" [active] [ref=e524]:
+                - text: Next
+                - img
+              - button "Exit" [ref=e525]
+        - generic [ref=e526]:
+          - generic [ref=e527]:
+            - generic [ref=e528]:
+              - generic [ref=e529]: Page
+              - generic [ref=e530]: Cluster
+              - generic [ref=e531]: Role
+              - generic [ref=e532]: Sources
+              - generic [ref=e533]: Links
+              - generic [ref=e534]: Open
+            - generic [ref=e535]:
+              - article [ref=e536]:
+                - button "Agent Evaluation & Verification" [ref=e538]
+                - generic [ref=e539]: AI, Agents & Software
+                - generic [ref=e540]: Reference
+                - generic [ref=e541]: "3"
+                - generic [ref=e542]: "11"
+                - link "Open" [ref=e543] [cursor=pointer]:
+                  - /url: /wiki/agent-evaluation-and-verification
+                  - text: Open
+                  - img [ref=e544]
+              - article [ref=e546]:
+                - button "Agent Execution Systems" [ref=e548]
+                - generic [ref=e549]: AI, Agents & Software
+                - generic [ref=e550]: Hub
+                - generic [ref=e551]: "42"
+                - generic [ref=e552]: "18"
+                - link "Open" [ref=e553] [cursor=pointer]:
+                  - /url: /wiki/agent-execution-systems
+                  - text: Open
+                  - img [ref=e554]
+              - article [ref=e556]:
+                - button "Agent Learning Strategy" [ref=e558]
+                - generic [ref=e559]: AI, Agents & Software
+                - generic [ref=e560]: Reference
+                - generic [ref=e561]: "3"
+                - generic [ref=e562]: "6"
+                - link "Open" [ref=e563] [cursor=pointer]:
+                  - /url: /wiki/agent-learning-strategy
+                  - text: Open
+                  - img [ref=e564]
+              - article [ref=e566]:
+                - button "Agent Memory & Context Systems" [ref=e568]
+                - generic [ref=e569]: AI, Agents & Software
+                - generic [ref=e570]: Hub
+                - generic [ref=e571]: "11"
+                - generic [ref=e572]: "15"
+                - link "Open" [ref=e573] [cursor=pointer]:
+                  - /url: /wiki/agent-memory-and-context-systems
+                  - text: Open
+                  - img [ref=e574]
+              - article [ref=e576]:
+                - button "Agent Memory Architectures" [ref=e578]
+                - generic [ref=e579]: AI, Agents & Software
+                - generic [ref=e580]: Reference
+                - generic [ref=e581]: "5"
+                - generic [ref=e582]: "11"
+                - link "Open" [ref=e583] [cursor=pointer]:
+                  - /url: /wiki/agent-memory-architectures
+                  - text: Open
+                  - img [ref=e584]
+              - article [ref=e586]:
+                - button "Agent Skills" [ref=e588]
+                - generic [ref=e589]: AI, Agents & Software
+                - generic [ref=e590]: Concept
+                - generic [ref=e591]: "8"
+                - generic [ref=e592]: "17"
+                - link "Open" [ref=e593] [cursor=pointer]:
+                  - /url: /wiki/agent-skills
+                  - text: Open
+                  - img [ref=e594]
+              - article [ref=e596]:
+                - button "Agentic Engineering" [ref=e598]
+                - generic [ref=e599]: AI, Agents & Software
+                - generic [ref=e600]: Concept
+                - generic [ref=e601]: "12"
+                - generic [ref=e602]: "20"
+                - link "Open" [ref=e603] [cursor=pointer]:
+                  - /url: /wiki/agentic-engineering
+                  - text: Open
+                  - img [ref=e604]
+              - article [ref=e606]:
+                - button "AI Foundations & Model Adaptation" [ref=e608]
+                - generic [ref=e609]: AI, Agents & Software
+                - generic [ref=e610]: Hub
+                - generic [ref=e611]: "9"
+                - generic [ref=e612]: "12"
+                - link "Open" [ref=e613] [cursor=pointer]:
+                  - /url: /wiki/ai-foundations-and-model-adaptation
+                  - text: Open
+                  - img [ref=e614]
+              - article [ref=e616]:
+                - button "AI, Agents & Software Systems" [ref=e618]
+                - generic [ref=e619]: AI, Agents & Software
+                - generic [ref=e620]: Hub
+                - generic [ref=e621]: "3"
+                - generic [ref=e622]: "24"
+                - link "Open" [ref=e623] [cursor=pointer]:
+                  - /url: /wiki/ai-agents-and-software-systems
+                  - text: Open
+                  - img [ref=e624]
+              - article [ref=e626]:
+                - button "Coding Agent Workflows" [ref=e628]
+                - generic [ref=e629]: AI, Agents & Software
+                - generic [ref=e630]: Reference
+                - generic [ref=e631]: "22"
+                - generic [ref=e632]: "11"
+                - link "Open" [ref=e633] [cursor=pointer]:
+                  - /url: /wiki/coding-agent-workflows
+                  - text: Open
+                  - img [ref=e634]
+              - article [ref=e636]:
+                - button "Context Compaction" [ref=e638]
+                - generic [ref=e639]: AI, Agents & Software
+                - generic [ref=e640]: Reference
+                - generic [ref=e641]: "1"
+                - generic [ref=e642]: "7"
+                - link "Open" [ref=e643] [cursor=pointer]:
+                  - /url: /wiki/context-compaction
+                  - text: Open
+                  - img [ref=e644]
+              - article [ref=e646]:
+                - button "Enterprise Agent Extension Architecture" [ref=e648]
+                - generic [ref=e649]: AI, Agents & Software
+                - generic [ref=e650]: Reference
+                - generic [ref=e651]: "1"
+                - generic [ref=e652]: "8"
+                - link "Open" [ref=e653] [cursor=pointer]:
+                  - /url: /wiki/enterprise-agent-extension-architecture
+                  - text: Open
+                  - img [ref=e654]
+              - article [ref=e656]:
+                - button "LLM Memory" [ref=e658]
+                - generic [ref=e659]: AI, Agents & Software
+                - generic [ref=e660]: Reference
+                - generic [ref=e661]: "3"
+                - generic [ref=e662]: "12"
+                - link "Open" [ref=e663] [cursor=pointer]:
+                  - /url: /wiki/llm-memory
+                  - text: Open
+                  - img [ref=e664]
+              - article [ref=e666]:
+                - button "Memory Transfer Learning" [ref=e668]
+                - generic [ref=e669]: AI, Agents & Software
+                - generic [ref=e670]: Reference
+                - generic [ref=e671]: "1"
+                - generic [ref=e672]: "8"
+                - link "Open" [ref=e673] [cursor=pointer]:
+                  - /url: /wiki/memory-transfer-learning
+                  - text: Open
+                  - img [ref=e674]
+              - article [ref=e676]:
+                - button "Open Harnesses" [ref=e678]
+                - generic [ref=e679]: AI, Agents & Software
+                - generic [ref=e680]: Reference
+                - generic [ref=e681]: "2"
+                - generic [ref=e682]: "9"
+                - link "Open" [ref=e683] [cursor=pointer]:
+                  - /url: /wiki/open-harnesses
+                  - text: Open
+                  - img [ref=e684]
+              - article [ref=e686]:
+                - button "Persistent Agent Threads" [ref=e688]
+                - generic [ref=e689]: AI, Agents & Software
+                - generic [ref=e690]: Concept
+                - generic [ref=e691]: "6"
+                - generic [ref=e692]: "8"
+                - link "Open" [ref=e693] [cursor=pointer]:
+                  - /url: /wiki/persistent-agent-threads
+                  - text: Open
+                  - img [ref=e694]
+              - article [ref=e696]:
+                - button "Proactive Agents" [ref=e698]
+                - generic [ref=e699]: AI, Agents & Software
+                - generic [ref=e700]: Reference
+                - generic [ref=e701]: "1"
+                - generic [ref=e702]: "6"
+                - link "Open" [ref=e703] [cursor=pointer]:
+                  - /url: /wiki/proactive-agents
+                  - text: Open
+                  - img [ref=e704]
+          - complementary "Selected page details" [ref=e706]:
+            - generic [ref=e708]:
+              - generic [ref=e709]:
+                - generic [ref=e710]:
+                  - paragraph [ref=e711]: Selected page
+                  - heading "AI, Agents & Software Systems" [level=2] [ref=e823]
+                - button "Clear selected page" [ref=e713]:
+                  - img
+              - paragraph [ref=e714]: AI, Agents & Software · Hub · 1 min
+              - paragraph [ref=e715]: This is the domain map for AI, agents, coding workflows, software systems, model foundations, memory, safety, and verification.
+              - link "Open page" [ref=e716] [cursor=pointer]:
+                - /url: /wiki/ai-agents-and-software-systems
+                - text: Open page
+                - img [ref=e717]
+            - generic [ref=e719]:
+              - paragraph [ref=e720]:
+                - img [ref=e721]
+                - text: Outbound links
+                - generic [ref=e723]: "22"
+              - generic [ref=e724]:
+                - generic [ref=e725]:
+                  - paragraph [ref=e726]: AI, Agents & Software
+                  - list [ref=e727]:
+                    - listitem [ref=e824]:
+                      - button "AI Foundations & Model Adaptation" [ref=e825]
+                    - listitem [ref=e826]:
+                      - button "Agent Execution Systems" [ref=e827]
+                    - listitem [ref=e730]:
+                      - button "Agentic Engineering" [ref=e731]
+                    - listitem [ref=e732]:
+                      - button "Agent Skills" [ref=e733]
+                    - listitem [ref=e734]:
+                      - button "Coding Agent Workflows" [ref=e735]
+                    - listitem [ref=e738]:
+                      - button "Persistent Agent Threads" [ref=e739]
+                    - listitem [ref=e740]: +9 more
+                - generic [ref=e741]:
+                  - paragraph [ref=e742]: Business, Venture & Money
+                  - list [ref=e743]:
+                    - listitem [ref=e744]:
+                      - button "AI Automation Builders" [ref=e745]
+                - generic [ref=e828]:
+                  - paragraph [ref=e829]: Operational Navigation
+                  - list [ref=e830]:
+                    - listitem [ref=e831]:
+                      - button "Claim Review" [ref=e832]
+                    - listitem [ref=e833]:
+                      - button "Source Intake Guide" [ref=e834]
+                - generic [ref=e746]:
+                  - paragraph [ref=e747]: Trust, Assurance & Boundaries
+                  - list [ref=e748]:
+                    - listitem [ref=e749]:
+                      - button "AI Safety & Control" [ref=e750]
+                    - listitem [ref=e835]:
+                      - button "Trust Boundaries & Assurance" [ref=e836]
+                - generic [ref=e837]:
+                  - paragraph [ref=e838]: Work & Operating Systems
+                  - list [ref=e839]:
+                    - listitem [ref=e840]:
+                      - button "AI-Native Organizations" [ref=e841]
+                    - listitem [ref=e842]:
+                      - button "Skill Partnerships" [ref=e843]
+            - generic [ref=e751]:
+              - paragraph [ref=e752]:
+                - img [ref=e753]
+                - text: Backlinks
+                - generic [ref=e755]: "3"
+              - generic [ref=e788]:
+                - paragraph [ref=e789]: Operational Navigation
+                - list [ref=e790]:
+                  - listitem [ref=e791]:
+                    - button "Claim Review" [ref=e792]
+                  - listitem [ref=e793]:
+                    - button "Open Loops" [ref=e794]
+                  - listitem [ref=e844]:
+                    - button "Start Here For Me" [ref=e845]
+            - generic [ref=e807]:
+              - paragraph [ref=e808]: Source trail
+              - list [ref=e809]:
+                - listitem [ref=e846]:
+                  - generic [ref=e847]: S01
+                  - generic [ref=e848]: "`wiki/Agent Execution Systems.md` - existing execution-system hub."
+                - listitem [ref=e849]:
+                  - generic [ref=e850]: S02
+                  - generic [ref=e851]: "`wiki/Agent Memory & Context Systems.md` - existing memory/context hub."
+                - listitem [ref=e852]:
+                  - generic [ref=e853]: S03
+                  - generic [ref=e854]: "`wiki/AI Foundations & Model Adaptation.md` - existing model-foundations hub."
+  - contentinfo [ref=e450]:
+    - generic [ref=e451]:
+      - generic [ref=e452]:
+        - generic [ref=e453]:
+          - paragraph [ref=e454]: Crashboard
+          - paragraph [ref=e455]: Andrew Davies
+          - paragraph [ref=e456]: "I publish the parts of my working notes that are useful outside the notebook: AI workflows, source-backed research methods, knowledge-system design, and strategy writing from Halifax."
+        - navigation "Footer" [ref=e457]:
+          - list [ref=e458]:
+            - listitem [ref=e459]:
+              - link "Home" [ref=e460] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e461]:
+              - link "Blog" [ref=e462] [cursor=pointer]:
+                - /url: /blog
+            - listitem [ref=e463]:
+              - link "Wiki" [ref=e464] [cursor=pointer]:
+                - /url: /wiki
+            - listitem [ref=e465]:
+              - link "About" [ref=e466] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=e467]:
+              - link "Dashboard" [ref=e468] [cursor=pointer]:
+                - /url: /dashboard
+      - separator [ref=e469]
+      - paragraph [ref=e470]: © 2026 Andrew Davies
+  - alert [ref=e471]: Choose a path through my public knowledge system.

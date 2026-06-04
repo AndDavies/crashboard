@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { WikiExplorer } from "@/components/wiki/wiki-explorer";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import {
@@ -227,7 +228,15 @@ export default function WikiPage() {
       </section>
 
       <section className="mt-10">
-        <WikiExplorer index={index} readerPaths={readerPaths} />
+        <Suspense
+          fallback={
+            <div className="border border-border/80 bg-card/70 p-10 text-center text-sm text-muted-foreground">
+              Loading the explorer…
+            </div>
+          }
+        >
+          <WikiExplorer index={index} readerPaths={readerPaths} />
+        </Suspense>
       </section>
     </div>
   );

@@ -72,6 +72,8 @@ export function WikiGraph({
   activeNodeId: controlledActiveNodeId,
   selectedNodeId: controlledSelectedNodeId,
   focusedNodeId,
+  clusterFilter,
+  onClusterFilter,
   onNodeHover,
   onNodeSelect,
   showSelectedPanel = true,
@@ -83,6 +85,8 @@ export function WikiGraph({
   activeNodeId?: string | null;
   selectedNodeId?: string | null;
   focusedNodeId?: string | null;
+  clusterFilter?: string;
+  onClusterFilter?: (cluster: string) => void;
   onNodeHover?: (nodeId: string | null) => void;
   onNodeSelect?: (nodeId: string | null) => void;
   showSelectedPanel?: boolean;
@@ -90,7 +94,23 @@ export function WikiGraph({
 }) {
   const [internalActiveNodeId, setInternalActiveNodeId] = useState<string | null>(null);
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
-  const [activeCluster, setActiveCluster] = useState<string>("all");
+  const [internalActiveCluster, setInternalActiveCluster] = useState<string>("all");
+
+  // When `onClusterFilter` is provided the swatches drive the explorer's cluster
+  // filter (re-scoping the map); otherwise they just highlight in-place.
+  const controlsFilter = typeof onClusterFilter === "function";
+  const activeCluster = controlsFilter
+    ? clusterFilter ?? "all"
+    : internalActiveCluster;
+
+  function selectCluster(next: string) {
+    const resolved = next === activeCluster ? "all" : next;
+    if (controlsFilter) {
+      onClusterFilter?.(resolved);
+    } else {
+      setInternalActiveCluster(resolved);
+    }
+  }
 
   const totalNodes = nodes.length;
   const visibleNodes = useMemo(() => nodes.slice(0, VISIBLE_NODE_CAP), [nodes]);
@@ -222,10 +242,38 @@ export function WikiGraph({
             Page relationships
           </h2>
         </div>
-        <div className="flex flex-wrap gap-1.5" aria-label="Highlight graph cluster">
+        <dl className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-foreground" aria-hidden />
+            <dt className="meta-tag">Page</dt>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-px w-5 bg-muted-foreground" aria-hidden />
+            <dt className="meta-tag">Link</dt>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="flex items-end gap-0.5" aria-hidden>
+              <span className="size-3 rounded-full bg-foreground" />
+              <span className="size-2 rounded-full bg-muted-foreground" />
+            </span>
+            <dt className="meta-tag">Bigger = hub</dt>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="flex gap-0.5" aria-hidden>
+              <span className="size-2.5" style={{ backgroundColor: "var(--chart-1)" }} />
+              <span className="size-2.5" style={{ backgroundColor: "var(--chart-2)" }} />
+              <span className="size-2.5" style={{ backgroundColor: "var(--chart-3)" }} />
+            </span>
+            <dt className="meta-tag">Colour = cluster</dt>
+          </div>
+        </dl>
+        <div
+          className="flex flex-wrap gap-1.5"
+          aria-label={controlsFilter ? "Filter graph by cluster" : "Highlight graph cluster"}
+        >
           <button
             type="button"
-            onClick={() => setActiveCluster("all")}
+            onClick={() => selectCluster("all")}
             className={cn(
               "inline-flex items-center gap-1.5 border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeCluster === "all"
@@ -241,11 +289,12 @@ export function WikiGraph({
               <button
                 key={cluster}
                 type="button"
-                onClick={() => setActiveCluster(active ? "all" : cluster)}
+                aria-pressed={active}
+                onClick={() => selectCluster(cluster)}
                 className={cn(
                   "inline-flex items-center gap-1.5 border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
-                    ? "border-foreground bg-card text-foreground"
+                    ? "border-accent bg-accent/10 text-foreground"
                     : "border-border/80 bg-background/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
                 )}
               >

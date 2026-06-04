@@ -1,21 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { PreviewCard } from "@base-ui/react/preview-card";
+import { Dialog } from "@base-ui/react/dialog";
 import {
   ArrowRightIcon,
   ArrowUpDownIcon,
   BookOpenIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ListIcon,
   MapIcon,
+  RouteIcon,
   SearchIcon,
   XIcon,
 } from "lucide-react";
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
   useState,
   type ComponentType,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import { Button } from "@/components/ui/button";
@@ -81,6 +89,39 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
   { value: "reading", label: "Reading time" },
   { value: "title", label: "Title" },
 ];
+
+const EXPLORER_MODES: ExplorerMode[] = ["paths", "all-pages", "map"];
+const SORT_VALUES: SortOption[] = [
+  "cluster",
+  "title",
+  "sources",
+  "reading",
+  "links",
+];
+
+function parseMode(value: string | null): ExplorerMode {
+  return value && EXPLORER_MODES.includes(value as ExplorerMode)
+    ? (value as ExplorerMode)
+    : "paths";
+}
+
+function parseSort(value: string | null): SortOption {
+  return value && SORT_VALUES.includes(value as SortOption)
+    ? (value as SortOption)
+    : "cluster";
+}
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1280px)");
+    const update = () => setIsDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return isDesktop;
+}
 
 function label(input: string) {
   return input
@@ -187,13 +228,23 @@ export function WikiExplorer({
   index: PublicWikiIndex;
   readerPaths: ReaderPathWithPages[];
 }) {
-  const [mode, setMode] = useState<ExplorerMode>("paths");
-  const [query, setQuery] = useState("");
-  const [cluster, setCluster] = useState("all");
-  const [role, setRole] = useState("all");
-  const [sort, setSort] = useState<SortOption>("cluster");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isDesktop = useIsDesktop();
+
+  const [mode, setMode] = useState<ExplorerMode>(() =>
+    parseMode(searchParams.get("view")),
+  );
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [cluster, setCluster] = useState(() => searchParams.get("cluster") ?? "all");
+  const [role, setRole] = useState(() => searchParams.get("role") ?? "all");
+  const [sort, setSort] = useState<SortOption>(() =>
+    parseSort(searchParams.get("sort")),
+  );
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeTrailId, setActiveTrailId] = useState<string | null>(null);
   const [showWholeVaultMap, setShowWholeVaultMap] = useState(false);
   const [showMobileMap, setShowMobileMap] = useState(false);
   const deferredQuery = useDeferredValue(query);
@@ -304,6 +355,54 @@ export function WikiExplorer({
   const filtersDirty =
     Boolean(query) || cluster !== "all" || role !== "all" || sort !== "cluster";
 
+  const activeTrail = useMemo(
+    () => readingTrails.find((trail) => trail.id === activeTrailId) ?? null,
+    [activeTrailId, readingTrails],
+  );
+  const activeTrailStep = activeTrail
+    ? activeTrail.pages.findIndex((page) => page.slug === selectedNodeId)
+    : -1;
+
+  // Keep the URL in sync so a filtered/scoped view is shareable and survives refresh.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (mode !== "paths") params.set("view", mode);
+    if (cluster !== "all") params.set("cluster", cluster);
+    if (role !== "all") params.set("role", role);
+    if (sort !== "cluster") params.set("sort", sort);
+    if (deferredQuery) params.set("q", deferredQuery);
+    if (selectedNodeId) params.set("page", selectedNodeId);
+    if (activeTrailId) params.set("trail", activeTrailId);
+    const next = params.toString();
+    const current = searchParams.toString();
+    if (next === current) return;
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [
+    activeTrailId,
+    cluster,
+    deferredQuery,
+    mode,
+    pathname,
+    role,
+    router,
+    searchParams,
+    selectedNodeId,
+    sort,
+  ]);
+
+  // Restore a selected/trail state from the URL on first load (shareable deep links).
+  useEffect(() => {
+    const pageParam = searchParams.get("page");
+    if (pageParam && pageBySlug.has(pageParam)) {
+      setSelectedNodeId(pageParam);
+      setActiveNodeId(pageParam);
+    }
+    const trailParam = searchParams.get("trail");
+    if (trailParam) setActiveTrailId(trailParam);
+    // Only run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!selectedNodeId) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -334,18 +433,35 @@ export function WikiExplorer({
     setClusterFilter("all");
     setRoleFilter("all");
     setSort("cluster");
+    setActiveTrailId(null);
   }
 
-  function selectPage(slug: string | null) {
+  const selectPage = useCallback((slug: string | null) => {
     setSelectedNodeId(slug);
     setActiveNodeId(slug);
     setShowWholeVaultMap(false);
-  }
+  }, []);
 
   function followTrail(trail: ReadingTrail) {
     setMode("all-pages");
-    setClusterFilter(trail.clusterId);
+    setCluster(trail.clusterId);
+    setRole("all");
+    setActiveTrailId(trail.id);
     selectPage(trail.pages[0]?.slug ?? null);
+  }
+
+  const goToTrailStep = useCallback(
+    (nextIndex: number) => {
+      if (!activeTrail) return;
+      const clamped = Math.max(0, Math.min(activeTrail.pages.length - 1, nextIndex));
+      selectPage(activeTrail.pages[clamped]?.slug ?? null);
+    },
+    [activeTrail, selectPage],
+  );
+
+  function exitTrail() {
+    setActiveTrailId(null);
+    selectPage(null);
   }
 
   return (
@@ -367,9 +483,20 @@ export function WikiExplorer({
         resetFilters={resetFilters}
       />
 
+      {activeTrail ? (
+        <TrailProgress
+          trail={activeTrail}
+          stepIndex={activeTrailStep}
+          onStep={goToTrailStep}
+          onSelect={selectPage}
+          onExit={exitTrail}
+        />
+      ) : null}
+
       {mode === "paths" ? (
         <PathsMode
           index={index}
+          isDesktop={isDesktop}
           readerPaths={readerPaths}
           readingTrails={readingTrails}
           relationMaps={relationMaps}
@@ -384,6 +511,7 @@ export function WikiExplorer({
       {mode === "all-pages" ? (
         <IndexMode
           pages={pages}
+          isDesktop={isDesktop}
           relationMaps={relationMaps}
           selectedNodeId={selectedNodeId}
           selectedPage={selectedPage}
@@ -397,6 +525,9 @@ export function WikiExplorer({
       {mode === "map" ? (
         <MapMode
           activeNodeId={focusedNodeId}
+          cluster={cluster}
+          isDesktop={isDesktop}
+          onClusterFilter={setClusterFilter}
           entryPages={entryPages}
           graph={mapGraph}
           mapContext={
@@ -420,7 +551,139 @@ export function WikiExplorer({
           onSelect={selectPage}
         />
       ) : null}
+
+      {!isDesktop ? (
+        <MobilePageSheet
+          open={Boolean(selectedPage)}
+          onClose={() => selectPage(null)}
+        >
+          {selectedPage ? (
+            <PageDrawer
+              entryPages={[]}
+              index={index}
+              page={selectedPage}
+              pageBySlug={pageBySlug}
+              relationMaps={relationMaps}
+              onClose={() => selectPage(null)}
+              onSelect={selectPage}
+            />
+          ) : null}
+        </MobilePageSheet>
+      ) : null}
     </div>
+  );
+}
+
+function MobilePageSheet({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto border-t-2 border-accent bg-background p-4 shadow-[0_-18px_60px_rgba(0,0,0,0.22)] outline-none transition-transform data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full">
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" aria-hidden />
+          {children}
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function TrailProgress({
+  trail,
+  stepIndex,
+  onStep,
+  onSelect,
+  onExit,
+}: {
+  trail: ReadingTrail;
+  stepIndex: number;
+  onStep: (nextIndex: number) => void;
+  onSelect: (slug: string | null) => void;
+  onExit: () => void;
+}) {
+  const total = trail.pages.length;
+  const currentStep = stepIndex >= 0 ? stepIndex : 0;
+  const humanStep = stepIndex >= 0 ? stepIndex + 1 : 1;
+
+  return (
+    <section
+      className="sticky top-14 z-30 border border-accent/40 bg-accent/5 backdrop-blur sm:top-16"
+      aria-label="Trail progress"
+    >
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="inline-flex size-8 shrink-0 items-center justify-center bg-accent text-accent-foreground">
+            <RouteIcon className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="eyebrow">
+              Following · step {humanStep} of {total}
+            </p>
+            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+              {trail.title}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1" role="group" aria-label="Trail steps">
+            {trail.pages.map((page, index) => (
+              <button
+                key={page.slug}
+                type="button"
+                onClick={() => onSelect(page.slug)}
+                aria-label={`Go to step ${index + 1}: ${page.title}`}
+                aria-current={index === currentStep ? "step" : undefined}
+                className={cn(
+                  "h-1.5 w-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  index === currentStep
+                    ? "bg-accent"
+                    : index < currentStep
+                      ? "bg-accent/50"
+                      : "bg-border",
+                )}
+              />
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onStep(currentStep - 1)}
+            disabled={currentStep <= 0}
+            aria-label="Previous step"
+          >
+            <ChevronLeftIcon className="size-4" aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            onClick={() => onStep(currentStep + 1)}
+            disabled={currentStep >= total - 1}
+          >
+            Next
+            <ChevronRightIcon className="size-4" aria-hidden />
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onExit}>
+            Exit
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -637,6 +900,7 @@ function FilterSelect({
 
 function PathsMode({
   index,
+  isDesktop,
   onFollowTrail,
   onHover,
   onSelect,
@@ -647,6 +911,7 @@ function PathsMode({
   selectedPage,
 }: {
   index: PublicWikiIndex;
+  isDesktop: boolean;
   onFollowTrail: (trail: ReadingTrail) => void;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string | null) => void;
@@ -656,11 +921,12 @@ function PathsMode({
   relationMaps: RelationMaps;
   selectedPage: PublicWikiIndexPage | null;
 }) {
+  const showInlineDrawer = isDesktop && Boolean(selectedPage);
   return (
     <div
       className={cn(
         "grid min-w-0 gap-10",
-        selectedPage && "xl:grid-cols-[minmax(0,1fr)_22rem]",
+        showInlineDrawer && "xl:grid-cols-[minmax(0,1fr)_22rem]",
       )}
     >
       <div className="min-w-0 space-y-12">
@@ -710,7 +976,7 @@ function PathsMode({
         </section>
       </div>
 
-      {selectedPage ? (
+      {showInlineDrawer ? (
         <PageDrawer
           entryPages={[]}
           index={index}
@@ -840,9 +1106,12 @@ function ReaderPathCard({
 
 function MapMode({
   activeNodeId,
+  cluster,
   entryPages,
   graph,
+  isDesktop,
   mapContext,
+  onClusterFilter,
   onHover,
   onRevealMobileMap,
   onSelect,
@@ -855,9 +1124,12 @@ function MapMode({
   showWholeVaultMap,
 }: {
   activeNodeId: string | null;
+  cluster: string;
   entryPages: PublicWikiIndexPage[];
   graph: PublicWikiIndex["graph"];
+  isDesktop: boolean;
   mapContext: string;
+  onClusterFilter: (cluster: string) => void;
   onHover: (slug: string | null) => void;
   onRevealMobileMap: () => void;
   onSelect: (slug: string | null) => void;
@@ -870,7 +1142,12 @@ function MapMode({
   showWholeVaultMap: boolean;
 }) {
   return (
-    <div className="grid min-w-0 gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div
+      className={cn(
+        "grid min-w-0 gap-10",
+        isDesktop && "xl:grid-cols-[minmax(0,1fr)_22rem]",
+      )}
+    >
       <section className="min-w-0 space-y-5">
         <SectionHeader
           eyebrow="Map view"
@@ -916,6 +1193,8 @@ function MapMode({
             edges={graph.edges}
             activeNodeId={activeNodeId}
             selectedNodeId={selectedNodeId}
+            clusterFilter={cluster}
+            onClusterFilter={onClusterFilter}
             onNodeHover={onHover}
             onNodeSelect={onSelect}
             showSelectedPanel={false}
@@ -924,15 +1203,17 @@ function MapMode({
         </div>
       </section>
 
-      <PageDrawer
-        entryPages={entryPages}
-        index={null}
-        page={selectedPage}
-        pageBySlug={pageBySlug}
-        relationMaps={relationMaps}
-        onClose={() => onSelect(null)}
-        onSelect={onSelect}
-      />
+      {isDesktop ? (
+        <PageDrawer
+          entryPages={entryPages}
+          index={null}
+          page={selectedPage}
+          pageBySlug={pageBySlug}
+          relationMaps={relationMaps}
+          onClose={() => onSelect(null)}
+          onSelect={onSelect}
+        />
+      ) : null}
     </div>
   );
 }
@@ -959,55 +1240,50 @@ function ReadingTrailCard({
         className,
       )}
     >
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">Reading trail</p>
-            <h3 className="mt-2 font-heading text-2xl font-semibold leading-tight text-foreground">
-              {trail.title}
-            </h3>
-          </div>
-          <div className="meta-tag shrink-0 text-right">
-            {trail.pages.length} steps
-          </div>
-        </div>
-
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          {trail.description}
-        </p>
-
-        <div className="mt-5">
-          <p className="eyebrow">Route</p>
-          <ol className="mt-3 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 xl:grid-cols-4">
-            {trail.pages.map((page, stepIndex) => (
-              <li key={page.slug} className="bg-card/70">
-                <RouteStep
-                  backlinksCount={
-                    relationMaps.backlinks.get(page.slug)?.length ?? 0
-                  }
-                  index={stepIndex}
-                  onHover={onHover}
-                  onSelect={onSelect}
-                  outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
-                  page={page}
-                />
-              </li>
-            ))}
-          </ol>
-        </div>
-      </div>
-
+      {/* Primary action: the whole header starts the trail. */}
       <button
         type="button"
-        className="flex items-center justify-between border-t border-border/80 bg-card/40 px-5 py-4 text-left text-sm font-medium text-foreground motion-safe:transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         onClick={() => onFollowTrail(trail)}
+        className="group/lead flex flex-col gap-3 p-5 text-left outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        Follow trail
-        <ArrowRightIcon
-          className="size-4 motion-safe:transition-transform motion-safe:group-hover/trail:translate-x-1"
-          aria-hidden
-        />
+        <div className="flex items-center justify-between gap-4">
+          <p className="eyebrow">
+            Reading trail · {trail.pages.length} steps
+          </p>
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold tracking-tight text-accent">
+            Start trail
+            <ArrowRightIcon
+              className="size-4 motion-safe:transition-transform motion-safe:group-hover/lead:translate-x-1"
+              aria-hidden
+            />
+          </span>
+        </div>
+        <h3 className="font-heading text-2xl font-semibold leading-tight text-foreground motion-safe:transition-colors group-hover/lead:text-accent">
+          {trail.title}
+        </h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {trail.description}
+        </p>
       </button>
+
+      {/* Secondary: peek at the individual steps. */}
+      <div className="mt-auto border-t border-border/80 px-5 pb-5 pt-4">
+        <p className="meta-tag">Steps to preview</p>
+        <ol className="mt-3 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 xl:grid-cols-4">
+          {trail.pages.map((page, stepIndex) => (
+            <li key={page.slug} className="bg-card/70">
+              <RouteStep
+                backlinksCount={relationMaps.backlinks.get(page.slug)?.length ?? 0}
+                index={stepIndex}
+                onHover={onHover}
+                onSelect={onSelect}
+                outboundCount={relationMaps.outbound.get(page.slug)?.length ?? 0}
+                page={page}
+              />
+            </li>
+          ))}
+        </ol>
+      </div>
     </article>
   );
 }
@@ -1029,38 +1305,40 @@ function RouteStep({
 }) {
   return (
     <div
-      className="group/step relative h-full"
+      className="group/step h-full"
       onMouseEnter={() => onHover(page.slug)}
       onMouseLeave={() => onHover(null)}
     >
-      <button
-        type="button"
-        onClick={() => onSelect(page.slug)}
-        className="relative flex h-full w-full flex-col gap-2 p-4 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-      >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 w-0.5 bg-accent opacity-0 transition-opacity duration-150 group-hover/step:opacity-100 group-focus-within/step:opacity-100"
-        />
-        <span className="ordinal">
-          {String(index + 1).padStart(2, "0")}
-        </span>
-        <span className="line-clamp-3 text-sm font-medium leading-snug text-foreground">
-          {page.title}
-        </span>
-      </button>
-      <PageHoverPreview
-        backlinksCount={backlinksCount}
-        className="absolute left-0 right-0 top-full z-40 mt-1 hidden group-hover/step:block group-focus-within/step:block sm:right-auto sm:w-72"
-        outboundCount={outboundCount}
+      <WikiPagePreview
         page={page}
-      />
+        backlinksCount={backlinksCount}
+        outboundCount={outboundCount}
+        side="bottom"
+      >
+        <button
+          type="button"
+          onClick={() => onSelect(page.slug)}
+          className="relative flex h-full w-full flex-col gap-1.5 p-3 text-left motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-0.5 bg-accent opacity-0 transition-opacity duration-150 group-hover/step:opacity-100 group-focus-within/step:opacity-100"
+          />
+          <span className="ordinal">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <span className="line-clamp-2 text-xs font-medium leading-snug text-muted-foreground">
+            {page.title}
+          </span>
+        </button>
+      </WikiPagePreview>
     </div>
   );
 }
 
 function IndexMode({
   entryPages,
+  isDesktop,
   onHover,
   onSelect,
   pageBySlug,
@@ -1070,6 +1348,7 @@ function IndexMode({
   selectedPage,
 }: {
   entryPages: PublicWikiIndexPage[];
+  isDesktop: boolean;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string | null) => void;
   pageBySlug: Map<string, PublicWikiIndexPage>;
@@ -1079,7 +1358,12 @@ function IndexMode({
   selectedPage: PublicWikiIndexPage | null;
 }) {
   return (
-    <div className="grid min-w-0 gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div
+      className={cn(
+        "grid min-w-0 gap-10",
+        isDesktop && "xl:grid-cols-[minmax(0,1fr)_22rem]",
+      )}
+    >
       <section className="min-w-0 border border-border/80">
         <div className="hidden grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] border-b border-border/80 bg-muted/40 px-4 py-3 lg:grid">
           <span className="eyebrow">Page</span>
@@ -1106,15 +1390,17 @@ function IndexMode({
         {pages.length === 0 ? <EmptyState /> : null}
       </section>
 
-      <PageDrawer
-        entryPages={entryPages}
-        index={null}
-        page={selectedPage}
-        pageBySlug={pageBySlug}
-        relationMaps={relationMaps}
-        onClose={() => onSelect(null)}
-        onSelect={onSelect}
-      />
+      {isDesktop ? (
+        <PageDrawer
+          entryPages={entryPages}
+          index={null}
+          page={selectedPage}
+          pageBySlug={pageBySlug}
+          relationMaps={relationMaps}
+          onClose={() => onSelect(null)}
+          onSelect={onSelect}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1139,20 +1425,27 @@ function IndexRow({
   return (
     <article
       className={cn(
-        "group/row relative grid gap-y-2 gap-x-3 bg-card/70 px-4 py-4 motion-safe:transition-colors hover:bg-card lg:grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] lg:items-center",
+        "group/row grid gap-y-2 gap-x-3 bg-card/70 px-4 py-4 motion-safe:transition-colors hover:bg-card lg:grid-cols-[minmax(13rem,1.2fr)_9rem_8rem_5rem_5rem_5rem] lg:items-center",
         active && "border-l-2 border-accent bg-card pl-[calc(1rem-2px)]",
       )}
       onMouseEnter={() => onHover(page.slug)}
       onMouseLeave={() => onHover(null)}
     >
       <div className="min-w-0">
-        <button
-          type="button"
-          onClick={() => onSelect(page.slug)}
-          className="block w-full text-left font-heading text-xl font-semibold leading-tight text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <WikiPagePreview
+          page={page}
+          backlinksCount={backlinksCount}
+          outboundCount={outboundCount}
+          side="bottom"
         >
-          {page.title}
-        </button>
+          <button
+            type="button"
+            onClick={() => onSelect(page.slug)}
+            className="block w-full text-left font-heading text-xl font-semibold leading-tight text-foreground transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {page.title}
+          </button>
+        </WikiPagePreview>
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground lg:hidden">
           {page.description}
         </p>
@@ -1203,12 +1496,6 @@ function IndexRow({
         Open
         <ArrowRightIcon className="size-3.5" aria-hidden />
       </Link>
-      <PageHoverPreview
-        backlinksCount={backlinksCount}
-        className="absolute left-4 top-14 z-30 hidden max-w-sm group-hover/row:block group-focus-within/row:block"
-        outboundCount={outboundCount}
-        page={page}
-      />
     </article>
   );
 }
@@ -1230,61 +1517,77 @@ function PreviewChip({
 }) {
   return (
     <span
-      className="group/chip relative inline-flex"
+      className="group/chip inline-flex"
       onMouseEnter={() => onHover(page.slug)}
       onMouseLeave={() => onHover(null)}
     >
-      <button
-        type="button"
-        onClick={() => onSelect(page.slug)}
-        className="border border-border/80 bg-background/70 px-2.5 py-1 text-left text-xs font-medium text-muted-foreground motion-safe:transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {prefix ? <span className="mr-1 text-foreground">{prefix}</span> : null}
-        {page.title}
-      </button>
-      <PageHoverPreview
-        backlinksCount={backlinksCount}
-        className="absolute left-0 top-full z-40 mt-2 hidden w-72 group-hover/chip:block group-focus-within/chip:block"
-        outboundCount={outboundCount}
+      <WikiPagePreview
         page={page}
-      />
+        backlinksCount={backlinksCount}
+        outboundCount={outboundCount}
+        side="top"
+      >
+        <button
+          type="button"
+          onClick={() => onSelect(page.slug)}
+          className="border border-border/80 bg-background/70 px-2.5 py-1 text-left text-xs font-medium text-muted-foreground motion-safe:transition-colors hover:border-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {prefix ? <span className="mr-1 text-foreground">{prefix}</span> : null}
+          {page.title}
+        </button>
+      </WikiPagePreview>
     </span>
   );
 }
 
-function PageHoverPreview({
-  backlinksCount,
-  className,
-  outboundCount,
+/**
+ * A portaled, collision-aware preview shown on hover/focus of a page trigger.
+ * Replaces the old CSS-only absolute popovers (which were trapped behind
+ * sibling cards by transform-based stacking contexts) and is itself hoverable.
+ */
+function WikiPagePreview({
   page,
+  backlinksCount,
+  outboundCount,
+  side = "bottom",
+  children,
 }: {
-  backlinksCount: number;
-  className?: string;
-  outboundCount: number;
   page: PublicWikiIndexPage;
+  backlinksCount: number;
+  outboundCount: number;
+  side?: "top" | "bottom" | "left" | "right";
+  children: ReactElement;
 }) {
   return (
-    <div
-      className={cn(
-        "pointer-events-none border border-border/80 bg-background/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.14)] backdrop-blur",
-        className,
-      )}
-    >
-      <p className="meta-tag">
-        {clusterLabel(page.cluster)} · {label(page.role)}
-      </p>
-      <p className="mt-2 font-heading text-lg font-semibold leading-tight text-foreground">
-        {page.title}
-      </p>
-      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-        {page.description}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-3">
-        <span className="meta-tag">{page.sourceNotes.length} sources</span>
-        <span className="meta-tag">{outboundCount} outbound</span>
-        <span className="meta-tag">{backlinksCount} backlinks</span>
-      </div>
-    </div>
+    <PreviewCard.Root>
+      <PreviewCard.Trigger delay={140} closeDelay={120} render={children} />
+      <PreviewCard.Portal>
+        <PreviewCard.Positioner
+          side={side}
+          align="start"
+          sideOffset={8}
+          collisionPadding={12}
+          className="z-50"
+        >
+          <PreviewCard.Popup className="w-72 max-w-[calc(100vw-2rem)] border border-border/80 bg-background/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] outline-none backdrop-blur data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-safe:transition-opacity">
+            <p className="meta-tag">
+              {clusterLabel(page.cluster)} · {label(page.role)}
+            </p>
+            <p className="mt-2 font-heading text-lg font-semibold leading-tight text-foreground">
+              {page.title}
+            </p>
+            <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+              {page.description}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <span className="meta-tag">{page.sourceNotes.length} sources</span>
+              <span className="meta-tag">{outboundCount} outbound</span>
+              <span className="meta-tag">{backlinksCount} backlinks</span>
+            </div>
+          </PreviewCard.Popup>
+        </PreviewCard.Positioner>
+      </PreviewCard.Portal>
+    </PreviewCard.Root>
   );
 }
 
