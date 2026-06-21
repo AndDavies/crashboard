@@ -289,25 +289,92 @@ function taskLabel(task: MediaWorkflowEntry["task"]) {
 function workflowOptionLabel(workflow: MediaWorkflowEntry) {
   const task = taskLabel(workflow.task);
   const status = workflow.status.replace(/[-_]/g, " ");
+  const dimensions = workflowDimensions(workflow);
+  const requirement = workflowRequirementLabel(workflow);
+  const title = compactWorkflowTitle(workflow);
+  const suffix = [dimensions, requirement].filter(Boolean).join(" · ");
+  const detail = suffix ? ` · ${suffix}` : "";
+  if (/avery/i.test(workflow.title)) {
+    return `${title} · ${task} · ${status}${detail}`;
+  }
   if (/current/i.test(workflow.status)) {
-    return `${task} current good - ${truncate(workflow.useWhen, 86)}`;
+    return `${task} current good · ${title}${detail}`;
   }
   if (/recommended/i.test(workflow.status)) {
-    return `${task} recommended - ${truncate(workflow.useWhen, 86)}`;
+    return `${task} recommended · ${title}${detail}`;
   }
   if (workflow.task === "img2img") {
-    return `Img2img source refinement - ${truncate(workflow.useWhen, 82)}`;
+    return `Img2img source refinement · ${title}${detail}`;
   }
   if (workflow.task === "openpose") {
-    return `OpenPose pose-control still - ${truncate(workflow.useWhen, 82)}`;
+    return `OpenPose pose-control still · ${title}${detail}`;
   }
   if (workflow.task === "inpaint") {
-    return `Masked repair / local edit - ${truncate(workflow.useWhen, 82)}`;
+    return `Masked repair / local edit · ${title}${detail}`;
   }
   if (workflow.task === "i2v") {
-    return `Image-to-video motion - ${truncate(workflow.useWhen, 82)}`;
+    return `Image-to-video motion · ${title}${detail}`;
   }
-  return `${task} ${status} - ${truncate(workflow.useWhen, 86)}`;
+  return `${task} ${status} · ${title}${detail}`;
+}
+
+function compactWorkflowTitle(workflow: MediaWorkflowEntry) {
+  return workflow.title
+    .replace(/\b(SDXL|API|UI|GGUF)\b/g, "")
+    .replace(/\b(Current|Recommended|Reference|Production)\b/gi, "")
+    .replace(/\bV(\d+)\b/g, "v$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function workflowDimensions(workflow: MediaWorkflowEntry) {
+  const width = workflow.parameters.width;
+  const height = workflow.parameters.height;
+  if (
+    (typeof width === "number" || typeof width === "string") &&
+    (typeof height === "number" || typeof height === "string")
+  ) {
+    return `${width}x${height}`;
+  }
+  const fromInputs = workflow.imageInputs
+    .map((input) => input.match(/(\d{3,4})x(\d{3,4})/i)?.[0])
+    .find(Boolean);
+  return fromInputs ?? "";
+}
+
+function workflowRequirementLabel(workflow: MediaWorkflowEntry) {
+  const inputs = workflow.inputs.join(" ").toLowerCase();
+  if (workflow.task === "openpose" || inputs.includes("openpose")) {
+    return "needs OpenPose reference";
+  }
+  if (workflow.task === "inpaint" || inputs.includes("mask")) {
+    return "needs source + mask";
+  }
+  if (["img2img", "i2v", "first-last-frame"].includes(workflow.task)) {
+    return workflow.task === "first-last-frame"
+      ? "needs start + end frames"
+      : "needs source image";
+  }
+  if (workflow.task === "text2img") {
+    return "prompt only";
+  }
+  return workflow.inputs.length ? workflow.inputs.slice(0, 2).join(" + ") : "";
+}
+
+function workflowPromptHint(workflow: MediaWorkflowEntry) {
+  if (workflow.task === "openpose") {
+    return "This workflow is pose-led. Keep the prompt focused on subject, setting, lighting, style, and camera; let the OpenPose reference control body placement and framing.";
+  }
+  if (workflow.task === "img2img") {
+    return "This workflow is source-led. Prompt one controlled change at a time and preserve identity, composition, lighting, and camera distance unless you explicitly want drift.";
+  }
+  if (workflow.task === "inpaint") {
+    return "This workflow is mask-led. Write the prompt for the masked area only and keep surrounding pixels, perspective, and lighting stable.";
+  }
+  if (workflow.task === "i2v" || workflow.task === "first-last-frame") {
+    return "This workflow is continuity-led. Use concise motion language and avoid broad scene changes that compete with the source keyframe.";
+  }
+  return "This workflow is prompt-led. Make subject, setting, composition, lighting, camera, and style explicit because there is no control image to anchor the result.";
 }
 
 function badgeClassForTag(tag: string) {
@@ -612,15 +679,22 @@ function PresetSelect({
   presets,
   activeId,
   onApply,
+  emphasis = false,
 }: {
   label: string;
   presets: Preset[];
   activeId: string;
   onApply: (preset: Preset) => void;
+  emphasis?: boolean;
 }) {
   const activePreset = presets.find((preset) => preset.id === activeId) ?? presets[0];
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className={cn(
+        "flex flex-col gap-2",
+        emphasis && "border border-emerald-300/70 bg-emerald-500/10 p-3",
+      )}
+    >
       <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
         {label}
         <select
@@ -639,7 +713,7 @@ function PresetSelect({
         </select>
       </label>
       {activePreset ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <p className={cn("text-xs leading-relaxed", emphasis ? "text-foreground" : "text-muted-foreground")}>
           {activePreset.helper}
         </p>
       ) : null}
@@ -807,6 +881,8 @@ function GuidanceSheet({ workflow }: { workflow: MediaWorkflowEntry }) {
 
 function WorkflowSummary({ workflow }: { workflow: MediaWorkflowEntry }) {
   const params = Object.entries(workflow.parameters).slice(0, 8);
+  const dimensions = workflowDimensions(workflow);
+  const requirement = workflowRequirementLabel(workflow);
   return (
     <section className="grid gap-4 border border-border/80 bg-card p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -821,6 +897,16 @@ function WorkflowSummary({ workflow }: { workflow: MediaWorkflowEntry }) {
             <Badge variant="outline" className={badgeClassForTag(workflow.status)}>
               {workflow.status.replace(/[-_]/g, " ")}
             </Badge>
+            {dimensions ? (
+              <Badge variant="outline" className="border-foreground/30 bg-background">
+                {dimensions}
+              </Badge>
+            ) : null}
+            {requirement ? (
+              <Badge variant="outline" className={badgeClassForTag(requirement)}>
+                {requirement}
+              </Badge>
+            ) : null}
           </div>
           <h3 className="mt-2 font-heading text-lg font-semibold tracking-tight">
             {workflow.title}
@@ -857,6 +943,33 @@ function WorkflowSummary({ workflow }: { workflow: MediaWorkflowEntry }) {
             {[...workflow.models, ...workflow.loras, ...workflow.controlModels]
               .slice(0, 3)
               .join(", ") || "No model stack extracted."}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 border-t border-border/70 pt-3 text-sm md:grid-cols-[1.1fr_1fr_1fr]">
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Prompt Guidance
+          </p>
+          <p className="mt-1 leading-relaxed text-muted-foreground">
+            {workflowPromptHint(workflow)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Required Files
+          </p>
+          <p className="mt-1 leading-relaxed text-muted-foreground">
+            {workflow.inputs.join(", ") || "Prompt only."}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Reference Images
+          </p>
+          <p className="mt-1 break-words leading-relaxed text-muted-foreground">
+            {workflow.imageInputs.filter(Boolean).slice(0, 3).join(", ") || "None required."}
           </p>
         </div>
       </div>
@@ -1658,18 +1771,37 @@ export function PromptBuilderTool({ catalog }: Props) {
 
               {builderMode === "wizard" ? (
                 <div className="grid gap-5">
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="border border-border/70 bg-background p-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className={badgeClassForTag(taskLabel(workflow.task))}>
+                        {taskLabel(workflow.task)}
+                      </Badge>
+                      <Badge variant="outline" className={badgeClassForTag(workflowRequirementLabel(workflow))}>
+                        {workflowRequirementLabel(workflow)}
+                      </Badge>
+                      {workflowDimensions(workflow) ? (
+                        <Badge variant="outline">{workflowDimensions(workflow)}</Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {workflowPromptHint(workflow)}
+                    </p>
+                  </div>
+
+                  <PresetSelect
+                    label="Setting"
+                    presets={SETTING_PRESETS}
+                    activeId={brief.settingPreset}
+                    onApply={applySettingPreset}
+                    emphasis
+                  />
+
+                  <div className="grid gap-4 md:grid-cols-3">
                     <PresetSelect
                       label="Subject / look"
                       presets={SUBJECT_PRESETS}
                       activeId={brief.subjectPreset}
                       onApply={applySubjectPreset}
-                    />
-                    <PresetSelect
-                      label="Setting"
-                      presets={SETTING_PRESETS}
-                      activeId={brief.settingPreset}
-                      onApply={applySettingPreset}
                     />
                     <PresetSelect
                       label="Lighting"
