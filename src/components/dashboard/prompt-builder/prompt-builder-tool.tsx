@@ -89,6 +89,65 @@ type PresetsPayload = {
   error?: string;
 };
 
+type WorkflowFamilyId =
+  | "all"
+  | "text2img"
+  | "openpose"
+  | "img2img"
+  | "inpaint"
+  | "closeup"
+  | "video"
+  | "export";
+
+type WorkflowFamily = {
+  id: WorkflowFamilyId;
+  label: string;
+  helper: string;
+};
+
+const WORKFLOW_FAMILIES: WorkflowFamily[] = [
+  {
+    id: "all",
+    label: "All",
+    helper: "Everything prompt-capable.",
+  },
+  {
+    id: "text2img",
+    label: "Start from scratch",
+    helper: "Prompt-only stills.",
+  },
+  {
+    id: "openpose",
+    label: "Pose control",
+    helper: "Needs OpenPose reference.",
+  },
+  {
+    id: "img2img",
+    label: "Source refine",
+    helper: "Needs source image.",
+  },
+  {
+    id: "inpaint",
+    label: "Repair / detail",
+    helper: "Needs source and mask.",
+  },
+  {
+    id: "closeup",
+    label: "Portrait / close-up",
+    helper: "Face or detail crops.",
+  },
+  {
+    id: "video",
+    label: "Video motion",
+    helper: "I2V or frame continuity.",
+  },
+  {
+    id: "export",
+    label: "Export / smooth",
+    helper: "Upscale or interpolation.",
+  },
+];
+
 const SUBJECT_PRESETS: Preset[] = [
   {
     id: "adult-girl-next-door",
@@ -286,36 +345,40 @@ function taskLabel(task: MediaWorkflowEntry["task"]) {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-function workflowOptionLabel(workflow: MediaWorkflowEntry) {
-  const task = taskLabel(workflow.task);
-  const status = workflow.status.replace(/[-_]/g, " ");
-  const dimensions = workflowDimensions(workflow);
-  const requirement = workflowRequirementLabel(workflow);
-  const title = compactWorkflowTitle(workflow);
-  const suffix = [dimensions, requirement].filter(Boolean).join(" · ");
-  const detail = suffix ? ` · ${suffix}` : "";
-  if (/avery/i.test(workflow.title)) {
-    return `${title} · ${task} · ${status}${detail}`;
+function workflowFamily(workflow: MediaWorkflowEntry): WorkflowFamilyId {
+  const text = `${workflow.title} ${workflow.path} ${workflow.useWhen}`.toLowerCase();
+  if (
+    workflow.task === "i2v" ||
+    workflow.task === "first-last-frame" ||
+    workflow.task === "interpolation"
+  ) {
+    return "video";
   }
-  if (/current/i.test(workflow.status)) {
-    return `${task} current good · ${title}${detail}`;
+  if (workflow.task === "upscale-export") {
+    return "export";
   }
-  if (/recommended/i.test(workflow.status)) {
-    return `${task} recommended · ${title}${detail}`;
-  }
-  if (workflow.task === "img2img") {
-    return `Img2img source refinement · ${title}${detail}`;
+  if (
+    text.includes("face") ||
+    text.includes("portrait") ||
+    text.includes("close") ||
+    text.includes("skin tone") ||
+    text.includes("cleanup")
+  ) {
+    return "closeup";
   }
   if (workflow.task === "openpose") {
-    return `OpenPose pose-control still · ${title}${detail}`;
+    return "openpose";
+  }
+  if (workflow.task === "img2img") {
+    return "img2img";
   }
   if (workflow.task === "inpaint") {
-    return `Masked repair / local edit · ${title}${detail}`;
+    return "inpaint";
   }
-  if (workflow.task === "i2v") {
-    return `Image-to-video motion · ${title}${detail}`;
+  if (workflow.task === "text2img") {
+    return "text2img";
   }
-  return `${task} ${status} · ${title}${detail}`;
+  return "all";
 }
 
 function compactWorkflowTitle(workflow: MediaWorkflowEntry) {
@@ -988,6 +1051,127 @@ function WorkflowSummary({ workflow }: { workflow: MediaWorkflowEntry }) {
   );
 }
 
+function WorkflowChooser({
+  workflows,
+  activeWorkflowId,
+  activeFamily,
+  onFamilyChange,
+  onWorkflowChange,
+}: {
+  workflows: MediaWorkflowEntry[];
+  activeWorkflowId: string;
+  activeFamily: WorkflowFamilyId;
+  onFamilyChange: (family: WorkflowFamilyId) => void;
+  onWorkflowChange: (workflowId: string) => void;
+}) {
+  const familyCounts = WORKFLOW_FAMILIES.reduce<Record<WorkflowFamilyId, number>>(
+    (counts, family) => {
+      counts[family.id] =
+        family.id === "all"
+          ? workflows.length
+          : workflows.filter((workflow) => workflowFamily(workflow) === family.id).length;
+      return counts;
+    },
+    {
+      all: 0,
+      text2img: 0,
+      openpose: 0,
+      img2img: 0,
+      inpaint: 0,
+      closeup: 0,
+      video: 0,
+      export: 0,
+    },
+  );
+  const visibleWorkflows = workflows.filter(
+    (workflow) => activeFamily === "all" || workflowFamily(workflow) === activeFamily,
+  );
+
+  return (
+    <section className="grid gap-4 border border-border/80 bg-card p-4">
+      <div className="flex flex-col gap-1">
+        <h3 className="font-heading text-base font-semibold">Choose workflow type</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Start with the job the workflow needs to do, then pick the specific recipe.
+        </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {WORKFLOW_FAMILIES.filter((family) => familyCounts[family.id] > 0).map((family) => {
+          const active = activeFamily === family.id;
+          return (
+            <button
+              key={family.id}
+              type="button"
+              onClick={() => onFamilyChange(family.id)}
+              className={cn(
+                "border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "border-accent bg-accent/10"
+                  : "border-border/80 bg-background hover:border-foreground/40",
+              )}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-foreground">{family.label}</span>
+                <Badge variant="outline">{familyCounts[family.id]}</Badge>
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                {family.helper}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-2">
+        {visibleWorkflows.map((candidate) => {
+          const active = activeWorkflowId === candidate.id;
+          const dimensions = workflowDimensions(candidate);
+          const requirement = workflowRequirementLabel(candidate);
+          return (
+            <button
+              key={candidate.id}
+              type="button"
+              onClick={() => onWorkflowChange(candidate.id)}
+              className={cn(
+                "border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "border-accent bg-accent/10"
+                  : "border-border/80 bg-background hover:border-foreground/40",
+              )}
+            >
+              <span className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">
+                    {compactWorkflowTitle(candidate)}
+                  </span>
+                  <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
+                    {candidate.useWhen}
+                  </span>
+                </span>
+                <span className="flex shrink-0 flex-wrap gap-1.5">
+                  <Badge variant="outline" className={badgeClassForTag(taskLabel(candidate.task))}>
+                    {taskLabel(candidate.task)}
+                  </Badge>
+                  <Badge variant="outline" className={badgeClassForTag(candidate.status)}>
+                    {candidate.status.replace(/[-_]/g, " ")}
+                  </Badge>
+                  {dimensions ? <Badge variant="outline">{dimensions}</Badge> : null}
+                  {requirement ? (
+                    <Badge variant="outline" className={badgeClassForTag(requirement)}>
+                      {requirement}
+                    </Badge>
+                  ) : null}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ParameterPanel({
   workflow,
   parameterOverrides,
@@ -1513,6 +1697,8 @@ export function PromptBuilderTool({ catalog }: Props) {
   const [presets, setPresets] = useState<PromptPresetSummary[]>([]);
   const [metricsAvailable, setMetricsAvailable] = useState<boolean | null>(null);
   const [builderMode, setBuilderMode] = useState<"wizard" | "advanced">("wizard");
+  const [activeWorkflowFamily, setActiveWorkflowFamily] =
+    useState<WorkflowFamilyId>("all");
   const [successSummary, setSuccessSummary] = useState<RunsSummary>({
     averageRating: null,
     keeperCount: 0,
@@ -1636,6 +1822,12 @@ export function PromptBuilderTool({ catalog }: Props) {
     setResult(null);
   }
 
+  function selectWorkflow(nextWorkflowId: string) {
+    setWorkflowId(nextWorkflowId);
+    setParameterOverrides({});
+    setResult(null);
+  }
+
   async function optimize() {
     if (!workflow) return;
     setIsGenerating(true);
@@ -1717,25 +1909,15 @@ export function PromptBuilderTool({ catalog }: Props) {
           </div>
         </section>
 
+        <WorkflowChooser
+          workflows={promptWorkflows}
+          activeWorkflowId={workflow.id}
+          activeFamily={activeWorkflowFamily}
+          onFamilyChange={setActiveWorkflowFamily}
+          onWorkflowChange={selectWorkflow}
+        />
+
         <section className="grid gap-4 border border-border/80 bg-card p-4">
-          <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-            Workflow
-            <select
-              value={workflow.id}
-              onChange={(event) => {
-                setWorkflowId(event.currentTarget.value);
-                setParameterOverrides({});
-                setResult(null);
-              }}
-              className="h-10 border border-border/80 bg-background px-3 text-sm text-foreground outline-none transition-colors hover:border-foreground/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
-            >
-              {promptWorkflows.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {workflowOptionLabel(candidate)}
-                </option>
-              ))}
-            </select>
-          </label>
           <WorkflowSummary workflow={workflow} />
         </section>
 
