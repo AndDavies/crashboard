@@ -286,6 +286,50 @@ function taskLabel(task: MediaWorkflowEntry["task"]) {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
+function workflowOptionLabel(workflow: MediaWorkflowEntry) {
+  const task = taskLabel(workflow.task);
+  const status = workflow.status.replace(/[-_]/g, " ");
+  if (/current/i.test(workflow.status)) {
+    return `${task} current good - ${truncate(workflow.useWhen, 86)}`;
+  }
+  if (/recommended/i.test(workflow.status)) {
+    return `${task} recommended - ${truncate(workflow.useWhen, 86)}`;
+  }
+  if (workflow.task === "img2img") {
+    return `Img2img source refinement - ${truncate(workflow.useWhen, 82)}`;
+  }
+  if (workflow.task === "openpose") {
+    return `OpenPose pose-control still - ${truncate(workflow.useWhen, 82)}`;
+  }
+  if (workflow.task === "inpaint") {
+    return `Masked repair / local edit - ${truncate(workflow.useWhen, 82)}`;
+  }
+  if (workflow.task === "i2v") {
+    return `Image-to-video motion - ${truncate(workflow.useWhen, 82)}`;
+  }
+  return `${task} ${status} - ${truncate(workflow.useWhen, 86)}`;
+}
+
+function badgeClassForTag(tag: string) {
+  const normalized = tag.toLowerCase();
+  if (normalized.includes("img2img")) {
+    return "border-sky-300/70 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+  }
+  if (normalized.includes("current")) {
+    return "border-emerald-300/70 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  }
+  if (normalized.includes("openpose")) {
+    return "border-violet-300/70 bg-violet-500/10 text-violet-700 dark:text-violet-300";
+  }
+  if (normalized.includes("inpaint") || normalized.includes("repair")) {
+    return "border-amber-300/70 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  if (normalized.includes("video") || normalized.includes("i2v")) {
+    return "border-rose-300/70 bg-rose-500/10 text-rose-700 dark:text-rose-300";
+  }
+  return "border-border bg-background text-foreground";
+}
+
 function chooseDefaultWorkflow(workflows: MediaWorkflowEntry[]) {
   return (
     workflows.find((workflow) =>
@@ -563,7 +607,7 @@ function CopyButton({ value, label = "Copy" }: { value: string; label?: string }
   );
 }
 
-function PresetBank({
+function PresetSelect({
   label,
   presets,
   activeId,
@@ -574,36 +618,31 @@ function PresetBank({
   activeId: string;
   onApply: (preset: Preset) => void;
 }) {
+  const activePreset = presets.find((preset) => preset.id === activeId) ?? presets[0];
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
         {label}
-      </p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {presets.map((preset) => {
-          const active = activeId === preset.id;
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => onApply(preset)}
-              className={cn(
-                "min-h-20 border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "border-accent bg-accent/10"
-                  : "border-border/80 bg-background hover:border-foreground/40",
-              )}
-            >
-              <span className="text-sm font-medium text-foreground">
-                {preset.label}
-              </span>
-              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                {preset.helper}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <select
+          value={activeId}
+          onChange={(event) => {
+            const preset = presets.find((item) => item.id === event.currentTarget.value);
+            if (preset) onApply(preset);
+          }}
+          className="h-10 border border-border/80 bg-background px-3 text-sm text-foreground outline-none transition-colors hover:border-foreground/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {activePreset ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {activePreset.helper}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -773,9 +812,15 @@ function WorkflowSummary({ workflow }: { workflow: MediaWorkflowEntry }) {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary">{workflow.media}</Badge>
-            <Badge variant="outline">{taskLabel(workflow.task)}</Badge>
-            <Badge variant="outline">{workflow.status}</Badge>
+            <Badge variant="outline" className={badgeClassForTag(workflow.media)}>
+              {workflow.media}
+            </Badge>
+            <Badge variant="outline" className={badgeClassForTag(taskLabel(workflow.task))}>
+              {taskLabel(workflow.task)}
+            </Badge>
+            <Badge variant="outline" className={badgeClassForTag(workflow.status)}>
+              {workflow.status.replace(/[-_]/g, " ")}
+            </Badge>
           </div>
           <h3 className="mt-2 font-heading text-lg font-semibold tracking-tight">
             {workflow.title}
@@ -1172,6 +1217,159 @@ function MetricsWriter({
   );
 }
 
+function PromptOutputPanel({
+  activeResult,
+  result,
+  error,
+  isGenerating,
+  onOptimize,
+}: {
+  activeResult: PromptBuilderOutput;
+  result: PromptBuilderOutput | null;
+  error: string | null;
+  isGenerating: boolean;
+  onOptimize: () => void;
+}) {
+  return (
+    <aside className="grid h-fit gap-4 border border-border/80 bg-card p-4 xl:sticky xl:top-20">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-heading text-lg font-semibold tracking-tight">
+            Prompt output
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {result ? "AI checked and revised" : "Structured draft ready for review"}
+          </p>
+        </div>
+        <Button type="button" onClick={onOptimize} disabled={isGenerating}>
+          {isGenerating ? (
+            <Loader2Icon data-icon="inline-start" className="animate-spin" aria-hidden />
+          ) : (
+            <SparklesIcon data-icon="inline-start" aria-hidden />
+          )}
+          Check with AI
+        </Button>
+      </div>
+
+      {error ? (
+        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangleIcon className="mt-0.5 shrink-0" aria-hidden />
+          <p>{error}</p>
+        </div>
+      ) : null}
+
+      {activeResult.warnings.length ? (
+        <div className="grid gap-1.5 border border-accent/30 bg-accent/10 p-3 text-sm">
+          {activeResult.warnings.map((warning) => (
+            <p key={warning} className="text-muted-foreground">
+              {warning}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Positive
+          </p>
+          <CopyButton value={activeResult.positivePrompt} />
+        </div>
+        <pre className="max-h-72 overflow-auto whitespace-pre-wrap border border-border/80 bg-background p-3 text-xs leading-relaxed text-foreground">
+          {activeResult.positivePrompt}
+        </pre>
+      </div>
+
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Negative
+          </p>
+          <CopyButton value={activeResult.negativePrompt} />
+        </div>
+        <pre className="max-h-52 overflow-auto whitespace-pre-wrap border border-border/80 bg-background p-3 text-xs leading-relaxed text-foreground">
+          {activeResult.negativePrompt}
+        </pre>
+      </div>
+
+      <details className="border border-border/70 bg-background p-3">
+        <summary className="cursor-pointer text-sm font-medium text-foreground">
+          Review sections, fit checks, and variants
+        </summary>
+        <div className="mt-4 grid gap-4">
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Sections
+            </p>
+            <div className="grid gap-2">
+              {activeResult.promptSections.map((section) => (
+                <article key={section.id} className="border border-border/70 bg-card p-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="text-sm font-medium text-foreground">{section.label}</p>
+                    {section.locked ? <Badge variant="secondary">locked</Badge> : null}
+                    <Badge variant="outline">{section.source}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {section.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Fit checks
+            </p>
+            <div className="grid gap-1.5">
+              {activeResult.fitChecks.map((check) => (
+                <div key={check.label} className="flex gap-2 text-sm">
+                  <CheckCircle2Icon
+                    className={cn(
+                      "mt-0.5 shrink-0",
+                      check.status === "pass"
+                        ? "text-accent"
+                        : check.status === "review"
+                          ? "text-muted-foreground"
+                          : "text-destructive",
+                    )}
+                    aria-hidden
+                  />
+                  <div>
+                    <p className="font-medium text-foreground">{check.label}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {check.detail}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Variants
+            </p>
+            <div className="grid gap-2">
+              {activeResult.variants.map((variant) => (
+                <details key={variant.label} className="border border-border/70 bg-card p-3">
+                  <summary className="cursor-pointer text-sm font-medium text-foreground">
+                    {variant.label}
+                  </summary>
+                  <p className="mt-2 text-xs text-muted-foreground">{variant.reason}</p>
+                  <pre className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                    {variant.positivePrompt}
+                  </pre>
+                </details>
+              ))}
+            </div>
+          </div>
+        </div>
+      </details>
+    </aside>
+  );
+}
+
 export function PromptBuilderTool({ catalog }: Props) {
   const promptWorkflows = useMemo(
     () =>
@@ -1201,6 +1399,7 @@ export function PromptBuilderTool({ catalog }: Props) {
   const [runs, setRuns] = useState<PromptRunSummary[]>([]);
   const [presets, setPresets] = useState<PromptPresetSummary[]>([]);
   const [metricsAvailable, setMetricsAvailable] = useState<boolean | null>(null);
+  const [builderMode, setBuilderMode] = useState<"wizard" | "advanced">("wizard");
   const [successSummary, setSuccessSummary] = useState<RunsSummary>({
     averageRating: null,
     keeperCount: 0,
@@ -1419,7 +1618,7 @@ export function PromptBuilderTool({ catalog }: Props) {
             >
               {promptWorkflows.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
-                  {candidate.title} · {taskLabel(candidate.task)} · {candidate.status}
+                  {workflowOptionLabel(candidate)}
                 </option>
               ))}
             </select>
@@ -1427,43 +1626,109 @@ export function PromptBuilderTool({ catalog }: Props) {
           <WorkflowSummary workflow={workflow} />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)_minmax(24rem,0.9fr)]">
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(24rem,0.8fr)]">
           <div className="grid gap-4">
             <section className="grid gap-4 border border-border/80 bg-card p-4">
-              <div>
-                <h3 className="font-heading text-base font-semibold">Prompt slots</h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  Use presets for fast swaps, then fine-tune the exact slot text.
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-heading text-base font-semibold">Build prompt</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    Use the wizard for the main creative choices. Open Advanced for exact slot text, tokens, parameters, and run tracking.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 border border-border/80 bg-background p-0.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={builderMode === "wizard" ? "default" : "ghost"}
+                    onClick={() => setBuilderMode("wizard")}
+                  >
+                    Wizard
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={builderMode === "advanced" ? "default" : "ghost"}
+                    onClick={() => setBuilderMode("advanced")}
+                  >
+                    Advanced
+                  </Button>
+                </div>
               </div>
-              <PresetBank
-                label="Subject / look"
-                presets={SUBJECT_PRESETS}
-                activeId={brief.subjectPreset}
-                onApply={applySubjectPreset}
-              />
-              <PresetBank
-                label="Setting"
-                presets={SETTING_PRESETS}
-                activeId={brief.settingPreset}
-                onApply={applySettingPreset}
-              />
-              <PresetBank
-                label="Lighting"
-                presets={LIGHTING_PRESETS}
-                activeId={brief.lightingPreset}
-                onApply={applyLightingPreset}
-              />
-              <PresetBank
-                label="Camera"
-                presets={CAMERA_PRESETS}
-                activeId={brief.cameraPreset}
-                onApply={applyCameraPreset}
-              />
-            </section>
 
-            <section className="grid gap-3 border border-border/80 bg-card p-4">
-              <div className="grid gap-3 md:grid-cols-2">
+              {builderMode === "wizard" ? (
+                <div className="grid gap-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <PresetSelect
+                      label="Subject / look"
+                      presets={SUBJECT_PRESETS}
+                      activeId={brief.subjectPreset}
+                      onApply={applySubjectPreset}
+                    />
+                    <PresetSelect
+                      label="Setting"
+                      presets={SETTING_PRESETS}
+                      activeId={brief.settingPreset}
+                      onApply={applySettingPreset}
+                    />
+                    <PresetSelect
+                      label="Lighting"
+                      presets={LIGHTING_PRESETS}
+                      activeId={brief.lightingPreset}
+                      onApply={applyLightingPreset}
+                    />
+                    <PresetSelect
+                      label="Camera"
+                      presets={CAMERA_PRESETS}
+                      activeId={brief.cameraPreset}
+                      onApply={applyCameraPreset}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <TextAreaField
+                      label="Action / pose"
+                      value={brief.action}
+                      help="Action and expression. For OpenPose, let the reference image control body placement."
+                      onChange={(value) => updateBrief("action", value)}
+                    />
+                    <TextAreaField
+                      label="Composition"
+                      value={brief.composition}
+                      help="Crop, framing, camera distance, and full-body discipline."
+                      onChange={(value) => updateBrief("composition", value)}
+                    />
+                    <TextAreaField
+                      label="Style / finish"
+                      value={brief.style}
+                      help="Photorealism, texture, color grade, and render finish."
+                      onChange={(value) => updateBrief("style", value)}
+                    />
+                    <TextAreaField
+                      label="Negative additions"
+                      value={brief.negativeAdditions}
+                      rows={2}
+                      help="Extra failure prevention for this run."
+                      onChange={(value) => updateBrief("negativeAdditions", value)}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-4">
+                    <Button type="button" onClick={() => void optimize()} disabled={isGenerating}>
+                      {isGenerating ? (
+                        <Loader2Icon data-icon="inline-start" className="animate-spin" aria-hidden />
+                      ) : (
+                        <SparklesIcon data-icon="inline-start" aria-hidden />
+                      )}
+                      Check with AI
+                    </Button>
+                    <CopyButton value={activeResult.positivePrompt} label="Copy Positive" />
+                    <CopyButton value={activeResult.negativePrompt} label="Copy Negative" />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  <div className="grid gap-3 md:grid-cols-2">
                 <TextAreaField
                   label="Subject / look"
                   value={brief.subject}
@@ -1512,214 +1777,73 @@ export function PromptBuilderTool({ catalog }: Props) {
                   help="Photorealism, texture, color grade, and render finish."
                   onChange={(value) => updateBrief("style", value)}
                 />
-              </div>
-              <TextAreaField
-                label="Constraints"
-                value={brief.constraints}
-                rows={2}
-                help="Safety and production constraints that should stay attached."
-                onChange={(value) => updateBrief("constraints", value)}
-              />
-              <TextAreaField
-                label="Negative additions"
-                value={brief.negativeAdditions}
-                rows={2}
-                help="Extra failure prevention for this run."
-                onChange={(value) => updateBrief("negativeAdditions", value)}
-              />
-            </section>
-
-            <section className="grid gap-4 border border-border/80 bg-card p-4">
-              <TokenBank
-                label="Mood"
-                tokens={MOOD_TOKENS}
-                selected={brief.selectedTokens}
-                onToggle={toggleToken}
-              />
-              <TokenBank
-                label="Workflow control"
-                tokens={CONTROL_TOKENS}
-                selected={brief.selectedTokens}
-                onToggle={toggleToken}
-              />
-            </section>
-          </div>
-
-          <div className="grid h-fit gap-4">
-            <KnownGoodPanel
-              summary={successSummary}
-              runs={runs}
-              presets={presets}
-              metricsAvailable={metricsAvailable}
-              onApplyPreset={applySavedPreset}
-            />
-            <ParameterPanel
-              workflow={workflow}
-              parameterOverrides={parameterOverrides}
-              onChange={updateParameterOverride}
-            />
-            <MetricsWriter
-              workflow={workflow}
-              brief={brief}
-              parameterOverrides={parameterOverrides}
-              activeResult={activeResult}
-              onSaved={refreshMetrics}
-            />
-          </div>
-
-          <aside className="grid h-fit gap-4 border border-border/80 bg-card p-4 xl:sticky xl:top-20">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="font-heading text-lg font-semibold tracking-tight">
-                  Prompt output
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {result ? "AI optimized" : "Local structured draft"}
-                </p>
-              </div>
-              <Button type="button" onClick={() => void optimize()} disabled={isGenerating}>
-                {isGenerating ? (
-                  <Loader2Icon data-icon="inline-start" className="animate-spin" aria-hidden />
-                ) : (
-                  <SparklesIcon data-icon="inline-start" aria-hidden />
-                )}
-                Optimize
-              </Button>
-            </div>
-
-            {error ? (
-              <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                <AlertTriangleIcon className="mt-0.5 shrink-0" aria-hidden />
-                <p>{error}</p>
-              </div>
-            ) : null}
-
-            {activeResult.warnings.length ? (
-              <div className="grid gap-1.5 border border-accent/30 bg-accent/10 p-3 text-sm">
-                {activeResult.warnings.map((warning) => (
-                  <p key={warning} className="text-muted-foreground">
-                    {warning}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Positive
-                </p>
-                <CopyButton value={activeResult.positivePrompt} />
-              </div>
-              <pre className="max-h-72 overflow-auto whitespace-pre-wrap border border-border/80 bg-background p-3 text-xs leading-relaxed text-foreground">
-                {activeResult.positivePrompt}
-              </pre>
-            </div>
-
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Negative
-                </p>
-                <CopyButton value={activeResult.negativePrompt} />
-              </div>
-              <pre className="max-h-52 overflow-auto whitespace-pre-wrap border border-border/80 bg-background p-3 text-xs leading-relaxed text-foreground">
-                {activeResult.negativePrompt}
-              </pre>
-            </div>
-
-            <div className="grid gap-2">
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Sections
-              </p>
-              <div className="grid gap-2">
-                {activeResult.promptSections.map((section) => (
-                  <article key={section.id} className="border border-border/70 bg-background p-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-medium text-foreground">{section.label}</p>
-                      {section.locked ? <Badge variant="secondary">locked</Badge> : null}
-                      <Badge variant="outline">{section.source}</Badge>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {section.text}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Suggested parameters
-              </p>
-              <div className="grid gap-2">
-                {activeResult.suggestedParameters.map((item) => (
-                  <article key={item.name} className="border border-border/70 bg-background p-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-mono text-xs text-muted-foreground">{item.name}</p>
-                        <p className="text-sm text-foreground">
-                          {item.suggestedValue || item.currentValue}
-                        </p>
-                      </div>
-                      <Badge variant="outline">{item.recommendedRange}</Badge>
-                    </div>
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      {item.reason}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Fit checks
-              </p>
-              <div className="grid gap-1.5">
-                {activeResult.fitChecks.map((check) => (
-                  <div key={check.label} className="flex gap-2 text-sm">
-                    <CheckCircle2Icon
-                      className={cn(
-                        "mt-0.5 shrink-0",
-                        check.status === "pass"
-                          ? "text-accent"
-                          : check.status === "review"
-                            ? "text-muted-foreground"
-                            : "text-destructive",
-                      )}
-                      aria-hidden
-                    />
-                    <div>
-                      <p className="font-medium text-foreground">{check.label}</p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        {check.detail}
-                      </p>
-                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <TextAreaField
+                    label="Constraints"
+                    value={brief.constraints}
+                    rows={2}
+                    help="Safety and production constraints that should stay attached."
+                    onChange={(value) => updateBrief("constraints", value)}
+                  />
+                  <TextAreaField
+                    label="Negative additions"
+                    value={brief.negativeAdditions}
+                    rows={2}
+                    help="Extra failure prevention for this run."
+                    onChange={(value) => updateBrief("negativeAdditions", value)}
+                  />
+                  <div className="grid gap-4 border-t border-border/70 pt-4">
+                    <TokenBank
+                      label="Mood"
+                      tokens={MOOD_TOKENS}
+                      selected={brief.selectedTokens}
+                      onToggle={toggleToken}
+                    />
+                    <TokenBank
+                      label="Workflow control"
+                      tokens={CONTROL_TOKENS}
+                      selected={brief.selectedTokens}
+                      onToggle={toggleToken}
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
 
-            <div className="grid gap-2">
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Variants
-              </p>
-              <div className="grid gap-2">
-                {activeResult.variants.map((variant) => (
-                  <details key={variant.label} className="border border-border/70 bg-background p-3">
-                    <summary className="cursor-pointer text-sm font-medium text-foreground">
-                      {variant.label}
-                    </summary>
-                    <p className="mt-2 text-xs text-muted-foreground">{variant.reason}</p>
-                    <pre className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
-                      {variant.positivePrompt}
-                    </pre>
-                  </details>
-                ))}
-              </div>
-            </div>
-          </aside>
+            {builderMode === "advanced" ? (
+              <section className="grid gap-4 lg:grid-cols-2">
+                <KnownGoodPanel
+                  summary={successSummary}
+                  runs={runs}
+                  presets={presets}
+                  metricsAvailable={metricsAvailable}
+                  onApplyPreset={applySavedPreset}
+                />
+                <ParameterPanel
+                  workflow={workflow}
+                  parameterOverrides={parameterOverrides}
+                  onChange={updateParameterOverride}
+                />
+                <div className="lg:col-span-2">
+                  <MetricsWriter
+                    workflow={workflow}
+                    brief={brief}
+                    parameterOverrides={parameterOverrides}
+                    activeResult={activeResult}
+                    onSaved={refreshMetrics}
+                  />
+                </div>
+              </section>
+            ) : null}
+          </div>
+
+          <PromptOutputPanel
+            activeResult={activeResult}
+            result={result}
+            error={error}
+            isGenerating={isGenerating}
+            onOptimize={() => void optimize()}
+          />
         </section>
       </div>
     </TooltipProvider>
