@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T23:19:40.449Z",
+  "generatedAt": "2026-06-21T23:46:25.773Z",
   "sourceRoot": "/Users/andrewdavies/Documents/Media Creation",
   "title": "Media Workflow Reference",
   "updateRule": "When Media Creation workflows, pod model inventory, favourite workflow sync, or selected outputs change, run npm run media:workflows and update the dashboard Workflow Reference page before shipping.",

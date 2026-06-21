@@ -17,7 +17,7 @@ export type MediaWorkflowEntry = {
   media: "still" | "video";
   status: string;
   task: MediaWorkflowTask;
-  sourceSet: "good" | "favourites" | "runpod-smoke" | "reference";
+  sourceSet: "proven" | "good" | "favourites" | "runpod-smoke" | "reference";
   useWhen: string;
   whyGood: string;
   whatWorked: string[];
@@ -98,6 +98,7 @@ export type MediaWorkflowCatalog = {
   summary: {
     workflowCount: number;
     goodWorkflowCount: number;
+    provenWorkflowCount?: number;
     favouriteWorkflowCount: number;
     podSmokeWorkflowCount: number;
     podEndpoint: string | null;

@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   BoxesIcon,
-  BookOpenIcon,
   CheckCircle2Icon,
   ClipboardIcon,
   FilterIcon,
@@ -15,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import type {
   MediaWorkflowCatalog,
   MediaWorkflowEntry,
@@ -41,6 +39,7 @@ const TASK_LABELS: Record<MediaWorkflowTask, string> = {
 };
 
 const SOURCE_LABELS: Record<MediaWorkflowEntry["sourceSet"], string> = {
+  proven: "Proven",
   good: "Good",
   favourites: "Favourites",
   "runpod-smoke": "Pod Smoke",
@@ -62,8 +61,63 @@ function displayPath(path: string) {
   return path.replace(/^04_Workflows\//, "").replace(/^13_RunPod_Pilot\//, "Pod/");
 }
 
-function firstModel(workflow: MediaWorkflowEntry) {
-  return workflow.models[0] ?? workflow.loras[0] ?? workflow.controlModels[0] ?? null;
+function fileName(value: string | null | undefined) {
+  if (!value) return null;
+  return value.split("/").filter(Boolean).at(-1) ?? value;
+}
+
+function bestOpenPoseOrSource(workflow: MediaWorkflowEntry) {
+  const openpose =
+    workflow.imageInputs.find((input) => /openpose|pose/i.test(input)) ??
+    workflow.imageInputs[0];
+
+  if (openpose) return fileName(openpose);
+  if (workflow.task === "text2img") return "None - text only";
+  if (workflow.task === "upscale-export") return "Accepted source image";
+  return "Workflow-specific source";
+}
+
+function settingSummary(workflow: MediaWorkflowEntry) {
+  const p = workflow.parameters;
+  const pieces: string[] = [];
+  const model = fileName(workflow.models[0]);
+  const loras = workflow.loras
+    .map((lora) => {
+      const name = fileName(lora);
+      if (name === "NudeXL.safetensors" && typeof p.lora_strength_model !== "undefined") {
+        return `${name} ${p.lora_strength_model}`;
+      }
+      return name;
+    })
+    .filter(Boolean);
+
+  if (model) pieces.push(model);
+  if (loras.length) pieces.push(`LoRA: ${loras.join(", ")}`);
+  if (typeof p.width !== "undefined" && typeof p.height !== "undefined") {
+    pieces.push(`${p.width}x${p.height}`);
+  }
+  if (typeof p.seed !== "undefined") pieces.push(`seed ${p.seed}`);
+  if (typeof p.steps !== "undefined") pieces.push(`${p.steps} steps`);
+  if (typeof p.cfg !== "undefined") pieces.push(`CFG ${p.cfg}`);
+  if (typeof p.denoise !== "undefined") pieces.push(`denoise ${p.denoise}`);
+  if (typeof p.control_strength !== "undefined") {
+    pieces.push(
+      `OpenPose ${p.control_strength}${
+        typeof p.control_end !== "undefined" ? ` to ${p.control_end}` : ""
+      }`,
+    );
+  }
+  if (typeof p.sampler !== "undefined") {
+    pieces.push(
+      `${p.sampler}${typeof p.scheduler !== "undefined" ? `/${p.scheduler}` : ""}`,
+    );
+  }
+
+  return pieces.length ? pieces.join(" · ") : "Workflow-specific settings";
+}
+
+function detailsSummary(workflow: MediaWorkflowEntry) {
+  return [workflow.useWhen, workflow.whyGood].filter(Boolean).join(" ");
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -150,157 +204,69 @@ function StatBlock({
 }
 
 function WorkflowCard({ workflow }: { workflow: MediaWorkflowEntry }) {
-  const model = firstModel(workflow);
-  const params = Object.entries(workflow.parameters).slice(0, 5);
+  const openposeOrSource = bestOpenPoseOrSource(workflow);
+  const settings = settingSummary(workflow);
+  const details = detailsSummary(workflow);
 
   return (
-    <article className="grid gap-4 border border-border/80 bg-card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+    <article className="grid gap-3 border border-border/80 bg-card p-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(14rem,1fr)_minmax(18rem,1.4fr)_minmax(16rem,1.2fr)_minmax(12rem,0.9fr)] lg:items-start">
+        <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant={workflow.sourceSet === "runpod-smoke" ? "secondary" : "outline"}>
+            <Badge
+              variant={
+                workflow.sourceSet === "proven" || workflow.sourceSet === "runpod-smoke"
+                  ? "secondary"
+                  : "outline"
+              }
+            >
               {SOURCE_LABELS[workflow.sourceSet]}
             </Badge>
-            <Badge variant="secondary">{workflow.media}</Badge>
             <Badge variant="outline">{TASK_LABELS[workflow.task]}</Badge>
           </div>
-          <h3 className="mt-2 font-heading text-base font-semibold leading-snug text-foreground">
+          <h3 className="font-heading text-base font-semibold leading-snug text-foreground">
             {workflow.title}
           </h3>
-        </div>
-        <span className="shrink-0 text-xs text-muted-foreground">{workflow.status}</span>
-      </div>
-
-      <div className="grid gap-3 text-sm">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Use When
-          </p>
-          <p className="mt-1 leading-relaxed text-foreground">{workflow.useWhen}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Why It Is Good
-          </p>
-          <p className="mt-1 leading-relaxed text-muted-foreground">{workflow.whyGood}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Inputs
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {workflow.inputs.map((input) => (
-            <span
-              key={input}
-              className="border border-border/70 bg-background px-2 py-1 text-xs text-foreground"
-            >
-              {input}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          What Worked
-        </p>
-        <ul className="grid gap-1.5 text-sm text-muted-foreground">
-          {workflow.whatWorked.map((item) => (
-            <li key={item} className="flex gap-2">
-              <CheckCircle2Icon className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {workflow.promptRecipe.lockedClauses.length ||
-      workflow.parameterGuidance.length ||
-      workflow.examplePrompts.length ? (
-        <div className="grid gap-3 border border-border/70 bg-background p-3">
-          <div className="flex items-center gap-2">
-            <BookOpenIcon className="size-4 text-muted-foreground" aria-hidden />
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Prompt Recipe
-            </p>
-          </div>
-          {workflow.promptRecipe.lockedClauses.length ? (
-            <div className="grid gap-1.5">
-              <p className="text-xs font-medium text-foreground">Locked clauses</p>
-              <ul className="grid gap-1 text-xs leading-relaxed text-muted-foreground">
-                {workflow.promptRecipe.lockedClauses.slice(0, 3).map((item) => (
-                  <li key={item}>- {item}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {workflow.parameterGuidance.length ? (
-            <div className="grid gap-2">
-              <p className="text-xs font-medium text-foreground">Parameter guidance</p>
-              <dl className="grid gap-1.5 text-xs md:grid-cols-2">
-                {workflow.parameterGuidance.slice(0, 4).map((item) => (
-                  <div key={item.name}>
-                    <dt className="font-mono text-muted-foreground">{item.name}</dt>
-                    <dd className="text-foreground">{item.recommendedRange}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ) : null}
-          {workflow.examplePrompts[0] ? (
-            <div className="grid gap-1.5">
-              <p className="text-xs font-medium text-foreground">
-                Example prompt structure
-              </p>
-              <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                {workflow.examplePrompts[0].positive}
-              </p>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {model || workflow.controlModels.length || workflow.loras.length ? (
-        <div className="grid gap-2 text-xs text-muted-foreground">
-          <p className="font-semibold tracking-wide uppercase">Stack</p>
-          {model ? <p className="break-all">Primary: {model}</p> : null}
-          {workflow.controlModels.length ? (
-            <p className="break-all">ControlNet: {workflow.controlModels.join(", ")}</p>
-          ) : null}
-          {workflow.loras.length ? (
-            <p className="break-all">LoRA: {workflow.loras.join(", ")}</p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {params.length ? (
-        <dl className="grid grid-cols-2 gap-2 border-y border-border/70 py-3 text-xs md:grid-cols-5">
-          {params.map(([key, value]) => (
-            <div key={key}>
-              <dt className="font-medium text-muted-foreground">{key}</dt>
-              <dd className="mt-0.5 font-mono text-foreground">{String(value)}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      <div className="grid gap-2 border-t border-border/70 pt-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <code className="min-w-0 flex-1 break-all bg-muted/50 px-2 py-1">
+          <code className="block break-all bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
             {displayPath(workflow.path)}
           </code>
-          <CopyButton value={workflow.path} />
         </div>
-        {workflow.cloudPath ? (
-          <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 break-all bg-muted/50 px-2 py-1">
-              {workflow.cloudPath}
-            </code>
-            <CopyButton value={workflow.cloudPath} />
-          </div>
-        ) : null}
+
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Details
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-foreground">{details}</p>
+          {workflow.notes[0] ? (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {workflow.notes[0]}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Settings
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{settings}</p>
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Best OpenPose / Source
+          </p>
+          <p className="mt-1 break-all font-mono text-xs leading-relaxed text-foreground">
+            {openposeOrSource}
+          </p>
+          {workflow.cloudPath ? (
+            <div className="mt-2 flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground">
+                {workflow.cloudPath}
+              </code>
+              <CopyButton value={workflow.cloudPath} />
+            </div>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -310,7 +276,7 @@ export function WorkflowReferenceTool({ catalog }: Props) {
   const [query, setQuery] = useState("");
   const [media, setMedia] = useState<"all" | MediaWorkflowEntry["media"]>("all");
   const [task, setTask] = useState<FilterValue | MediaWorkflowTask>("all");
-  const [source, setSource] = useState<FilterValue | MediaWorkflowEntry["sourceSet"]>("all");
+  const [source, setSource] = useState<FilterValue | MediaWorkflowEntry["sourceSet"]>("proven");
 
   const mediaValues = useMemo(
     () => unique(catalog.workflows.map((workflow) => workflow.media)),
@@ -342,6 +308,7 @@ export function WorkflowReferenceTool({ catalog }: Props) {
         ...workflow.models,
         ...workflow.controlModels,
         ...workflow.loras,
+        ...workflow.imageInputs,
       ]
         .join(" ")
         .toLowerCase()
@@ -354,9 +321,10 @@ export function WorkflowReferenceTool({ catalog }: Props) {
       catalog.workflows.filter((workflow) =>
         [
           "sdxl-photoreal-openpose-production-current-v18-api.json",
-          "wan22-gguf-camera-i2v-rife2x-production-current-v19-api.json",
-          "Avery_Yoga_06_OpenPose_NudeXL_Canopus_Current_Best_api.json",
-          "Avery_Yoga_08_CurrentBest_IPA_Img2Img_w035_d180_api.json",
+          "openpose_field_boudoir_cyber_nudexl_no_canopus_TRY_THIS_ONE_api.json",
+          "openpose_field_arch_boudoir_cyber_nudexl_ACCEPTED_K_api.json",
+          "img2img_field_arch_boudoir_K_realism_polish_d140_ACCEPTED_api.json",
+          "openpose_avery_yoga_current_best_api.json",
         ].some((name) => workflow.path.endsWith(name)),
       ),
     [catalog.workflows],
@@ -389,8 +357,8 @@ export function WorkflowReferenceTool({ catalog }: Props) {
             icon={BoxesIcon}
           />
           <StatBlock
-            label="Favourites"
-            value={catalog.summary.favouriteWorkflowCount}
+            label="Proven"
+            value={catalog.summary.provenWorkflowCount ?? 0}
             icon={CheckCircle2Icon}
           />
           <StatBlock
@@ -470,15 +438,15 @@ export function WorkflowReferenceTool({ catalog }: Props) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="font-heading text-lg font-semibold tracking-tight">
-              Start-here workflows
+              Recommended workflows
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              The most useful defaults and recently promoted branches.
+              The practical starting points: name, details, settings, and best OpenPose/source.
             </p>
           </div>
           <Badge variant="secondary">{pinned.length}</Badge>
         </div>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-3">
           {pinned.map((workflow) => (
             <WorkflowCard key={workflow.id} workflow={workflow} />
           ))}
@@ -493,6 +461,7 @@ export function WorkflowReferenceTool({ catalog }: Props) {
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Showing {filtered.length} of {catalog.workflows.length} catalogued workflows.
+              The default filter is Proven.
             </p>
           </div>
           <Badge variant={filtered.length ? "outline" : "destructive"}>
@@ -500,7 +469,7 @@ export function WorkflowReferenceTool({ catalog }: Props) {
           </Badge>
         </div>
 
-        <div className={cn("grid gap-4", filtered.length > 1 && "xl:grid-cols-2")}>
+        <div className="grid gap-3">
           {filtered.map((workflow) => (
             <WorkflowCard key={workflow.id} workflow={workflow} />
           ))}
