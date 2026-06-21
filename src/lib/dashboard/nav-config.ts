@@ -1,5 +1,11 @@
 import type { LucideIcon } from "lucide-react";
-import { FileText, Sparkles, Workflow, Wrench } from "lucide-react";
+import {
+  Database,
+  FileText,
+  Sparkles,
+  Workflow,
+  Wrench,
+} from "lucide-react";
 
 /** Single navigable route in the dashboard. */
 export type DashboardNavLeaf = {
@@ -52,6 +58,11 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
         title: "Prompt Lab",
         href: "/dashboard/tools/prompt-builder",
         icon: Sparkles,
+      },
+      {
+        title: "ComfyUI Ecosystem",
+        href: "/dashboard/tools/comfy-ecosystem",
+        icon: Database,
       },
     ],
   },

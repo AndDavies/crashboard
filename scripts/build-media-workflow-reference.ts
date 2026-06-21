@@ -20,7 +20,7 @@ type WorkflowEntry = {
   media: "still" | "video";
   status: string;
   task: WorkflowTask;
-  sourceSet: "good" | "favourites" | "runpod-smoke" | "reference";
+  sourceSet: "proven" | "good" | "favourites" | "runpod-smoke" | "reference";
   useWhen: string;
   whyGood: string;
   whatWorked: string[];
@@ -99,6 +99,7 @@ const OUTPUT_PATH = path.join(
 );
 
 const WORKFLOW_DIRS = [
+  "04_Workflows/Proven_Workflows",
   "04_Workflows/Still_Image/Good",
   "04_Workflows/Video/Good",
   "04_Workflows/Favourites",
@@ -219,6 +220,51 @@ const CURATED: Record<
     useWhen: "Low-denoise identity polish after a strong yoga base image is selected.",
     whyGood: "Favourites README calls this the identity polish lane for the current yoga branch.",
   },
+  "openpose_field_boudoir_cyber_nudexl_no_canopus_TRY_THIS_ONE_api.json": {
+    useWhen: "Start here for the accepted soft outdoor field/blanket boudoir look.",
+    whyGood:
+      "User-liked AC branch using CyberRealisticXLPlay with NudeXL and no Canopus. It produced the softer outdoor mood that became the accepted field lane.",
+    whatWorked: [
+      "CyberRealisticXLPlay gave the warmer field mood and softer body rendering.",
+      "NudeXL at 0.46 gave adult fine-art nude output without the heavier Canopus styling.",
+      "OpenPose strength 0.76 to 0.88 kept the top-down blanket pose coherent.",
+    ],
+    inputs: ["Positive prompt", "Negative prompt", "OpenPose reference image"],
+    notes: [
+      "Best for the original AC look.",
+      "Use a different arched-pose workflow when a visible back arch matters.",
+    ],
+  },
+  "openpose_field_arch_boudoir_cyber_nudexl_ACCEPTED_K_api.json": {
+    useWhen: "Use for the accepted arched-back field-boudoir direction.",
+    whyGood:
+      "Accepted K branch: same Cyber/NudeXL field style, but using the padded supine-arched OpenPose reference to make the arched body line readable.",
+    whatWorked: [
+      "The padded arched OpenPose reference improved the body-line read compared with the original top-down butterfly pose.",
+      "CyberRealisticXLPlay plus NudeXL 0.38 kept the accepted outdoor mood while reducing overpressure.",
+      "OpenPose strength 0.88 to 0.94 gave stronger pose obedience for the arched reference.",
+    ],
+    inputs: ["Positive prompt", "Negative prompt", "Padded arched OpenPose reference image"],
+    notes: [
+      "Accepted candidate, not a universal fix for feet or lower-body geometry.",
+      "If the pose is good but the image needs polish, use the matching K img2img workflow.",
+    ],
+  },
+  "img2img_field_arch_boudoir_K_realism_polish_d140_ACCEPTED_api.json": {
+    useWhen: "Polish the accepted K arched-field output without changing composition.",
+    whyGood:
+      "Low-denoise source-preserving pass from K that slightly improves softness and photo finish while keeping the same field composition.",
+    whatWorked: [
+      "Denoise 0.14 preserved the selected source image.",
+      "NudeXL strength 0.22 reduced drift while maintaining the accepted adult fine-art style.",
+      "CyberRealisticXLPlay kept the K branch visually consistent.",
+    ],
+    inputs: ["Accepted K source image", "Positive prompt", "Negative prompt", "Denoise setting"],
+    notes: [
+      "Use only after the K OpenPose output is already close.",
+      "It will not reveal hidden feet or repair major pose geometry.",
+    ],
+  },
 };
 
 function slug(input: string) {
@@ -285,7 +331,11 @@ function collectFromWorkflow(json: unknown) {
   const loras = new Set<string>();
   const parameters: Record<string, string | number | boolean> = {};
 
-  const root = asRecord(json);
+  const rawRoot = asRecord(json);
+  const apiPromptRoot = asRecord(rawRoot.prompt);
+  const root = Array.isArray(rawRoot.nodes) || Object.keys(apiPromptRoot).length === 0
+    ? rawRoot
+    : apiPromptRoot;
   const nodes = Array.isArray(root.nodes) ? root.nodes : null;
 
   if (nodes) {
@@ -360,8 +410,10 @@ function collectFromWorkflow(json: unknown) {
         if (typeof inputs.end_percent === "number") parameters.control_end = inputs.end_percent;
       }
       for (const key of [
+        "seed",
         "width",
         "height",
+        "batch_size",
         "steps",
         "cfg",
         "sampler_name",
@@ -442,6 +494,7 @@ function inferTask(relativePath: string): WorkflowTask {
 function inferStatus(relativePath: string) {
   const lower = relativePath.toLowerCase();
   if (lower.includes("13_runpod_pilot/outputs")) return "pod smoke output";
+  if (lower.includes("04_workflows/proven_workflows")) return "proven working set";
   if (lower.includes("/00_current_best/")) return "current best favourite";
   if (lower.includes("/95_video/")) return "video favourite";
   if (lower.includes("/90_templates/")) return "template";
@@ -455,6 +508,7 @@ function inferStatus(relativePath: string) {
 
 function sourceSet(relativePath: string): WorkflowEntry["sourceSet"] {
   const lower = relativePath.toLowerCase();
+  if (lower.includes("04_workflows/proven_workflows")) return "proven";
   if (lower.includes("13_runpod_pilot/outputs")) return "runpod-smoke";
   if (lower.includes("04_workflows/favourites")) return "favourites";
   if (lower.includes("/bad/")) return "reference";
@@ -915,7 +969,12 @@ function entryFor(filePath: string): WorkflowEntry {
         path.join(MEDIA_ROOT, "04_Workflows/Favourites"),
         filePath,
       ).split(path.sep).join("/")}`
-    : relativePath.includes("04_Workflows/Still_Image/Good")
+    : relativePath.includes("04_Workflows/Proven_Workflows")
+      ? `/workspace/ComfyUI/user/default/workflows/Media_Creation/Proven/${path.relative(
+          path.join(MEDIA_ROOT, "04_Workflows/Proven_Workflows"),
+          filePath,
+        ).split(path.sep).join("/")}`
+      : relativePath.includes("04_Workflows/Still_Image/Good")
       ? `/workspace/ComfyUI/user/default/workflows/Media_Creation/Good_Still/${fileName}`
       : relativePath.includes("04_Workflows/Video/Good")
         ? `/workspace/ComfyUI/user/default/workflows/Media_Creation/Good_Video/${fileName}`
@@ -992,7 +1051,7 @@ function buildCatalog() {
   )
     .map(entryFor)
     .sort((a, b) => {
-      const sourceOrder = { good: 0, favourites: 1, "runpod-smoke": 2, reference: 3 };
+      const sourceOrder = { proven: 0, good: 1, favourites: 2, "runpod-smoke": 3, reference: 4 };
       return (
         sourceOrder[a.sourceSet] - sourceOrder[b.sourceSet] ||
         a.media.localeCompare(b.media) ||
@@ -1023,6 +1082,7 @@ function buildCatalog() {
     summary: {
       workflowCount: workflows.length,
       goodWorkflowCount: workflows.filter((workflow) => workflow.sourceSet === "good").length,
+      provenWorkflowCount: workflows.filter((workflow) => workflow.sourceSet === "proven").length,
       favouriteWorkflowCount: workflows.filter((workflow) => workflow.sourceSet === "favourites").length,
       podSmokeWorkflowCount: workflows.filter((workflow) => workflow.sourceSet === "runpod-smoke").length,
       podEndpoint,
