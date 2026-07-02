@@ -39,7 +39,13 @@ type InlineSegment = {
 type ContentBlock =
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "paragraph"; content: InlineSegment[] }
-  | { type: "bulletList"; items: InlineSegment[][] };
+  | { type: "labeledParagraph"; label: string; content: InlineSegment[] }
+  | {
+      type: "bulletList";
+      items: InlineSegment[][];
+      variant?: "signals" | "related" | "entities" | "questions";
+    }
+  | { type: "source"; label: string; href: string; tag: string };
 
 const MONTHS = [
   "January",
@@ -215,6 +221,15 @@ function inferAnswerSummary(data: JsonRecord) {
   return "This Morning Brief identifies the strongest source-backed signals from the day and turns them into a public strategy note with references preserved.";
 }
 
+function publicCoverageWindow(input: string) {
+  const firstClause = normalizeText(input)
+    .split(/[.;]/g)
+    .map((part) => part.trim())
+    .find((part) => part && !/gmail|newsletter|label|source-page|portfolio expansion/i.test(part));
+
+  return firstClause ?? "";
+}
+
 function articleRecords(data: JsonRecord) {
   return asArray(data.articles).map(asRecord).filter((article) => asString(article.title));
 }
@@ -310,6 +325,80 @@ function inferRelatedWikiSlugs(searchText: string) {
   return slugs.slice(0, 5);
 }
 
+function toDisplayTag(input: string, fallback = "Reference") {
+  const value = normalizeText(input || fallback);
+  return titleCase(value.replace(/[_-]+/g, " "));
+}
+
+function cleanSourceLabel(input: string, fallback = "Source") {
+  const cleaned = normalizeText(input || fallback)
+    .replace(/\bGmail(?:\s+Lead|\s+Newsletter)?\b\s*:?\s*/gi, "")
+    .replace(/\bNewsletter(?:\s+Lead|\s+Signal)?\b\s*:?\s*/gi, "")
+    .replace(/\bOfficial\s+Source\b\s*:?\s*/gi, "")
+    .replace(/\bSource\s+Portfolio\b\s*:?\s*/gi, "")
+    .replace(/(?:\s+and\s+)?\bWeb\s+Search\b\s*:?\s*/gi, "")
+    .replace(/\s*;\s*/g, " / ")
+    .split(/\s*\/\s*/g)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !/^gmail$/i.test(part))
+    .filter((part) => !/^newsletters?(?:\s*\/.*)?$/i.test(part))
+    .filter((part) => !/^newsletter lead$/i.test(part))
+    .filter((part) => !/^newsletter signal$/i.test(part))
+    .filter((part) => !/^gmail newsletter$/i.test(part))
+    .filter((part) => !/^web search$/i.test(part))
+    .filter((part) => !/^official source$/i.test(part))
+    .filter((part) => !/^source portfolio:?$/i.test(part))
+    .filter((part, index, parts) => {
+      const key = part.toLowerCase();
+      return parts.findIndex((candidate) => candidate.toLowerCase() === key) === index;
+    })
+    .join(" / ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || fallback;
+}
+
+function cleanPublicReferenceText(input: string) {
+  return normalizeText(input)
+    .replace(/\bGmail(?:\s+Lead|\s+Newsletter)?\b\s*:?\s*/gi, "")
+    .replace(/\bNewsletter(?:\s+Lead|\s+Signal)?\b\s*:?\s*/gi, "")
+    .replace(/\bWeb\s+Search\b/gi, "web lookup")
+    .replace(/\bemail:\s*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanPublicBodyText(input: string) {
+  return normalizeText(input)
+    .replace(/\bnewsletter\s+lead\b/gi, "source")
+    .replace(/\bnewsletter\s+signal\b/gi, "source signal")
+    .replace(/\bweb\s+search\b/gi, "web lookup")
+    .replace(/\bGmail-source\b/gi, "email-source")
+    .replace(/\bGmail\b/gi, "email")
+    .trim();
+}
+
+function cleanPublicSourceNote(input: string) {
+  return cleanPublicReferenceText(cleanPublicBodyText(input))
+    .replace(/\s+,/g, ",")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function publicRelatedDetail(input: string) {
+  const text = cleanPublicReferenceText(input);
+  if (/gmail|source path|labels? scanned|newsletter label/i.test(text)) return "";
+  return text;
+}
+
+function sourceNote(sourceLabel: string, tag: string) {
+  const cleanSource = cleanSourceLabel(sourceLabel);
+  const cleanTag = toDisplayTag(tag);
+  return cleanSource && cleanTag ? `${cleanSource} / ${cleanTag}` : cleanSource || cleanTag;
+}
+
 function cleanUrl(raw: string, context: string) {
   const value = raw.trim();
   if (!value) return "";
@@ -328,6 +417,15 @@ function cleanUrl(raw: string, context: string) {
   return url.toString();
 }
 
+function isPrivateSourceUrl(raw: string) {
+  try {
+    const url = new URL(raw);
+    return url.hostname.toLowerCase() === "mail.google.com";
+  } catch {
+    return false;
+  }
+}
+
 function collectSourceLinks(data: JsonRecord, fileName: string) {
   const links: BlogImportSourceLink[] = [];
   const seen = new Set<string>();
@@ -335,13 +433,15 @@ function collectSourceLinks(data: JsonRecord, fileName: string) {
   const add = (label: string, rawUrl: string, note?: string) => {
     if (!rawUrl.trim()) return;
     const url = cleanUrl(rawUrl, fileName);
+    if (isPrivateSourceUrl(url)) return;
     const key = url.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
+    const publicNote = cleanPublicSourceNote(note ?? "");
     links.push({
-      label: compactText(label || url, 120),
+      label: compactText(cleanPublicReferenceText(label) || url, 120),
       url,
-      ...(note ? { note: compactText(note, 180) } : {}),
+      ...(publicNote ? { note: compactText(publicNote, 180) } : {}),
     });
   };
 
@@ -349,14 +449,14 @@ function collectSourceLinks(data: JsonRecord, fileName: string) {
   add(
     asString(groundingLens.title),
     asString(groundingLens.url),
-    asString(groundingLens.source) || "Grounding lens",
+    sourceNote(asString(groundingLens.source), "Grounding Lens"),
   );
 
   for (const article of articleRecords(data)) {
     add(
       asString(article.title),
       asString(article.url),
-      [asString(article.source), asString(article.theme)].filter(Boolean).join(" / "),
+      sourceNote(asString(article.source), asString(article.theme) || "Reference"),
     );
   }
 
@@ -372,7 +472,7 @@ function collectSourceLinks(data: JsonRecord, fileName: string) {
 }
 
 function inlineText(text: string): InlineSegment[] {
-  const normalized = normalizeText(text);
+  const normalized = cleanPublicBodyText(text);
   return normalized ? [{ text: normalized }] : [];
 }
 
@@ -385,18 +485,19 @@ function paragraph(text: string): ContentBlock | null {
   return content.length ? { type: "paragraph", content } : null;
 }
 
-function paragraphParts(content: InlineSegment[]): ContentBlock | null {
-  const cleaned = content
-    .map((item) => ({ ...item, text: item.text.replace(/\s+/g, " ") }))
-    .filter((item) => item.text.trim());
-  return cleaned.length ? { type: "paragraph", content: cleaned } : null;
+function labeledParagraph(label: string, text: string): ContentBlock | null {
+  const content = inlineText(text);
+  return content.length ? { type: "labeledParagraph", label, content } : null;
 }
 
 function heading(level: 2 | 3, text: string): ContentBlock {
   return { type: "heading", level, text };
 }
 
-function bulletList(items: InlineSegment[][]): ContentBlock | null {
+function bulletList(
+  items: InlineSegment[][],
+  variant?: "signals" | "related" | "entities" | "questions",
+): ContentBlock | null {
   const cleaned = items
     .map((item) =>
       item
@@ -404,7 +505,16 @@ function bulletList(items: InlineSegment[][]): ContentBlock | null {
         .filter((part) => part.text.trim()),
     )
     .filter((item) => item.length > 0);
-  return cleaned.length ? { type: "bulletList", items: cleaned } : null;
+  return cleaned.length ? { type: "bulletList", items: cleaned, variant } : null;
+}
+
+function sourceBlock(label: string, href: string, tag: string): ContentBlock {
+  return {
+    type: "source",
+    label: cleanSourceLabel(label, "Source"),
+    href,
+    tag: toDisplayTag(tag),
+  };
 }
 
 function pushBlock(blocks: ContentBlock[], block: ContentBlock | null) {
@@ -414,7 +524,7 @@ function pushBlock(blocks: ContentBlock[], block: ContentBlock | null) {
 function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string) {
   const blocks: ContentBlock[] = [];
   const formattedDate = formatReportDate(reportDate);
-  const coverageWindow = asString(data.coverage_window);
+  const coverageWindow = publicCoverageWindow(asString(data.coverage_window));
   const answerSummary = inferAnswerSummary(data);
 
   pushBlock(
@@ -438,6 +548,7 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
           const detail = asString(signal.detail);
           return inlineText(headingText && detail ? `${headingText}: ${detail}` : headingText || detail);
         }),
+        "signals",
       ),
     );
   }
@@ -446,20 +557,19 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
   if (asString(groundingLens.title)) {
     blocks.push(heading(2, "Grounding Lens"));
     const lensUrl = asString(groundingLens.url);
-    pushBlock(
-      blocks,
-      paragraphParts([
-        { text: "Source: " },
-        lensUrl
-          ? inlineLink(asString(groundingLens.title), cleanUrl(lensUrl, `${topic} grounding lens`))
-          : { text: asString(groundingLens.title) },
-        asString(groundingLens.source) ? { text: ` (${asString(groundingLens.source)})` } : { text: "" },
-      ]),
-    );
-    pushBlock(blocks, paragraph(asString(groundingLens.core_idea)));
-    pushBlock(blocks, paragraph(asString(groundingLens.challenges)));
-    pushBlock(blocks, paragraph(asString(groundingLens.judgment_value)));
-    pushBlock(blocks, paragraph(asString(groundingLens.practice)));
+    if (lensUrl) {
+      blocks.push(
+        sourceBlock(
+          asString(groundingLens.source) || asString(groundingLens.title),
+          cleanUrl(lensUrl, `${topic} grounding lens`),
+          "Grounding Lens",
+        ),
+      );
+    }
+    pushBlock(blocks, labeledParagraph("Core idea", asString(groundingLens.core_idea)));
+    pushBlock(blocks, labeledParagraph("Challenge", asString(groundingLens.challenges)));
+    pushBlock(blocks, labeledParagraph("Judgment value", asString(groundingLens.judgment_value)));
+    pushBlock(blocks, labeledParagraph("Practice", asString(groundingLens.practice)));
   }
 
   const articles = articleRecords(data);
@@ -469,17 +579,10 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
       const title = asString(article.title);
       const url = cleanUrl(asString(article.url), `${topic} article ${index + 1}`);
       blocks.push(heading(3, `${String(index + 1).padStart(2, "0")}. ${title}`));
-      pushBlock(
-        blocks,
-        paragraphParts([
-          { text: "Source: " },
-          inlineLink(asString(article.source) || title, url),
-          asString(article.theme) ? { text: ` / ${asString(article.theme)}` } : { text: "" },
-        ]),
-      );
-      pushBlock(blocks, paragraph(asString(article.why_it_stood_out)));
-      pushBlock(blocks, paragraph(asString(article.your_action)));
-      pushBlock(blocks, paragraph(asString(article.so_what)));
+      blocks.push(sourceBlock(asString(article.source) || title, url, asString(article.theme)));
+      pushBlock(blocks, labeledParagraph("Why it matters", asString(article.why_it_stood_out)));
+      pushBlock(blocks, labeledParagraph("Action", asString(article.your_action)));
+      pushBlock(blocks, labeledParagraph("So what", asString(article.so_what)));
       for (const summary of asStringArray(article.summary)) {
         pushBlock(blocks, paragraph(summary));
       }
@@ -491,11 +594,11 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
     blocks.push(heading(2, "Sector Map"));
     for (const sector of sectorMap) {
       blocks.push(heading(3, asString(sector.sector)));
-      pushBlock(blocks, paragraph(asString(sector.signal)));
-      pushBlock(blocks, paragraph(asString(sector.watch_next)));
+      pushBlock(blocks, labeledParagraph("Signal", asString(sector.signal)));
+      pushBlock(blocks, labeledParagraph("Watch next", asString(sector.watch_next)));
       pushBlock(
         blocks,
-        bulletList(asStringArray(sector.entities).map((entity) => inlineText(entity))),
+        bulletList(asStringArray(sector.entities).map((entity) => inlineText(entity)), "entities"),
       );
     }
   }
@@ -505,30 +608,36 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
     blocks.push(heading(2, "Entity Register"));
     for (const entity of entityCards) {
       blocks.push(heading(3, asString(entity.name)));
-      pushBlock(blocks, paragraph(asString(entity.role_in_story)));
-      pushBlock(blocks, paragraph(asString(entity.why_it_matters)));
+      pushBlock(blocks, labeledParagraph("Role", asString(entity.role_in_story)));
+      pushBlock(blocks, labeledParagraph("Why it matters", asString(entity.why_it_matters)));
       pushBlock(
         blocks,
-        bulletList(asStringArray(entity.follow_up_questions).map((question) => inlineText(question))),
+        bulletList(
+          asStringArray(entity.follow_up_questions).map((question) => inlineText(question)),
+          "questions",
+        ),
       );
     }
   }
 
-  const relatedLinks = asArray(data.related_links).map(asRecord).filter((item) => asString(item.url));
+  const relatedLinks = asArray(data.related_links)
+    .map(asRecord)
+    .filter((item) => asString(item.url) && !isPrivateSourceUrl(asString(item.url)));
   if (relatedLinks.length > 0) {
     blocks.push(heading(2, "Related Links"));
     pushBlock(
       blocks,
       bulletList(
         relatedLinks.map((link) => {
-          const title = asString(link.title) || asString(link.url);
-          const detail = asString(link.detail);
+          const title = cleanPublicReferenceText(asString(link.title)) || asString(link.url);
+          const detail = publicRelatedDetail(asString(link.detail));
           const url = cleanUrl(asString(link.url), `${topic} related link`);
           return [
             inlineLink(title, url),
             ...(detail ? inlineText(` - ${detail}`) : []),
           ];
         }),
+        "related",
       ),
     );
   }
@@ -568,7 +677,14 @@ function blocksToHtml(blocks: ContentBlock[]) {
       if (block.type === "paragraph") {
         return `<p>${renderInlineHtml(block.content)}</p>`;
       }
-      return `<ul>${block.items
+      if (block.type === "labeledParagraph") {
+        return `<p class="brief-labeled-point"><span class="brief-point-label">${escapeHtml(block.label)}</span>${renderInlineHtml(block.content)}</p>`;
+      }
+      if (block.type === "source") {
+        return `<aside class="brief-source" aria-label="Cited source"><div class="brief-source-top"><span class="brief-source-kicker">Source</span><span class="brief-source-tag">${escapeHtml(block.tag)}</span></div><a class="brief-source-link" href="${escapeAttribute(block.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(block.label)}</a></aside>`;
+      }
+      const className = block.variant ? ` class="brief-${block.variant}-list"` : "";
+      return `<ul${className}>${block.items
         .map((item) => `<li><p>${renderInlineHtml(item)}</p></li>`)
         .join("")}</ul>`;
     })
@@ -614,6 +730,22 @@ function blocksToContentJson(blocks: ContentBlock[]) {
       return {
         type: "paragraph",
         content: inlineToRichText(block.content),
+      };
+    }
+    if (block.type === "labeledParagraph") {
+      return {
+        type: "paragraph",
+        content: [textNode(`${block.label}: `), ...inlineToRichText(block.content)],
+      };
+    }
+    if (block.type === "source") {
+      return {
+        type: "paragraph",
+        content: [
+          textNode("Source: "),
+          textNode(block.label, block.href),
+          textNode(` / ${block.tag}`),
+        ],
       };
     }
     return {

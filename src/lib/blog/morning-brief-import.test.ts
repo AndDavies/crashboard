@@ -53,11 +53,12 @@ pdf_local_path: /Users/andrewdavies/Documents/Playground/brief.pdf
         {
           theme: "RISK",
           title: "Midyear assessment says the cyber order is more fragile",
-          source: "Center for Cyber Diplomacy",
+          source: "Newsletter Lead / Center for Cyber Diplomacy",
           url: "https://cybercenter.space/2026/07/01/midyear-assessment-2026/",
-          why_it_stood_out: "It treats cyber incidents as institutional evidence.",
+          why_it_stood_out:
+            "A newsletter lead resolved into a primary-source signal about institutional evidence.",
           your_action: "Track post-quantum migration and cloud concentration.",
-          summary: ["Capability and fragility are rising together."],
+          summary: ["Capability and fragility are rising together after web search widened the source set."],
         },
       ],
       sector_map: [
@@ -81,7 +82,7 @@ pdf_local_path: /Users/andrewdavies/Documents/Playground/brief.pdf
         {
           title: "Anthropic: Introducing Claude Sonnet 5",
           url: "https://www.anthropic.com/news/claude-sonnet-5",
-          detail: "Primary model announcement behind the Sonnet signal.",
+          detail: "Primary model announcement behind the Sonnet signal found through Web Search.",
         },
       ],
       pdf_local_path: "/Users/andrewdavies/Documents/Playground/brief.pdf",
@@ -103,9 +104,23 @@ describe("Morning Brief blog import transform", () => {
     expect(draft.tags).toContain("morning brief");
     expect(draft.relatedWikiSlugs).toContain("agentic-engineering");
     expect(draft.contentHtml).toContain("<h2>Executive Signals</h2>");
+    expect(draft.contentHtml).toContain('class="brief-source"');
+    expect(draft.contentHtml).toContain('class="brief-source-tag">Strategy</span>');
+    expect(draft.contentHtml).toContain('class="brief-labeled-point"');
+    expect(draft.contentHtml).toContain('class="brief-signals-list"');
+    expect(draft.contentHtml).toContain(">Center for Cyber Diplomacy</a>");
+    expect(draft.contentHtml).not.toContain("Newsletter Lead");
     expect(draft.contentHtml).toContain("Anchor Articles");
     expect(draft.contentHtml).toContain("Related Links");
+    expect(draft.contentHtml).not.toMatch(/Newsletter Lead|Web Search/);
+    expect(JSON.stringify(draft.sourceLinks)).not.toMatch(
+      /Gmail|Newsletter Lead|Web Search/,
+    );
+    expect(draft.contentHtml).toContain("web lookup widened the source set");
     expect(draft.contentJson.type).toBe("doc");
+    expect(draft.sourceLinks.map((link) => link.note).join(" ")).not.toMatch(
+      /Gmail|Newsletter Lead|Web Search/,
+    );
   });
 
   it("handles the May 8 legacy schema without report_title", () => {

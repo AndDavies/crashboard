@@ -25,6 +25,41 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
+function splitSourceNote(note: string | undefined) {
+  const parts = (note ?? "")
+    .split(/\s+\/\s+/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) {
+    return { sourceName: parts[0] ?? "", tag: "" };
+  }
+
+  return {
+    sourceName: parts.slice(0, -1).join(" / "),
+    tag: parts.at(-1) ?? "",
+  };
+}
+
+function plainTextFromHtml(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function wordCountFromHtml(html: string) {
+  const text = plainTextFromHtml(html);
+  if (!text) return 0;
+  return text.split(/\s+/g).filter(Boolean).length;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPublishedBlogPostBySlug(slug);
@@ -100,6 +135,7 @@ export default async function BlogPostPage({ params }: Props) {
     "@type": "Thing",
     name,
   }));
+  const wordCount = wordCountFromHtml(post.contentHtml);
 
   return (
     <MarketingPageFrame>
@@ -129,6 +165,11 @@ export default async function BlogPostPage({ params }: Props) {
           dateModified: post.updatedAt,
           mainEntityOfPage: canonical,
           keywords: post.tags,
+          abstract: post.answerSummary || description,
+          articleSection: post.focusTopic || undefined,
+          inLanguage: "en",
+          isAccessibleForFree: true,
+          ...(wordCount > 0 ? { wordCount } : {}),
           ...(articleCitations.length > 0 ? { citation: articleCitations } : {}),
           ...(articleAbout.length > 0 ? { about: articleAbout } : {}),
         }}
@@ -198,36 +239,55 @@ export default async function BlogPostPage({ params }: Props) {
           <section className="mt-14 border-t border-border/80 pt-8">
             <p className="eyebrow">Sources and references</p>
             <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground">
-              Where the post points
+              Cited sources
             </h2>
-            <ol className="mt-6 grid gap-px border border-border/80 bg-border/80">
-              {post.sourceLinks.map((source, sourceIndex) => (
-                <li key={`${source.label}-${source.url}`} className="bg-card/70">
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group/source flex items-start gap-4 p-4 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            <ol className="mt-6 grid gap-3">
+              {post.sourceLinks.map((source, sourceIndex) => {
+                const { sourceName, tag } = splitSourceNote(source.note);
+
+                return (
+                  <li
+                    key={`${source.label}-${source.url}`}
+                    className="border border-border/80 bg-card/70 shadow-sm"
                   >
-                    <span className="ordinal mt-0.5">
-                      S{String(sourceIndex + 1).padStart(2, "0")}
-                    </span>
-                    <span className="flex-1">
-                      <span className="font-medium text-foreground">
-                        {source.label}
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/source grid gap-3 p-4 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[auto_1fr]"
+                    >
+                      <span className="ordinal mt-0.5 h-fit">
+                        S{String(sourceIndex + 1).padStart(2, "0")}
                       </span>
-                      {source.note ? (
-                        <span className="mt-1 block text-sm text-muted-foreground">
-                          {source.note}
+                      <span className="flex-1">
+                        {sourceName || tag ? (
+                          <span className="mb-2 flex flex-wrap items-center gap-2">
+                            <span className="font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
+                              Source
+                            </span>
+                            {sourceName ? (
+                              <span className="text-sm font-medium text-foreground">
+                                {sourceName}
+                              </span>
+                            ) : null}
+                            {tag ? (
+                              <span className="inline-flex border border-accent/40 bg-accent/10 px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-accent">
+                                {tag}
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : null}
+                        <span className="font-heading text-lg font-semibold leading-snug text-foreground underline decoration-accent/30 decoration-2 underline-offset-4 group-hover/source:decoration-accent">
+                          {source.label}
                         </span>
-                      ) : null}
-                      <span className="meta-tag mt-2 block break-all">
-                        {source.url}
+                        <span className="meta-tag mt-2 block break-all">
+                          {source.url}
+                        </span>
                       </span>
-                    </span>
-                  </a>
-                </li>
-              ))}
+                    </a>
+                  </li>
+                );
+              })}
             </ol>
           </section>
         ) : null}
