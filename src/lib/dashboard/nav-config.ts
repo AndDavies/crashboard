@@ -1,9 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Database,
   FileText,
-  Sparkles,
-  Workflow,
   Wrench,
 } from "lucide-react";
 
@@ -48,21 +45,6 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
         title: "PDF Extractor",
         href: "/dashboard/tools/pdf-extractor",
         icon: FileText,
-      },
-      {
-        title: "Workflow Reference",
-        href: "/dashboard/tools/workflow-reference",
-        icon: Workflow,
-      },
-      {
-        title: "Prompt Lab",
-        href: "/dashboard/tools/prompt-builder",
-        icon: Sparkles,
-      },
-      {
-        title: "ComfyUI Ecosystem",
-        href: "/dashboard/tools/comfy-ecosystem",
-        icon: Database,
       },
     ],
   },

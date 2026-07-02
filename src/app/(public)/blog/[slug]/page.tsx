@@ -88,6 +88,18 @@ export default async function BlogPostPage({ params }: Props) {
         : candidate.tags.some((tag) => post.tags.includes(tag)),
     )
     .slice(0, 3);
+  const articleCitations = post.sourceLinks.map((source) => ({
+    "@type": "CreativeWork",
+    name: source.label,
+    url: source.url,
+    ...(source.note ? { description: source.note } : {}),
+  }));
+  const articleAbout = Array.from(
+    new Set([post.focusTopic, ...post.tags].map((item) => item.trim()).filter(Boolean)),
+  ).map((name) => ({
+    "@type": "Thing",
+    name,
+  }));
 
   return (
     <MarketingPageFrame>
@@ -117,6 +129,8 @@ export default async function BlogPostPage({ params }: Props) {
           dateModified: post.updatedAt,
           mainEntityOfPage: canonical,
           keywords: post.tags,
+          ...(articleCitations.length > 0 ? { citation: articleCitations } : {}),
+          ...(articleAbout.length > 0 ? { about: articleAbout } : {}),
         }}
       />
       <SeoBreadcrumbs
