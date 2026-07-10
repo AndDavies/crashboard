@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { StructuredData } from "@/components/seo/structured-data";
 import { WikiExplorer } from "@/components/wiki/wiki-explorer";
+import { wikiAeoTargets } from "@/lib/public-wiki/aeo";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import {
   clusterLabel,
@@ -9,10 +11,9 @@ import {
   sortClustersForReaders,
   wikiReaderPaths,
 } from "@/lib/public-wiki/reader-paths";
-import { StructuredData } from "@/components/seo/structured-data";
-import { wikiAeoTargets } from "@/lib/public-wiki/aeo";
 import {
   SEO_AUTHOR_NAME,
+  SEO_AUTHOR_SAME_AS,
   SEO_DEFAULT_IMAGE,
   SEO_SITE_NAME,
   absoluteSiteUrl,
@@ -22,12 +23,12 @@ import {
 export const metadata: Metadata = {
   title: "Wiki",
   description:
-    "A public web version of Andrew Davies' compiled wiki: source-backed notes, concepts, workflows, and synthesis.",
+    "Search Andrew Davies' public, source-backed knowledge system across AI, strategy, security, infrastructure, markets, and decision-making.",
   alternates: { canonical: canonicalUrl("/wiki") },
   openGraph: {
     title: "Wiki · Crashboard",
     description:
-      "A public web version of Andrew Davies' compiled wiki: source-backed notes, concepts, workflows, and synthesis.",
+      "Search Andrew Davies' public, source-backed knowledge system across AI, strategy, security, infrastructure, markets, and decision-making.",
     url: canonicalUrl("/wiki"),
     images: [{ url: SEO_DEFAULT_IMAGE, width: 1200, height: 630 }],
   },
@@ -47,31 +48,15 @@ export default function WikiPage() {
     primaryPage: getReaderPathPrimaryPage(path, index.pages),
     pages: getReaderPathPages(path, index.pages),
   }));
-  const stats: Array<{ label: string; value: string; hint: string }> = [
-    {
-      label: "Pages",
-      value: index.pages.length.toLocaleString(),
-      hint: "Public synthesis",
-    },
-    {
-      label: "Sources",
-      value: sourceNotes.toLocaleString(),
-      hint: "Cited notes",
-    },
-    {
-      label: "Links",
-      value: linkedEdges.toLocaleString(),
-      hint: "Internal connections",
-    },
-    {
-      label: "Domains",
-      value: index.clusters.length.toLocaleString(),
-      hint: "Cluster map",
-    },
+  const stats = [
+    { label: "Pages", value: index.pages.length.toLocaleString() },
+    { label: "Sources", value: sourceNotes.toLocaleString() },
+    { label: "Links", value: linkedEdges.toLocaleString() },
+    { label: "Domains", value: index.clusters.length.toLocaleString() },
   ];
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 md:py-16">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14">
       <StructuredData
         data={{
           "@context": "https://schema.org",
@@ -82,9 +67,14 @@ export default function WikiPage() {
               name: "Crashboard Wiki",
               url: absoluteSiteUrl("/wiki"),
               description:
-                "A public web version of Andrew Davies' compiled wiki: source-backed notes, concepts, workflows, and synthesis.",
-              inLanguage: "en",
-              author: { "@type": "Person", name: SEO_AUTHOR_NAME },
+                "A public, source-backed knowledge system across AI, strategy, security, infrastructure, markets, and decision-making.",
+              inLanguage: "en-CA",
+              author: {
+                "@type": "Person",
+                name: SEO_AUTHOR_NAME,
+                url: absoluteSiteUrl("/about"),
+                sameAs: SEO_AUTHOR_SAME_AS,
+              },
               isPartOf: {
                 "@type": "WebSite",
                 name: SEO_SITE_NAME,
@@ -101,30 +91,12 @@ export default function WikiPage() {
               "@id": `${absoluteSiteUrl("/wiki")}#pages`,
               name: "Crashboard wiki pages",
               numberOfItems: index.pages.length,
-              itemListElement: index.pages.map((page, i) => ({
+              itemListElement: index.pages.map((page, position) => ({
                 "@type": "ListItem",
-                position: i + 1,
+                position: position + 1,
                 url: absoluteSiteUrl(`/wiki/${page.slug}`),
                 name: page.title,
               })),
-            },
-            {
-              "@type": "BreadcrumbList",
-              "@id": `${absoluteSiteUrl("/wiki")}#breadcrumb`,
-              itemListElement: [
-                {
-                  "@type": "ListItem",
-                  position: 1,
-                  name: "Home",
-                  item: absoluteSiteUrl("/"),
-                },
-                {
-                  "@type": "ListItem",
-                  position: 2,
-                  name: "Wiki",
-                  item: absoluteSiteUrl("/wiki"),
-                },
-              ],
             },
             {
               "@type": "FAQPage",
@@ -132,111 +104,93 @@ export default function WikiPage() {
               mainEntity: wikiAeoTargets.map((target) => ({
                 "@type": "Question",
                 name: target.question,
-                acceptedAnswer: {
-                  "@type": "Answer",
-                  text: target.answer,
-                },
+                acceptedAnswer: { "@type": "Answer", text: target.answer },
               })),
             },
           ],
         }}
       />
-      <section className="technical-grid -mx-4 grid gap-10 border-b border-border/80 bg-card px-4 py-16 sm:-mx-6 sm:px-6 md:py-24 lg:grid-cols-[1fr_22rem] lg:items-start">
-        <div className="min-w-0">
+
+      <header className="grid gap-8 border-b border-border/80 pb-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-end">
+        <div>
           <p className="eyebrow flex items-center gap-3">
             <span className="h-1 w-10 bg-accent" aria-hidden />
             Public wiki
           </p>
-          <h1 className="mt-4 max-w-4xl font-heading text-5xl font-semibold leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
-            Choose a path through my public knowledge system.
+          <h1 className="mt-4 max-w-4xl font-heading text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
+            Search the public knowledge system.
           </h1>
-          <span className="accent-rule mt-6" aria-hidden />
-          <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
-            This wiki turns private Obsidian notes into public, source-backed
-            synthesis across work, health, money, policy, AI systems,
-            communication, learning, and philosophy.
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground md:text-lg">
+            Source-backed synthesis across AI systems, security, infrastructure,
+            markets, work, health, policy, learning, and strategic judgment.
+          </p>
+          <p className="meta-tag mt-4 lg:hidden">
+            {index.pages.length} pages · {sourceNotes} sources · {linkedEdges} links
           </p>
         </div>
-        <dl className="grid gap-px border border-border/80 bg-border/80">
+        <dl className="hidden grid-cols-2 gap-px border border-border/80 bg-border/80 lg:grid">
           {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="flex items-baseline justify-between gap-4 bg-background/80 px-5 py-4"
-            >
-              <div>
-                <dt className="eyebrow">{stat.label}</dt>
-                <p className="meta-tag mt-2">{stat.hint}</p>
-              </div>
-              <dd className="font-heading text-4xl font-semibold tabular-nums text-foreground md:text-5xl">
+            <div key={stat.label} className="bg-card/70 p-4">
+              <dt className="eyebrow">{stat.label}</dt>
+              <dd className="mt-1 font-heading text-3xl font-semibold tabular-nums text-foreground">
                 {stat.value}
               </dd>
             </div>
           ))}
         </dl>
-      </section>
+      </header>
 
-      <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-        Pick a path, read the synthesis, then follow trails into related pages
-        and source-backed context.
-      </p>
-
-      <section className="mt-10 border border-border/80 bg-card/70">
-        <div className="grid gap-px bg-border/80 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.45fr)]">
-          <div className="bg-background/90 p-5 md:p-6">
-            <p className="eyebrow">Cluster distribution</p>
-            <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
-              What the published wiki currently emphasizes.
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              These domains come directly from each page&apos;s `kb_cluster`
-              frontmatter during `/kb-publish`; the trails below are curated
-              entry routes through the same exported data.
-            </p>
-          </div>
-          <div className="grid gap-px bg-border/80 md:grid-cols-2">
-            {clusterDistribution.map((item) => {
-              const percent =
-                clusterTotal > 0 ? Math.round((item.count / clusterTotal) * 100) : 0;
-              return (
-                <div key={item.id} className="bg-background/90 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="meta-tag">{item.id}</p>
-                      <h3 className="mt-1 text-sm font-semibold leading-snug text-foreground">
-                        {clusterLabel(item.id)}
-                      </h3>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-heading text-2xl font-semibold tabular-nums text-foreground">
-                        {item.count}
-                      </p>
-                      <p className="meta-tag">{percent}%</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 h-1.5 overflow-hidden bg-muted">
-                    <div
-                      className="h-full bg-accent"
-                      style={{ width: `${Math.max(percent, 3)}%` }}
-                      aria-hidden
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-10">
+      <section className="mt-8">
         <Suspense
           fallback={
             <div className="border border-border/80 bg-card/70 p-10 text-center text-sm text-muted-foreground">
-              Loading the explorer…
+              Loading the knowledge index...
             </div>
           }
         >
           <WikiExplorer index={index} readerPaths={readerPaths} />
         </Suspense>
+      </section>
+
+      <section className="mt-14 border-t border-border/80 pt-8" aria-labelledby="domain-heading">
+        <div className="max-w-3xl">
+          <p className="eyebrow">Coverage</p>
+          <h2 id="domain-heading" className="mt-2 font-heading text-3xl font-semibold text-foreground">
+            Published domains
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Distribution reflects the current public corpus and changes as new
+            source-backed synthesis is exported.
+          </p>
+        </div>
+        <div className="mt-6 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 lg:grid-cols-4">
+          {clusterDistribution.map((item) => {
+            const percent =
+              clusterTotal > 0 ? Math.round((item.count / clusterTotal) * 100) : 0;
+            return (
+              <div key={item.id} className="bg-card/70 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium leading-snug text-foreground">
+                      {clusterLabel(item.id)}
+                    </p>
+                    <p className="meta-tag mt-1">{percent}% of pages</p>
+                  </div>
+                  <p className="font-heading text-2xl font-semibold tabular-nums text-foreground">
+                    {item.count}
+                  </p>
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden bg-muted">
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${Math.max(percent, 3)}%` }}
+                    aria-hidden
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   );

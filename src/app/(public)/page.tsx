@@ -6,8 +6,10 @@ import { SkillsSection } from "@/components/marketing/skills-section";
 import { WritingSection } from "@/components/marketing/writing-section";
 import { ContactSection } from "@/components/marketing/contact-section";
 import { StructuredData } from "@/components/seo/structured-data";
+import { getPublishedBlogPosts } from "@/lib/blog/data";
 import {
   SEO_AUTHOR_NAME,
+  SEO_AUTHOR_SAME_AS,
   SEO_DEFAULT_DESCRIPTION,
   SEO_DEFAULT_IMAGE,
   SEO_SITE_NAME,
@@ -27,7 +29,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  const posts = await getPublishedBlogPosts();
+
   return (
     <>
       <StructuredData
@@ -37,6 +41,7 @@ export default function Home() {
             "@type": "Person",
             name: SEO_AUTHOR_NAME,
             url: absoluteSiteUrl("/"),
+            sameAs: SEO_AUTHOR_SAME_AS,
             address: {
               "@type": "PostalAddress",
               addressLocality: "Halifax",
@@ -65,7 +70,7 @@ export default function Home() {
       <AboutSection />
       <ProjectsSection />
       <SkillsSection />
-      <WritingSection />
+      <WritingSection posts={posts.slice(0, 3)} />
       <ContactSection />
     </>
   );

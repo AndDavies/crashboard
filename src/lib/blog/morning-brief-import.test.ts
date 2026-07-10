@@ -112,6 +112,7 @@ describe("Morning Brief blog import transform", () => {
     expect(draft.contentHtml).not.toContain("Newsletter Lead");
     expect(draft.contentHtml).toContain("Anchor Articles");
     expect(draft.contentHtml).toContain("Related Links");
+    expect(draft.contentHtml).not.toContain(draft.answerSummary);
     expect(draft.contentHtml).not.toMatch(/Newsletter Lead|Web Search/);
     expect(JSON.stringify(draft.sourceLinks)).not.toMatch(
       /Gmail|Newsletter Lead|Web Search/,
@@ -183,6 +184,18 @@ describe("Morning Brief blog import transform", () => {
       "Deployment is becoming a product category",
     );
     expect(draft.answerSummary).toContain("Organizations can buy models");
+  });
+
+  it("keeps excerpts and meta descriptions from ending on dangling words", () => {
+    const draft = transformMorningBriefReport(
+      fullBrief({
+        bottom_line:
+          "The operating model is shifting quickly across deployment, governance, infrastructure, and capital allocation. Leaders now need to connect implementation capacity to evidence, ownership, and decision rights before the next wave of spending is approved by the board and the",
+      }),
+    );
+
+    expect(draft.excerpt).not.toMatch(/\b(?:and|the|to|is|of)\.$/i);
+    expect(draft.metaDescription).not.toMatch(/\b(?:and|the|to|is|of)\.$/i);
   });
 
   it("dedupes source links and rejects invalid URLs", () => {

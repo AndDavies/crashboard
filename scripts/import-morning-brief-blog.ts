@@ -8,11 +8,13 @@ import {
   transformMorningBriefReport,
   type MorningBriefBlogDraft,
 } from "@/lib/blog/morning-brief-import";
+import { getPublicSiteOrigin } from "@/lib/site-url";
 
 type ImportStatus = "draft" | "published";
 
 type ImportOptions = {
   source: string;
+  file?: string;
   apply: boolean;
   status: ImportStatus;
   updateExisting: boolean;
@@ -21,6 +23,13 @@ type ImportOptions = {
 type ExistingPost = {
   id: string;
   slug: string;
+};
+
+type ApplyResult = {
+  inserted: number;
+  updated: number;
+  verifiedPosts: number;
+  verifiedRevisions: number;
 };
 
 const WORKDIR = process.cwd();
@@ -50,6 +59,7 @@ function usage() {
 
 Options:
   --source <path>          Raw Morning Brief folder.
+  --file <path>            Import one raw Morning Brief JSON file and its paired Markdown file.
   --apply                  Write rows to Supabase. Omit for dry-run.
   --status draft|published Import status. Default: draft.
   --update-existing        Update active posts that already use generated slugs.
@@ -92,6 +102,12 @@ function parseArgs(argv: string[]): ImportOptions {
     if (arg === "--source" || arg.startsWith("--source=")) {
       const { value, nextIndex } = readArgValue(argv, i, "--source");
       options.source = value;
+      i = nextIndex;
+      continue;
+    }
+    if (arg === "--file" || arg.startsWith("--file=")) {
+      const { value, nextIndex } = readArgValue(argv, i, "--file");
+      options.file = value;
       i = nextIndex;
       continue;
     }
@@ -147,8 +163,36 @@ function loadDrafts(source: string) {
   return drafts;
 }
 
+function loadDraftFromFile(filePath: string) {
+  const jsonPath = path.resolve(filePath);
+  if (!jsonPath.endsWith(".json")) {
+    throw new Error(`--file must point to a JSON file: ${jsonPath}`);
+  }
+  if (!fs.existsSync(jsonPath)) {
+    throw new Error(`JSON file does not exist: ${jsonPath}`);
+  }
+
+  const markdownPath = jsonPath.replace(/\.json$/i, ".md");
+  if (!fs.existsSync(markdownPath)) {
+    throw new Error(`Missing paired Markdown file for ${jsonPath}`);
+  }
+
+  const draft = transformMorningBriefReport({
+    fileName: path.basename(jsonPath),
+    json: readJsonFile(jsonPath),
+    markdown: fs.readFileSync(markdownPath, "utf8"),
+  });
+
+  return [draft];
+}
+
 function publishedAtFor(draft: MorningBriefBlogDraft, status: ImportStatus) {
-  return status === "published" ? `${draft.reportDate}T12:00:00.000Z` : null;
+  if (status !== "published") return null;
+
+  const reportNoon = new Date(`${draft.reportDate}T12:00:00.000Z`);
+  const now = new Date();
+
+  return reportNoon > now ? now.toISOString() : reportNoon.toISOString();
 }
 
 function postPayload(draft: MorningBriefBlogDraft, status: ImportStatus) {
@@ -228,6 +272,7 @@ async function insertRevision(
 async function applyDrafts(options: ImportOptions, drafts: MorningBriefBlogDraft[]) {
   loadDotEnv(ENV_PATH);
   const admin = createAdminClient();
+  const applyStartedAt = new Date(Date.now() - 1_000).toISOString();
   const existing = await fetchExistingPosts(
     admin,
     drafts.map((draft) => draft.slug),
@@ -269,13 +314,71 @@ async function applyDrafts(options: ImportOptions, drafts: MorningBriefBlogDraft
     inserted += 1;
   }
 
-  return { inserted, updated };
+  const { data: verifiedRows, error: verifyError } = await admin
+    .from("blog_posts")
+    .select(
+      "id, slug, status, excerpt, meta_description, noindex, source_links, published_at",
+    )
+    .in(
+      "slug",
+      drafts.map((draft) => draft.slug),
+    )
+    .is("deleted_at", null);
+  if (verifyError) throw new Error(`Post verification failed: ${verifyError.message}`);
+
+  const verifiedBySlug = new Map(
+    ((verifiedRows ?? []) as Array<Record<string, unknown>>).map((row) => [
+      String(row.slug),
+      row,
+    ]),
+  );
+  for (const draft of drafts) {
+    const row = verifiedBySlug.get(draft.slug);
+    if (!row) throw new Error(`Post verification failed for ${draft.slug}.`);
+    if (row.status !== options.status || row.noindex !== false) {
+      throw new Error(`Post verification found incorrect status for ${draft.slug}.`);
+    }
+    if (row.excerpt !== draft.excerpt || row.meta_description !== draft.metaDescription) {
+      throw new Error(`Post verification found stale metadata for ${draft.slug}.`);
+    }
+    if (!Array.isArray(row.source_links) || row.source_links.length !== draft.sourceLinks.length) {
+      throw new Error(`Post verification found an incomplete source trail for ${draft.slug}.`);
+    }
+    if (options.status === "published" && !row.published_at) {
+      throw new Error(`Post verification found no publication date for ${draft.slug}.`);
+    }
+  }
+
+  const postIds = Array.from(verifiedBySlug.values()).map((row) => String(row.id));
+  const { data: revisions, error: revisionError } = await admin
+    .from("blog_post_revisions")
+    .select("post_id")
+    .in("post_id", postIds)
+    .gte("created_at", applyStartedAt);
+  if (revisionError) {
+    throw new Error(`Revision verification failed: ${revisionError.message}`);
+  }
+  const revisedPostIds = new Set(
+    ((revisions ?? []) as Array<{ post_id: string }>).map((row) => row.post_id),
+  );
+  if (revisedPostIds.size !== drafts.length) {
+    throw new Error(
+      `Revision verification failed: expected ${drafts.length}, found ${revisedPostIds.size}.`,
+    );
+  }
+
+  return {
+    inserted,
+    updated,
+    verifiedPosts: verifiedBySlug.size,
+    verifiedRevisions: revisedPostIds.size,
+  };
 }
 
 function printSummary(
   options: ImportOptions,
   drafts: MorningBriefBlogDraft[],
-  result?: { inserted: number; updated: number },
+  result?: ApplyResult,
 ) {
   const sourceLinks = drafts.reduce((sum, draft) => sum + draft.sourceLinks.length, 0);
   const sourceCounts = drafts.map((draft) => draft.sourceLinks.length);
@@ -283,6 +386,7 @@ function printSummary(
   const maxSources = Math.max(...sourceCounts);
 
   console.log(`source=${options.source}`);
+  if (options.file) console.log(`file=${path.resolve(options.file)}`);
   console.log(`mode=${options.apply ? "apply" : "dry-run"}`);
   console.log(`status=${options.status}`);
   console.log(`eligible_posts=${drafts.length}`);
@@ -293,15 +397,23 @@ function printSummary(
   console.log(`source_links_max=${maxSources}`);
   console.log(`first_slug=${drafts[0]?.slug ?? ""}`);
   console.log(`last_slug=${drafts.at(-1)?.slug ?? ""}`);
+  if (drafts[0]) {
+    console.log(
+      `first_blog_url=${getPublicSiteOrigin()}/blog/${drafts[0].slug}`,
+    );
+  }
   if (result) {
     console.log(`inserted=${result.inserted}`);
     console.log(`updated=${result.updated}`);
+    console.log(`verified_posts=${result.verifiedPosts}`);
+    console.log(`verified_revisions=${result.verifiedRevisions}`);
   }
 }
 
 async function main() {
+  loadDotEnv(ENV_PATH);
   const options = parseArgs(process.argv.slice(2));
-  const drafts = loadDrafts(options.source);
+  const drafts = options.file ? loadDraftFromFile(options.file) : loadDrafts(options.source);
 
   if (!options.apply) {
     printSummary(options, drafts);

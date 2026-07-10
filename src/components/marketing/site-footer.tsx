@@ -5,8 +5,10 @@ import { Separator } from "@/components/ui/separator";
 const footerNav = [
   { href: "/", label: "Home" },
   { href: "/blog", label: "Blog" },
+  { href: "/blog/topics", label: "Topics" },
   { href: "/wiki", label: "Wiki" },
   { href: "/about", label: "About" },
+  { href: "/feed.xml", label: "RSS" },
 ] as const;
 
 export function SiteFooter() {
@@ -37,14 +39,6 @@ export function SiteFooter() {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="text-sm text-muted-foreground motion-safe:transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Dashboard
-                </Link>
-              </li>
             </ul>
           </nav>
         </div>

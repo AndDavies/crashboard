@@ -21,6 +21,7 @@ export default function PublicLayout({
     <>
       <GoogleTagManagerNoScript />
       <SiteHeader />
+      {googleTrackingConfigured ? <AnalyticsConsentBanner /> : null}
       <main className="flex flex-1 flex-col">{children}</main>
       <SiteFooter />
       <GoogleTrackingScripts />
@@ -30,7 +31,6 @@ export default function PublicLayout({
             <RouteAnalytics />
           </Suspense>
           <InteractionAnalytics />
-          <AnalyticsConsentBanner />
         </>
       ) : null}
     </>

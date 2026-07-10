@@ -10,11 +10,11 @@ export function ContactSection() {
     >
       <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
         <div className="max-w-xl">
-          <p className="mb-4 flex items-center gap-3 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-background/55">
+          <p className="mb-4 flex items-center gap-3 font-mono text-[11px] font-medium uppercase text-background/55">
             <span className="h-1 w-10 bg-accent" aria-hidden />
             Next
           </p>
-          <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.01em] text-background md:text-6xl">
+          <h2 className="font-heading text-4xl leading-[1.02] font-semibold text-background md:text-6xl">
             Start with the material that already has weight.
           </h2>
           <span
@@ -29,7 +29,7 @@ export function ContactSection() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Link
             href="/wiki"
-            className="group inline-flex items-center justify-between gap-3 border border-accent bg-accent px-5 py-3 text-sm font-semibold tracking-tight text-accent-foreground motion-safe:transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-foreground"
+            className="group inline-flex items-center justify-between gap-3 border border-accent bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground motion-safe:transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-foreground"
           >
             Public wiki
             <ArrowRightIcon
@@ -39,7 +39,7 @@ export function ContactSection() {
           </Link>
           <Link
             href="/blog"
-            className="group inline-flex items-center justify-between gap-3 border border-background/40 bg-transparent px-5 py-3 text-sm font-semibold tracking-tight text-background motion-safe:transition-colors hover:border-background hover:bg-background/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="group inline-flex items-center justify-between gap-3 border border-background/40 bg-transparent px-5 py-3 text-sm font-semibold text-background motion-safe:transition-colors hover:border-background hover:bg-background/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             Open blog
             <ArrowRightIcon

@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
 import { getPublishedBlogPosts } from "@/lib/blog/data";
+import { blogTopics, getBlogTopicsForPost } from "@/lib/blog/topics";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
 import { absoluteSiteUrl } from "@/lib/seo/metadata";
+
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [posts, wikiIndex] = await Promise.all([
@@ -9,21 +12,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     Promise.resolve(getPublicWikiIndex()),
   ]);
 
-  const now = new Date();
   const wikiGeneratedAt = new Date(wikiIndex.generatedAt);
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: absoluteSiteUrl("/"),
-      lastModified: now,
       changeFrequency: "weekly",
       priority: 1,
     },
     {
       url: absoluteSiteUrl("/blog"),
-      lastModified: posts[0]?.updatedAt ? new Date(posts[0].updatedAt) : now,
+      ...(posts[0]?.updatedAt
+        ? { lastModified: new Date(posts[0].updatedAt) }
+        : {}),
       changeFrequency: "weekly",
       priority: 0.9,
+    },
+    {
+      url: absoluteSiteUrl("/blog/topics"),
+      ...(posts[0]?.updatedAt
+        ? { lastModified: new Date(posts[0].updatedAt) }
+        : {}),
+      changeFrequency: "weekly",
+      priority: 0.85,
     },
     {
       url: absoluteSiteUrl("/wiki"),
@@ -33,13 +44,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: absoluteSiteUrl("/about"),
-      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
       url: absoluteSiteUrl("/privacy/whoop"),
-      lastModified: now,
       changeFrequency: "yearly",
       priority: 0.2,
     },
@@ -52,8 +61,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(post.updatedAt),
       changeFrequency: "monthly",
       priority: 0.8,
-      images: [post.ogImageUrl ?? post.coverImageUrl].filter(Boolean) as string[],
+      images: [
+        post.ogImageUrl ??
+          post.coverImageUrl ??
+          getBlogTopicsForPost(post)[0]?.heroImage,
+      ]
+        .filter(Boolean)
+        .map((image) => absoluteSiteUrl(image as string)),
     }));
+
+  const topicRoutes: MetadataRoute.Sitemap = blogTopics.map((topic) => ({
+    url: absoluteSiteUrl(`/blog/topics/${topic.slug}`),
+    ...(posts[0]?.updatedAt
+      ? { lastModified: new Date(posts[0].updatedAt) }
+      : {}),
+    changeFrequency: "weekly",
+    priority: 0.75,
+    images: [absoluteSiteUrl(topic.heroImage)],
+  }));
 
   const wikiRoutes: MetadataRoute.Sitemap = wikiIndex.pages.map((page) => ({
     url: absoluteSiteUrl(`/wiki/${page.slug}`),
@@ -63,5 +88,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     images: [absoluteSiteUrl(page.heroImage)],
   }));
 
-  return [...staticRoutes, ...blogRoutes, ...wikiRoutes];
+  return [...staticRoutes, ...topicRoutes, ...blogRoutes, ...wikiRoutes];
 }

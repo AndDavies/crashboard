@@ -22,16 +22,6 @@ export type HomeLink = {
   label: string;
 };
 
-export type BlogPostSummary = {
-  slug: string;
-  title: string;
-  description: string;
-  status: "draft" | "published";
-  publishedAt?: string;
-  readingMinutes?: number;
-  tags: string[];
-};
-
 export const homeLinks: HomeLink[] = [
   {
     title: "Public wiki",
@@ -46,10 +36,10 @@ export const homeLinks: HomeLink[] = [
     label: "Open blog",
   },
   {
-    title: "Private dashboard",
-    body: "The private side for drafts, ingestion, and the machinery behind the public pages.",
-    href: "/dashboard",
-    label: "Go to dashboard",
+    title: "Research topics",
+    body: "Durable hubs that connect recurring signals across the daily briefs and deeper wiki pages.",
+    href: "/blog/topics",
+    label: "Explore topics",
   },
 ];
 
@@ -58,33 +48,4 @@ export const operatingNotes = [
   "Show the source trail when it matters.",
   "Prefer durable notes over daily takes.",
   "Keep the dashboard private; make the synthesis public.",
-];
-
-export const blogPosts: BlogPostSummary[] = [];
-
-export const blogContentModel = [
-  {
-    field: "Title and slug",
-    description: "The public handle for a post: clear enough to cite and stable enough to keep.",
-  },
-  {
-    field: "Summary",
-    description: "The answer a reader should understand before deciding whether to read the whole piece.",
-  },
-  {
-    field: "Status",
-    description: "Draft, scheduled, published, or archived without exposing unfinished work.",
-  },
-  {
-    field: "Body",
-    description: "The argument, examples, caveats, and source trail in a format that can be edited cleanly.",
-  },
-  {
-    field: "Tags",
-    description: "Topic labels that connect essays back to the wiki instead of becoming loose keywords.",
-  },
-  {
-    field: "Sources and related pages",
-    description: "Supporting links and wiki pages that make the post easier to verify, reuse, and extend.",
-  },
 ];

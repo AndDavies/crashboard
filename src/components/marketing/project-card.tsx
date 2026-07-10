@@ -28,7 +28,7 @@ export function ProjectCard({ project }: { project: ProjectItem }) {
       </div>
       {project.href ? (
         <footer className="flex items-center justify-between border-t border-border/80 px-5 py-3 text-accent motion-safe:transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
-          <span className="text-sm font-semibold tracking-tight">
+          <span className="text-sm font-semibold">
             {project.label ?? "Open"}
           </span>
           <Icon

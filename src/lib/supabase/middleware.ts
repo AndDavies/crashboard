@@ -34,12 +34,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data } = await supabase.auth.getClaims();
 
   const path = request.nextUrl.pathname;
-  if (path.startsWith("/dashboard") && !user) {
+  if (path.startsWith("/dashboard") && !data?.claims.sub) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);

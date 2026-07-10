@@ -128,7 +128,7 @@ function InlineMarkdown({ text }: { text: string }) {
         const link = token.match(/^\[([^\]]+)]\(([^)]+)\)$/);
         if (link) {
           const href = link[2];
-          const internal = href.startsWith("/");
+          const internal = /^\/(?:wiki|blog|about)(?:\/|$)/.test(href);
           if (internal) {
             return (
               <Link key={`${token}-${index}`} href={href}>
@@ -136,8 +136,11 @@ function InlineMarkdown({ text }: { text: string }) {
               </Link>
             );
           }
+          if (!/^https?:\/\//i.test(href) && !/^mailto:/i.test(href)) {
+            return <span key={`${token}-${index}`}>{link[1]}</span>;
+          }
           return (
-            <a key={`${token}-${index}`} href={href} rel="noreferrer" target="_blank">
+            <a key={`${token}-${index}`} href={href} rel="noopener noreferrer" target="_blank">
               {link[1]}
             </a>
           );

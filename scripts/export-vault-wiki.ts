@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { sanitizePublicWikiMarkdown } from "../src/lib/public-wiki/markdown";
 
 type Frontmatter = Record<string, string | string[] | boolean>;
 
@@ -345,7 +346,10 @@ function main() {
 
   const titleToSlug = new Map(rawPages.map((page) => [page.title, page.slug]));
   const exportedPages: ExportedPage[] = rawPages.map((page) => {
-    const markdown = convertWikilinks(page.body, titleToSlug);
+    const markdown = convertWikilinks(
+      sanitizePublicWikiMarkdown(page.body),
+      titleToSlug,
+    );
     const plainText = stripMarkdown(markdown);
     const wordCount = plainText ? plainText.split(/\s+/).length : 0;
     const relatedTitles = extractWikilinks(page.body);

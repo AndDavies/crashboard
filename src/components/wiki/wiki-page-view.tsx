@@ -73,7 +73,7 @@ export function WikiPageView({
             <span aria-hidden>·</span>
             <span>{page.sourceNotes.length} sources</span>
           </p>
-          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-semibold leading-[0.98] tracking-[-0.02em] text-foreground md:text-7xl">
+          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-semibold leading-[0.98] text-foreground md:text-7xl">
             {page.title}
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
@@ -121,7 +121,7 @@ export function WikiPageView({
               <dl className="mt-6 grid gap-px border border-border/80 bg-border/80">
                 {faq.map((entry) => (
                   <div key={entry.question} className="bg-card/70 p-5">
-                    <dt className="font-heading text-lg font-semibold tracking-tight text-foreground">
+                    <dt className="font-heading text-lg font-semibold text-foreground">
                       {entry.question}
                     </dt>
                     <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">

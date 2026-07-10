@@ -43,12 +43,12 @@ export function AnalyticsConsentBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed right-4 bottom-4 left-4 z-50 sm:left-auto sm:max-w-sm">
-      <div className="border border-border/80 bg-background/95 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.12)] backdrop-blur">
+    <aside className="border-b border-border/80 bg-card" aria-label="Analytics preference">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-sm leading-relaxed text-muted-foreground">
           Help improve the public notes with lightweight analytics. No ads.
         </p>
-        <div className="mt-3 flex justify-end gap-2">
+        <div className="flex shrink-0 justify-end gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -67,6 +67,6 @@ export function AnalyticsConsentBanner() {
           </Button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

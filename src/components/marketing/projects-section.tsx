@@ -44,7 +44,7 @@ export function ProjectsSection() {
       </div>
       <Link
         href="/wiki"
-        className="group mt-8 inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
+        className="group mt-8 inline-flex items-center gap-2 text-sm font-semibold text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
       >
         Browse all {index.pages.length} wiki pages
         <ArrowRightIcon

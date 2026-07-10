@@ -31,6 +31,11 @@ export const metadata: Metadata = {
     template: `%s | ${SEO_SITE_NAME}`,
   },
   description: SEO_DEFAULT_DESCRIPTION,
+  alternates: {
+    types: {
+      "application/rss+xml": absoluteSiteUrl("/feed.xml"),
+    },
+  },
   openGraph: {
     type: "website",
     siteName: SEO_SITE_NAME,

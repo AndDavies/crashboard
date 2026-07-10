@@ -162,7 +162,7 @@
 
   .blog-editor .tiptap h2,
   .blog-content h2 {
-    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-3xl font-semibold tracking-tight text-foreground;
+    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-3xl font-semibold text-foreground;
   }
 
   .blog-editor .tiptap h2 + h3,
@@ -172,7 +172,7 @@
 
   .blog-editor .tiptap h3,
   .blog-content h3 {
-    @apply mt-10 max-w-3xl border-t border-border/70 pt-6 font-heading text-2xl font-semibold leading-tight tracking-tight text-foreground;
+    @apply mt-10 max-w-3xl border-t border-border/70 pt-6 font-heading text-2xl font-semibold leading-tight text-foreground;
   }
 
   .blog-editor .tiptap h4,
@@ -212,7 +212,7 @@
   }
 
   .blog-content .brief-point-label {
-    @apply mb-1 block font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-accent;
+    @apply mb-1 block font-sans text-[10px] font-bold uppercase text-accent;
   }
 
   .blog-content .brief-signals-list,
@@ -252,12 +252,12 @@
 
   .blog-content .brief-source-kicker,
   .blog-content .source-kicker {
-    @apply font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-accent;
+    @apply inline-flex bg-foreground px-2 py-1 font-sans text-[10px] font-bold uppercase text-background;
   }
 
   .blog-content .brief-source-tag,
   .blog-content .source-tag {
-    @apply inline-flex border border-accent/40 bg-accent/10 px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-accent;
+    @apply inline-flex border border-accent bg-accent px-2 py-1 font-sans text-[10px] font-bold uppercase text-accent-foreground;
   }
 
   .blog-content .brief-source-link,
@@ -308,7 +308,7 @@
   }
 
   .wiki-prose h2 {
-    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-2xl font-semibold tracking-tight text-foreground;
+    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-2xl font-semibold text-foreground;
   }
 
   .wiki-prose h2 + h3 {
@@ -316,7 +316,7 @@
   }
 
   .wiki-prose h3 {
-    @apply mt-10 max-w-3xl font-heading text-xl font-semibold tracking-tight text-foreground;
+    @apply mt-10 max-w-3xl font-heading text-xl font-semibold text-foreground;
   }
 
   .wiki-prose h4 {
@@ -381,15 +381,15 @@
   }
 
   .eyebrow {
-    @apply font-sans text-[11px] font-bold uppercase tracking-[0.1em] text-accent;
+    @apply font-sans text-[11px] font-bold uppercase text-accent;
   }
 
   .ordinal {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground;
+    @apply font-mono text-[11px] font-medium uppercase text-muted-foreground;
   }
 
   .meta-tag {
-    @apply font-sans text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+    @apply font-sans text-[11px] font-semibold uppercase text-muted-foreground;
   }
 
   .stack-fade > * {
@@ -431,11 +431,11 @@
   }
 
   .cta-primary {
-    @apply inline-flex items-center justify-center gap-2 border border-accent bg-accent px-5 py-2.5 text-sm font-semibold tracking-tight text-accent-foreground transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply inline-flex items-center justify-center gap-2 border border-accent bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
   .cta-secondary {
-    @apply inline-flex items-center justify-center gap-2 border border-border bg-transparent px-5 py-2.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:border-foreground hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply inline-flex items-center justify-center gap-2 border border-border bg-transparent px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 

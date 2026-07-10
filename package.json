@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run check:public-content && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -13,6 +13,7 @@
     "import:morning-brief-blog": "tsx scripts/import-morning-brief-blog.ts",
     "backfill:tags": "node --import tsx scripts/backfill-tags.ts",
     "export:wiki": "tsx scripts/export-vault-wiki.ts",
+    "check:public-content": "tsx scripts/check-public-content.ts",
     "pdf:extract": "tsx scripts/pdf-extract.ts"
   },
   "dependencies": {

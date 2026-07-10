@@ -39,7 +39,7 @@ export function SeoBreadcrumbs({ items }: { items: SeoBreadcrumbItem[] }) {
               <Fragment key={`${item.href}-${item.label}`}>
                 <BreadcrumbItem>
                   {isCurrent ? (
-                    <BreadcrumbPage className="max-w-[18rem] truncate sm:max-w-none">
+                    <BreadcrumbPage className="max-w-[60vw] break-words whitespace-normal sm:max-w-none">
                       {item.label}
                     </BreadcrumbPage>
                   ) : (

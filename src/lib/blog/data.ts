@@ -3,10 +3,35 @@ import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import sanitizeHtml from "sanitize-html";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const BLOG_MEDIA_BUCKET = "blog-media";
+
+const BLOG_SUMMARY_COLUMNS = [
+  "id",
+  "title",
+  "slug",
+  "excerpt",
+  "status",
+  "seo_title",
+  "meta_description",
+  "canonical_url",
+  "cover_image_path",
+  "og_image_path",
+  "noindex",
+  "focus_topic",
+  "tags",
+  "answer_summary",
+  "source_links",
+  "related_wiki_slugs",
+  "published_at",
+  "scheduled_at",
+  "deleted_at",
+  "created_at",
+  "updated_at",
+].join(",");
 
 export type BlogPostStatus = "draft" | "published" | "scheduled" | "archived";
 
@@ -245,7 +270,7 @@ export const getPublishedBlogPosts = unstable_cache(
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from("blog_posts")
-      .select("*")
+      .select(BLOG_SUMMARY_COLUMNS)
       .is("deleted_at", null)
       .or(
         `and(status.eq.published,published_at.lte.${now}),and(status.eq.scheduled,scheduled_at.lte.${now})`,
@@ -255,13 +280,15 @@ export const getPublishedBlogPosts = unstable_cache(
     if (isMissingRelation(error)) return [];
     if (error) throw new Error(error.message);
 
-    return ((data ?? []) as Array<Record<string, unknown>>).map(coerceSummary);
+    return ((data ?? []) as unknown as Array<Record<string, unknown>>).map(
+      coerceSummary,
+    );
   },
   ["published-blog-posts"],
   { revalidate: 60 },
 );
 
-export async function getPublishedBlogPostBySlug(slug: string) {
+export const getPublishedBlogPostBySlug = cache(async (slug: string) => {
   const supabase = createPublicBlogClient();
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -277,7 +304,7 @@ export async function getPublishedBlogPostBySlug(slug: string) {
   if (isMissingRelation(error)) return null;
   if (error) throw new Error(error.message);
   return data ? coerceDetail(data as Record<string, unknown>) : null;
-}
+});
 
 export async function getDashboardBlogPosts(filters: BlogPostFilters) {
   await requireDashboardUser();

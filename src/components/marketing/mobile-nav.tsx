@@ -18,7 +18,6 @@ export type NavItem = { href: string; label: string };
 
 type Props = {
   links: NavItem[];
-  signedIn: boolean;
   brandWordmark: string;
 };
 
@@ -27,7 +26,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MobileNav({ links, signedIn, brandWordmark }: Props) {
+export function MobileNav({ links, brandWordmark }: Props) {
   const pathname = usePathname();
   return (
     <Sheet>
@@ -73,23 +72,12 @@ export function MobileNav({ links, signedIn, brandWordmark }: Props) {
           })}
         </nav>
         <Separator className="my-4" />
-        <div className="flex flex-col gap-2">
-          {signedIn ? (
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center border border-foreground bg-foreground px-4 py-2.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center border border-foreground bg-foreground px-4 py-2.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Log in
-            </Link>
-          )}
-        </div>
+        <Link
+          href="/blog"
+          className="inline-flex items-center justify-center border border-foreground bg-foreground px-4 py-2.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Read the latest brief
+        </Link>
       </SheetContent>
     </Sheet>
   );

@@ -41,7 +41,7 @@ export function AboutSection() {
           </ul>
           <Link
             href="/about"
-            className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
+            className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold text-accent underline decoration-accent/40 decoration-2 underline-offset-4 hover:decoration-accent"
           >
             Read the fuller profile
             <ArrowRightIcon

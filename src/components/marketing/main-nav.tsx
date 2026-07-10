@@ -23,7 +23,7 @@ export function MainNav({ items }: { items: NavItem[] }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "group relative px-3 py-2 text-sm font-medium tracking-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+              "group relative px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",

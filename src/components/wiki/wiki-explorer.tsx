@@ -77,7 +77,7 @@ const modeOptions: Array<{
   label: string;
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }> = [
-  { id: "paths", label: "Paths", icon: BookOpenIcon },
+  { id: "paths", label: "Guides", icon: BookOpenIcon },
   { id: "all-pages", label: "All pages", icon: ListIcon },
   { id: "map", label: "Map", icon: MapIcon },
 ];
@@ -102,7 +102,7 @@ const SORT_VALUES: SortOption[] = [
 function parseMode(value: string | null): ExplorerMode {
   return value && EXPLORER_MODES.includes(value as ExplorerMode)
     ? (value as ExplorerMode)
-    : "paths";
+    : "all-pages";
 }
 
 function parseSort(value: string | null): SortOption {
@@ -142,7 +142,7 @@ function relationCount(slug: string, relationMaps: RelationMaps) {
 }
 
 function clusterSortKey(cluster: string) {
-  return cluster === "foundations" ? "000-start-here" : clusterLabel(cluster);
+  return cluster === "foundations" ? "000-foundations" : clusterLabel(cluster);
 }
 
 function pageScore(page: PublicWikiIndexPage, relationMaps: RelationMaps) {
@@ -172,6 +172,29 @@ function matches(page: PublicWikiIndexPage, query: string) {
     .split(/\s+/)
     .filter(Boolean)
     .every((term) => haystack.includes(term));
+}
+
+function searchScore(page: PublicWikiIndexPage, query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized || !matches(page, normalized)) return normalized ? -1 : 0;
+
+  const title = page.title.toLowerCase();
+  const description = page.description.toLowerCase();
+  const headings = page.headings.map((heading) => heading.text).join(" ").toLowerCase();
+  const sources = page.sourceNotes.join(" ").toLowerCase();
+  const terms = normalized.split(/\s+/).filter(Boolean);
+  let score = 0;
+  if (title === normalized) score += 120;
+  else if (title.startsWith(normalized)) score += 80;
+  else if (title.includes(normalized)) score += 55;
+  if (description.includes(normalized)) score += 24;
+  for (const term of terms) {
+    if (title.includes(term)) score += 18;
+    if (description.includes(term)) score += 7;
+    if (headings.includes(term)) score += 5;
+    if (sources.includes(term)) score += 2;
+  }
+  return score;
 }
 
 function pagesFromSlugs(
@@ -298,6 +321,10 @@ export function WikiExplorer({
       return matches(page, deferredQuery);
     });
     return filtered.toSorted((a, b) => {
+      if (deferredQuery) {
+        const relevance = searchScore(b, deferredQuery) - searchScore(a, deferredQuery);
+        if (relevance !== 0) return relevance;
+      }
       if (sort === "title") return a.title.localeCompare(b.title);
       if (sort === "sources") return b.sourceNotes.length - a.sourceNotes.length;
       if (sort === "reading") return b.readingMinutes - a.readingMinutes;
@@ -366,7 +393,7 @@ export function WikiExplorer({
   // Keep the URL in sync so a filtered/scoped view is shareable and survives refresh.
   useEffect(() => {
     const params = new URLSearchParams();
-    if (mode !== "paths") params.set("view", mode);
+    if (mode !== "all-pages") params.set("view", mode);
     if (cluster !== "all") params.set("cluster", cluster);
     if (role !== "all") params.set("role", role);
     if (sort !== "cluster") params.set("sort", sort);
@@ -537,7 +564,7 @@ export function WikiExplorer({
                 ? "Selected page neighborhood"
                 : cluster !== "all"
                   ? `${clusterLabel(cluster)} cluster`
-                  : "Start here paths"
+                  : "Reader guide pages"
           }
           pageBySlug={pageBySlug}
           relationMaps={relationMaps}
@@ -632,7 +659,7 @@ function TrailProgress({
             <p className="eyebrow">
               Following · step {humanStep} of {total}
             </p>
-            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+            <p className="truncate text-sm font-semibold text-foreground">
               {trail.title}
             </p>
           </div>
@@ -932,8 +959,8 @@ function PathsMode({
       <div className="min-w-0 space-y-12">
         <section>
           <SectionHeader
-            eyebrow="Start here"
-            title="Pick the door closest to what you need."
+            eyebrow="Reader guides"
+            title="Explore a curated route through the knowledge system."
             description="Each path opens a primary page, then points to supporting notes once the topic has a clear shape."
           />
           <div className="stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
@@ -1045,7 +1072,7 @@ function ReaderPathCard({
       onMouseLeave={() => onHover(null)}
     >
       <div className="flex flex-1 flex-col gap-4 p-5">
-        <p className="eyebrow">Start here</p>
+        <p className="eyebrow">Reader guide</p>
         <h3 className="font-heading text-2xl font-semibold leading-tight text-foreground">
           {path.title}
         </h3>
@@ -1088,7 +1115,7 @@ function ReaderPathCard({
           onBlur={() => onHover(null)}
         >
           <span className="inline-flex items-center gap-2">
-            Start with {primary.title}
+            Read {primary.title}
           </span>
           <ArrowRightIcon
             className="size-4 shrink-0 motion-safe:transition-transform motion-safe:group-hover/path:translate-x-1"
@@ -1250,7 +1277,7 @@ function ReadingTrailCard({
           <p className="eyebrow">
             Reading trail · {trail.pages.length} steps
           </p>
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold tracking-tight text-accent">
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
             Start trail
             <ArrowRightIcon
               className="size-4 motion-safe:transition-transform motion-safe:group-hover/lead:translate-x-1"
@@ -1657,13 +1684,13 @@ function PageDrawer({
           </div>
         ) : (
           <div>
-            <p className="eyebrow">Select a page</p>
+            <p className="eyebrow">Knowledge index</p>
             <h2 className="mt-3 font-heading text-2xl font-semibold leading-tight text-foreground">
-              Click a card, row, or graph node.
+              Source-backed pages, connected by topic and evidence.
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              The drawer shows backlinks, outbound links, source count, and a
-              quick route into the page. Press Esc to close.
+              Open a page directly or review its related notes, source count,
+              and position in the knowledge graph.
             </p>
           </div>
         )}

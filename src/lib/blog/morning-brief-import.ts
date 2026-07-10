@@ -120,10 +120,45 @@ function compactText(input: string, maxLength: number) {
   if (text.length <= maxLength) return text;
 
   const cut = text.slice(0, Math.max(0, maxLength - 1));
+  const sentenceEnd = Math.max(
+    cut.lastIndexOf(". "),
+    cut.lastIndexOf("? "),
+    cut.lastIndexOf("! "),
+  );
+  if (sentenceEnd >= maxLength * 0.55) {
+    return cut.slice(0, sentenceEnd + 1).trim();
+  }
+
   const lastSpace = cut.lastIndexOf(" ");
-  const trimmed = (lastSpace > maxLength * 0.55 ? cut.slice(0, lastSpace) : cut)
+  let trimmed = (lastSpace > maxLength * 0.55 ? cut.slice(0, lastSpace) : cut)
     .trim()
     .replace(/[.,;:!?-]+$/, "");
+  const danglingWords = new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "but",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "is",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "with",
+  ]);
+  const words = trimmed.split(" ");
+  while (words.length > 1 && danglingWords.has(words.at(-1)?.toLowerCase() ?? "")) {
+    words.pop();
+  }
+  trimmed = words.join(" ").replace(/[,:;\-]+$/, "").trim();
 
   return `${trimmed}.`;
 }
@@ -525,7 +560,6 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
   const blocks: ContentBlock[] = [];
   const formattedDate = formatReportDate(reportDate);
   const coverageWindow = publicCoverageWindow(asString(data.coverage_window));
-  const answerSummary = inferAnswerSummary(data);
 
   pushBlock(
     blocks,
@@ -535,8 +569,6 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
         : `This Morning Brief was published for ${formattedDate}. It preserves the source trail behind the day's strongest signals and frames them for public strategy readers.`,
     ),
   );
-  pushBlock(blocks, paragraph(answerSummary));
-
   const executiveSignals = asArray(data.executive_signals).map(asRecord);
   if (executiveSignals.length > 0) {
     blocks.push(heading(2, "Executive Signals"));

@@ -17,6 +17,7 @@ import {
 } from "@/lib/public-wiki/data";
 import {
   SEO_AUTHOR_NAME,
+  SEO_AUTHOR_SAME_AS,
   SEO_SITE_NAME,
   absoluteSiteUrl,
   canonicalUrl,
@@ -95,6 +96,7 @@ export default async function PublicWikiDetailPage({
                 "@type": "Person",
                 name: SEO_AUTHOR_NAME,
                 url: absoluteSiteUrl("/about"),
+                sameAs: SEO_AUTHOR_SAME_AS,
               },
               publisher: { "@type": "Person", name: SEO_AUTHOR_NAME },
               isPartOf: {

@@ -1,32 +1,44 @@
-import { blogContentModel } from "@/lib/marketing/site-config";
-import { SectionShell, SectionHeading } from "@/components/marketing/section-shell";
+import { SectionHeading, SectionShell } from "@/components/marketing/section-shell";
+
+const researchLayers = [
+  {
+    title: "Morning briefs",
+    description:
+      "Dated, source-backed scans of developments worth tracking across AI, defence, infrastructure, markets, and institutional change.",
+  },
+  {
+    title: "Topic hubs",
+    description:
+      "Durable research trails that connect recurring developments and make the archive useful beyond the day each brief was published.",
+  },
+  {
+    title: "Public wiki",
+    description:
+      "Deeper synthesis, concepts, operating models, and source notes connected through a searchable knowledge graph.",
+  },
+];
 
 export function SkillsSection() {
   return (
-    <SectionShell id="blog-model" dense>
+    <SectionShell id="research-system" dense>
       <SectionHeading
-        eyebrow="Blog CMS"
-        title="The blog is scaffolded around the fields the CMS needs next."
-        description="This is structure, not pretend content. Published posts will replace the empty state once the CMS exists."
+        eyebrow="Research system"
+        title="From a daily signal to durable context."
+        description="The public notebook is organized in layers so readers can scan what changed, follow a recurring question, or inspect the deeper synthesis behind it."
       />
-      <ul className="card-grid sm:grid-cols-2 lg:grid-cols-3">
-        {blogContentModel.map((field, index) => (
-          <li
-            key={field.field}
-            className="flex flex-col gap-2 bg-card/70 p-5 motion-safe:transition-colors hover:bg-card"
-          >
-            <span className="ordinal">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <h3 className="font-heading text-lg font-semibold text-foreground">
-              {field.field}
+      <ol className="card-grid md:grid-cols-3">
+        {researchLayers.map((layer, index) => (
+          <li key={layer.title} className="flex flex-col gap-3 bg-card/70 p-5">
+            <span className="ordinal">{String(index + 1).padStart(2, "0")}</span>
+            <h3 className="font-heading text-xl font-semibold text-foreground">
+              {layer.title}
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              {field.description}
+              {layer.description}
             </p>
           </li>
         ))}
-      </ul>
+      </ol>
     </SectionShell>
   );
 }

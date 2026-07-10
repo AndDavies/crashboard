@@ -16,8 +16,24 @@ export function normalizeMarkdownHeadingTitle(input: string) {
     .toLowerCase();
 }
 
+export function sanitizePublicWikiMarkdown(markdown: string) {
+  return markdown
+    .replace(
+      /!\[([^\]]*)]\(<?\.\.\/(?:assets|views)\/[^)>]+>?\)/gi,
+      "",
+    )
+    .replace(
+      /\[([^\]]+)]\(<?\.\.\/(?:assets|views)\/[^)>]+>?\)/gi,
+      "$1",
+    )
+    .replace(
+      /\[([^\]]+)]\((?:file:\/\/|\/Users\/)[^)]+\)/gi,
+      "$1",
+    );
+}
+
 export function stripWikiOwnedMarkdownSections(markdown: string) {
-  const lines = markdown.split(/\r?\n/);
+  const lines = sanitizePublicWikiMarkdown(markdown).split(/\r?\n/);
   const kept: string[] = [];
   let skippedHeadingLevel: number | null = null;
 
