@@ -1,6 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
+  Database,
   FileText,
+  Search,
+  Shield,
   Wrench,
 } from "lucide-react";
 
@@ -26,6 +30,18 @@ export type DashboardNavGroup = {
  * Add groups or leaves here — rendering is driven by this config.
  */
 export const dashboardNavGroups: DashboardNavGroup[] = [
+  {
+    id: "intelligence",
+    title: "Intelligence",
+    icon: Activity,
+    defaultOpen: true,
+    items: [
+      { title: "Overview", href: "/dashboard/intelligence", icon: Activity },
+      { title: "Explorer", href: "/dashboard/intelligence/explorer", icon: Search },
+      { title: "Defence", href: "/dashboard/intelligence/defence", icon: Shield },
+      { title: "Operations", href: "/dashboard/intelligence/operations", icon: Database },
+    ],
+  },
   {
     id: "content",
     title: "Blog CMS",

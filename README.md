@@ -57,6 +57,12 @@ This repo uses the **Next.js App Router only** (`src/app`). There is no `pages/`
 
 Middleware refreshes the Supabase session and redirects unauthenticated users away from `/dashboard`.
 
+## Trend Intelligence
+
+The private dashboard includes an evidence-backed trend intelligence workbench for newsletter backfills, daily Gmail ingestion, event/entity extraction, semantic search, defence and allied analysis, watchlists, alerts, and a separate daily digest.
+
+See [`docs/TREND_INTELLIGENCE.md`](docs/TREND_INTELLIGENCE.md) for schema, OAuth setup, environment variables, backfill commands, scoring definitions, scheduled operations, and verification.
+
 ## Push to GitHub
 
 The repo is ready on branch `main` with `.env.local` **ignored** (never commit secrets).
