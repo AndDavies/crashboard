@@ -198,6 +198,8 @@ describe("syncGmailSource lifecycle", () => {
       processed: 2,
       failed: 0,
       hasMore: true,
+      pending: 0,
+      deadLettered: 0,
     });
     expect(database.runUpdates).toEqual(
       expect.arrayContaining([
@@ -259,6 +261,8 @@ describe("syncGmailSource lifecycle", () => {
       processed: 1,
       failed: 1,
       hasMore: false,
+      pending: 0,
+      deadLettered: 1,
     });
     const finalRun = database.runs[0];
     expect(finalRun).toMatchObject({
@@ -817,6 +821,8 @@ describe("syncGmailSource lifecycle", () => {
       failed: 0,
       stoppedForBudget: true,
       hasMore: true,
+      pending: 1,
+      deadLettered: 0,
     });
     expect(database.runs[0]).toMatchObject({
       checkpoint_after: expect.objectContaining({

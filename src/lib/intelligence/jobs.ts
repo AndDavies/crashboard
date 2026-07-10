@@ -1009,6 +1009,8 @@ export async function syncGmailSource(
       failed,
       excluded,
       hasMore,
+      pending: checkpoint.pending_message_ids.length,
+      deadLettered: checkpoint.dead_letter_count,
       stoppedForBudget,
       // Trend refresh is deliberately outside the ingestion request. Awaiting
       // it here made an otherwise successful sync vulnerable to Vercel's hard

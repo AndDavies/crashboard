@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
   Search,
   Shield,
   Sparkles,
+  Square,
   TriangleAlert,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EVENT_TYPE_LABELS } from "@/lib/intelligence/taxonomy";
+import {
+  parseFullBackfillBatchResponse,
+  runFullBackfillBatches,
+  type FullBackfillProgress,
+} from "@/lib/intelligence/full-backfill";
 import type { IntelligenceDashboardData } from "@/lib/intelligence/types";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +67,10 @@ function elapsedLabel(totalSeconds: number) {
   return `${hours}h ${minutes % 60}m`;
 }
 
+function batchCountLabel(count: number) {
+  return `${count} ${count === 1 ? "batch" : "batches"}`;
+}
+
 function runStatusVariant(status: string, isStale: boolean) {
   if (isStale || status === "failed" || status === "cancelled") return "destructive" as const;
   if (status === "completed") return "default" as const;
@@ -76,6 +86,26 @@ type ActionFeedback = {
 
 const ACTION_FEEDBACK_KEY = "crashboard:intelligence-action-feedback";
 const ACTION_FEEDBACK_MAX_AGE_MS = 15 * 60 * 1000;
+const FULL_BACKFILL_BATCH_PAUSE_MS = 750;
+
+async function postAction(
+  endpoint: string,
+  body: Record<string, unknown> = {},
+) {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    result?: Record<string, unknown>;
+  };
+  if (!response.ok) {
+    throw new Error(payload.error ?? `Action failed (HTTP ${response.status}).`);
+  }
+  return payload;
+}
 
 function TrendLineChart({ data }: { data: IntelligenceDashboardData["trendSeries"] }) {
   if (data.length < 2) {
@@ -270,6 +300,11 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
   const router = useRouter();
   const [action, setAction] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
+  const [fullBackfillProgress, setFullBackfillProgress] =
+    useState<FullBackfillProgress | null>(null);
+  const [fullBackfillStopRequested, setFullBackfillStopRequested] = useState(false);
+  const fullBackfillStopRef = useRef(false);
+  const actionRunningRef = useRef(false);
   const topTrend = data.trends[0];
   const freshness = data.coverage.lastSyncedAt
     ? Math.max(
@@ -306,6 +341,13 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     }
   }, []);
 
+  useEffect(
+    () => () => {
+      fullBackfillStopRef.current = true;
+    },
+    [],
+  );
+
   function saveFeedback(kind: ActionFeedback["kind"], message: string) {
     const next = { kind, message, savedAt: Date.now() } satisfies ActionFeedback;
     setFeedback(next);
@@ -317,22 +359,13 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     endpoint: string,
     body: Record<string, unknown> = {},
   ) {
+    if (actionRunningRef.current) return;
+    actionRunningRef.current = true;
     setAction(name);
     setFeedback(null);
     window.sessionStorage.removeItem(ACTION_FEEDBACK_KEY);
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        result?: Record<string, unknown>;
-      };
-      if (!response.ok) {
-        throw new Error(result.error ?? `Action failed (HTTP ${response.status}).`);
-      }
+      const result = await postAction(endpoint, body);
       saveFeedback(
         "success",
         name === "digest"
@@ -359,7 +392,88 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
       saveFeedback("error", error instanceof Error ? error.message : "Action failed.");
       router.refresh();
     } finally {
+      actionRunningRef.current = false;
       setAction(null);
+    }
+  }
+
+  function requestFullBackfillStop() {
+    fullBackfillStopRef.current = true;
+    setFullBackfillStopRequested(true);
+  }
+
+  async function runFullBackfill() {
+    if (actionRunningRef.current) return;
+    const confirmed = window.confirm(
+      "Run every remaining backfill batch? This may take a long time and consume OpenAI API usage. Keep this tab open; progress is safely checkpointed after every batch.",
+    );
+    if (!confirmed) return;
+    actionRunningRef.current = true;
+
+    const initialProgress: FullBackfillProgress = {
+      batches: 0,
+      processed: 0,
+      failedAttempts: 0,
+      excluded: 0,
+      pending: 0,
+      deadLettered: 0,
+      complete: false,
+      stopped: false,
+      lastRunId: null,
+    };
+    let latestProgress = initialProgress;
+    fullBackfillStopRef.current = false;
+    setFullBackfillStopRequested(false);
+    setFullBackfillProgress(initialProgress);
+    setAction("full-backfill");
+    setFeedback(null);
+    window.sessionStorage.removeItem(ACTION_FEEDBACK_KEY);
+
+    try {
+      const result = await runFullBackfillBatches({
+        runBatch: async () =>
+          parseFullBackfillBatchResponse(
+            await postAction("/api/intelligence/sync", {
+              mode: "backfill",
+              maxMessages: 25,
+            }),
+          ),
+        shouldStop: () => fullBackfillStopRef.current,
+        onProgress: (progress) => {
+          latestProgress = progress;
+          setFullBackfillProgress(progress);
+        },
+        waitBetweenBatches: () =>
+          new Promise((resolve) => {
+            window.setTimeout(resolve, FULL_BACKFILL_BATCH_PAUSE_MS);
+          }),
+      });
+
+      if (result.stopped) {
+        saveFeedback(
+          "success",
+          `Full backfill stopped safely after ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · checkpoint saved. Run Full Backfill again to resume.`,
+        );
+      } else {
+        saveFeedback(
+          "success",
+          `Full backfill complete · ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · ${result.excluded} excluded · ${result.deadLettered} dead-lettered · checkpoint complete. Refresh trends to recompute analytics.`,
+        );
+      }
+    } catch (error) {
+      const completedLabel =
+        latestProgress.batches === 1 ? "1 completed batch" : `${latestProgress.batches} completed batches`;
+      saveFeedback(
+        "error",
+        `Full backfill paused after ${completedLabel} · ${latestProgress.processed} processed · ${error instanceof Error ? error.message : "Action failed."} Progress is saved; run Full Backfill again to resume.`,
+      );
+    } finally {
+      actionRunningRef.current = false;
+      fullBackfillStopRef.current = false;
+      setFullBackfillStopRequested(false);
+      setFullBackfillProgress(null);
+      setAction(null);
+      router.refresh();
     }
   }
 
@@ -564,7 +678,8 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
           <CardHeader>
             <CardTitle>Run the pipeline</CardTitle>
             <CardDescription>
-              Bounded batches keep Gmail and model rate limits recoverable. Continue backfill until the checkpoint is complete.
+              Bounded batches keep Gmail and model rate limits recoverable. Full Backfill repeats safe,
+              resumable batches until the six-month checkpoint is complete. Keep this tab open.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -582,6 +697,28 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                 onClick={() => runAction("backfill", "/api/intelligence/sync", { mode: "backfill", maxMessages: 10 })}
               >
                 <Database className="size-4" /> Continue backfill
+              </Button>
+              <Button
+                variant="outline"
+                disabled={
+                  !configurationReady ||
+                  (Boolean(action) && action !== "full-backfill") ||
+                  fullBackfillStopRequested
+                }
+                onClick={
+                  action === "full-backfill" ? requestFullBackfillStop : runFullBackfill
+                }
+              >
+                {action === "full-backfill" ? (
+                  <Square className="size-4" />
+                ) : (
+                  <Database className="size-4" />
+                )}
+                {action === "full-backfill"
+                  ? fullBackfillStopRequested
+                    ? "Stopping after current batch"
+                    : "Stop after current batch"
+                  : "Full Backfill"}
               </Button>
               <Button
                 variant="outline"
@@ -604,6 +741,22 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                 <Mail className="size-4" /> Send digest
               </Button>
             </div>
+            {action === "full-backfill" && fullBackfillProgress ? (
+              <p className="mt-3 border-t border-border pt-3 text-sm" aria-live="polite">
+                {fullBackfillProgress.batches === 0 ? (
+                  <>Full backfill · starting first batch · keep this tab open</>
+                ) : (
+                  <>
+                    Full backfill · {batchCountLabel(fullBackfillProgress.batches)} completed ·{" "}
+                    {fullBackfillProgress.processed} processed ·{" "}
+                    {fullBackfillProgress.failedAttempts} failed attempts ·{" "}
+                    {fullBackfillProgress.excluded} excluded ·{" "}
+                    {fullBackfillProgress.pending} pending ·{" "}
+                    {fullBackfillProgress.deadLettered} dead-lettered · keep this tab open
+                  </>
+                )}
+              </p>
+            ) : null}
             {feedback ? (
               <p
                 aria-live="polite"
