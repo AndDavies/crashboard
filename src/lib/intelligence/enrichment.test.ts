@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { shouldDeeplyEnrich } from "@/lib/intelligence/enrichment";
+import type OpenAI from "openai";
+import { describe, expect, it, vi } from "vitest";
+import {
+  createEmbedding,
+  INTELLIGENCE_EMBEDDING_CHUNK_BYTES,
+  INTELLIGENCE_EMBEDDING_MAX_CHUNKS,
+  INTELLIGENCE_EMBEDDING_TIMEOUT_MS,
+  INTELLIGENCE_OPENAI_MAX_RETRIES,
+  prepareEmbeddingInputs,
+  shouldDeeplyEnrich,
+} from "@/lib/intelligence/enrichment";
 import type { IntelligenceDocumentEnvelope } from "@/lib/intelligence/types";
 
 function document(contentText: string): IntelligenceDocumentEnvelope {
@@ -27,5 +36,47 @@ describe("shouldDeeplyEnrich", () => {
     expect(shouldDeeplyEnrich(document("A short collection of productivity links."))).toBe(
       false,
     );
+  });
+
+  it("bounds every embedding input by UTF-8 bytes without splitting Unicode", () => {
+    const content = `${"😀".repeat(3_000)} ${"é".repeat(2_000)} ${"a".repeat(9_000)}`;
+    const chunks = prepareEmbeddingInputs(content);
+    const encoder = new TextEncoder();
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.length).toBeLessThanOrEqual(INTELLIGENCE_EMBEDDING_MAX_CHUNKS);
+    expect(
+      chunks.every(
+        (chunk) => encoder.encode(chunk).byteLength <= INTELLIGENCE_EMBEDDING_CHUNK_BYTES,
+      ),
+    ).toBe(true);
+    expect(chunks.join("")).toBe(content.replace(/\s+/g, " ").trim());
+  });
+
+  it("batches and combines long-document embeddings within the request budget", async () => {
+    const create = vi.fn(async (request: { input: string[] }) => ({
+      data: request.input.map((_, index) => ({
+        index,
+        embedding: index === 0 ? [1, 0] : [0, 1],
+      })),
+    }));
+    const client = {
+      embeddings: { create },
+    } as unknown as OpenAI;
+
+    const result = await createEmbedding("a".repeat(9_000), { client });
+    const [request, requestOptions] = create.mock.calls[0] as unknown as [
+      { input: string[] },
+      { timeout: number; maxRetries: number },
+    ];
+
+    expect(request.input).toHaveLength(2);
+    expect(requestOptions).toEqual({
+      timeout: INTELLIGENCE_EMBEDDING_TIMEOUT_MS,
+      maxRetries: INTELLIGENCE_OPENAI_MAX_RETRIES,
+    });
+    expect(INTELLIGENCE_OPENAI_MAX_RETRIES).toBe(0);
+    expect(result[0]).toBeCloseTo(0.992278, 5);
+    expect(result[1]).toBeCloseTo(0.124035, 5);
   });
 });

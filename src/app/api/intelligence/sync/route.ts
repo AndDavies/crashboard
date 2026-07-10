@@ -3,7 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireDashboardUser } from "@/lib/blog/data";
 import { requireBearerSecret } from "@/lib/http/verify-bearer-secret";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getGmailSource, syncGmailSource } from "@/lib/intelligence/jobs";
+import {
+  GMAIL_SYNC_TIME_BUDGET_MS,
+  GmailSyncInProgressError,
+  getGmailSource,
+  syncGmailSource,
+} from "@/lib/intelligence/jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -11,7 +16,7 @@ export const maxDuration = 300;
 const RequestSchema = z
   .object({
     mode: z.enum(["backfill", "incremental", "discovery"]).default("incremental"),
-    maxMessages: z.number().int().min(1).max(25).default(10),
+    maxMessages: z.number().int().min(1).max(25).default(1),
     windowStart: z.string().optional(),
     windowEnd: z.string().optional(),
     resetCheckpoint: z.boolean().default(false),
@@ -58,13 +63,16 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
-    const result = await syncGmailSource(admin, source, parsed.data);
+    const result = await syncGmailSource(admin, source, {
+      ...parsed.data,
+      timeBudgetMs: GMAIL_SYNC_TIME_BUDGET_MS,
+    });
     return NextResponse.json({ result });
   } catch (error) {
     console.error("[intelligence] Gmail sync failed.", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Gmail sync failed." },
-      { status: 500 },
+      { status: error instanceof GmailSyncInProgressError ? 409 : 500 },
     );
   }
 }

@@ -3,6 +3,7 @@ import type { IntelligenceDocumentEnvelope } from "@/lib/intelligence/types";
 
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
+const GOOGLE_REQUEST_TIMEOUT_MS = 20_000;
 
 export const GMAIL_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
@@ -105,6 +106,7 @@ export async function exchangeGmailAuthorizationCode(code: string) {
         redirect_uri: gmailRedirectUri(),
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS),
     }),
   );
 }
@@ -127,6 +129,7 @@ export async function refreshGmailAccessToken(refreshToken: string) {
         grant_type: "refresh_token",
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS),
     }),
   );
   return result.access_token;
@@ -137,6 +140,7 @@ async function gmailFetch<T>(path: string, accessToken: string) {
     await fetch(`${GMAIL_API}${path}`, {
       headers: { authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS),
     }),
   );
 }
@@ -347,6 +351,7 @@ export async function sendGmailMessage(
       },
       body: JSON.stringify({ raw }),
       cache: "no-store",
+      signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS),
     }),
   );
 }

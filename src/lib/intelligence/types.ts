@@ -191,14 +191,7 @@ export type IntelligenceDashboardData = {
   }>;
   sourceMix: Array<{ label: string; count: number }>;
   eventMix: Array<{ label: string; count: number }>;
-  recentRuns: Array<{
-    id: string;
-    runType: string;
-    status: string;
-    processedCount: number;
-    failedCount: number;
-    createdAt: string;
-  }>;
+  recentRuns: IntelligenceRunDiagnostic[];
   alerts: Array<{
     id: string;
     severity: string;
@@ -206,4 +199,21 @@ export type IntelligenceDashboardData = {
     summary: string;
     createdAt: string;
   }>;
+};
+
+export type IntelligenceRunDiagnostic = {
+  id: string;
+  runType: string;
+  status: string;
+  discoveredCount: number;
+  processedCount: number;
+  failedCount: number;
+  excludedCount: number;
+  errorSummary: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  heartbeatAt: string | null;
+  completedAt: string | null;
+  elapsedSeconds: number;
+  isStale: boolean;
 };

@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cronOwnerId, isHalifaxHour, verifyIntelligenceCron } from "@/lib/intelligence/cron";
-import { getGmailSource, syncGmailSource } from "@/lib/intelligence/jobs";
+import {
+  GMAIL_SYNC_TIME_BUDGET_MS,
+  GmailSyncInProgressError,
+  getGmailSource,
+  syncGmailSource,
+} from "@/lib/intelligence/jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,9 +20,22 @@ export async function GET(request: NextRequest) {
     const admin = createAdminClient();
     const source = await getGmailSource(admin, cronOwnerId());
     if (!source) return NextResponse.json({ error: "Gmail is not connected." }, { status: 409 });
-    const result = await syncGmailSource(admin, source, { mode: "incremental", maxMessages: 25 });
+    const result = await syncGmailSource(admin, source, {
+      mode: "incremental",
+      maxMessages: 25,
+      timeBudgetMs: GMAIL_SYNC_TIME_BUDGET_MS,
+    });
     return NextResponse.json({ result });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Scheduled sync failed." }, { status: 500 });
+    if (error instanceof GmailSyncInProgressError) {
+      return NextResponse.json(
+        { skipped: true, reason: error.message },
+        { status: 202 },
+      );
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Scheduled sync failed." },
+      { status: 500 },
+    );
   }
 }

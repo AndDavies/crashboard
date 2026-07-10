@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   ArrowRight,
@@ -41,6 +42,40 @@ function readableDate(value: string | null) {
     timeZone: "America/Halifax",
   }).format(new Date(value));
 }
+
+function runTimestamp(value: string | null, emptyLabel: string) {
+  if (!value) return emptyLabel;
+  return new Intl.DateTimeFormat("en-CA", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "America/Halifax",
+  }).format(new Date(value));
+}
+
+function elapsedLabel(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
+function runStatusVariant(status: string, isStale: boolean) {
+  if (isStale || status === "failed" || status === "cancelled") return "destructive" as const;
+  if (status === "completed") return "default" as const;
+  if (status === "partial") return "secondary" as const;
+  return "outline" as const;
+}
+
+type ActionFeedback = {
+  kind: "success" | "error";
+  message: string;
+  savedAt: number;
+};
+
+const ACTION_FEEDBACK_KEY = "crashboard:intelligence-action-feedback";
+const ACTION_FEEDBACK_MAX_AGE_MS = 15 * 60 * 1000;
 
 function TrendLineChart({ data }: { data: IntelligenceDashboardData["trendSeries"] }) {
   if (data.length < 2) {
@@ -232,8 +267,9 @@ function SetupState({ data }: { data: IntelligenceDashboardData }) {
 }
 
 export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardData }) {
+  const router = useRouter();
   const [action, setAction] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const topTrend = data.trends[0];
   const freshness = data.coverage.lastSyncedAt
     ? Math.max(
@@ -250,29 +286,69 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     [data],
   );
 
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(ACTION_FEEDBACK_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Partial<ActionFeedback>;
+      if (
+        (parsed.kind === "success" || parsed.kind === "error") &&
+        typeof parsed.message === "string" &&
+        typeof parsed.savedAt === "number" &&
+        Date.now() - parsed.savedAt <= ACTION_FEEDBACK_MAX_AGE_MS
+      ) {
+        setFeedback(parsed as ActionFeedback);
+      } else {
+        window.sessionStorage.removeItem(ACTION_FEEDBACK_KEY);
+      }
+    } catch {
+      window.sessionStorage.removeItem(ACTION_FEEDBACK_KEY);
+    }
+  }, []);
+
+  function saveFeedback(kind: ActionFeedback["kind"], message: string) {
+    const next = { kind, message, savedAt: Date.now() } satisfies ActionFeedback;
+    setFeedback(next);
+    window.sessionStorage.setItem(ACTION_FEEDBACK_KEY, JSON.stringify(next));
+  }
+
   async function runAction(
     name: string,
     endpoint: string,
     body: Record<string, unknown> = {},
   ) {
     setAction(name);
-    setMessage(null);
+    setFeedback(null);
+    window.sessionStorage.removeItem(ACTION_FEEDBACK_KEY);
     try {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const result = (await response.json()) as { error?: string; result?: Record<string, unknown> };
-      if (!response.ok) throw new Error(result.error ?? "Action failed.");
-      setMessage(
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        result?: Record<string, unknown>;
+      };
+      if (!response.ok) {
+        throw new Error(result.error ?? `Action failed (HTTP ${response.status}).`);
+      }
+      saveFeedback(
+        "success",
         name === "digest"
           ? "Daily intelligence digest sent."
-          : `${String(result.result?.processed ?? 0)} messages processed${result.result?.hasMore ? "; more remain in the checkpoint." : "."}`,
+          : [
+              `${String(result.result?.discovered ?? 0)} discovered`,
+              `${String(result.result?.processed ?? 0)} processed`,
+              `${String(result.result?.failed ?? 0)} failed`,
+              `${String(result.result?.excluded ?? 0)} excluded`,
+              result.result?.hasMore ? "more remain in the checkpoint" : "checkpoint complete",
+            ].join(" · "),
       );
-      window.location.reload();
+      router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Action failed.");
+      saveFeedback("error", error instanceof Error ? error.message : "Action failed.");
+      router.refresh();
     } finally {
       setAction(null);
     }
@@ -512,16 +588,59 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                 <Mail className="size-4" /> Send digest
               </Button>
             </div>
-            {message ? <p className="mt-3 border-t border-border pt-3 text-sm text-muted-foreground">{message}</p> : null}
+            {feedback ? (
+              <p
+                aria-live="polite"
+                className={cn(
+                  "mt-3 border-t border-border pt-3 text-sm",
+                  feedback.kind === "error" ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {feedback.message}
+              </p>
+            ) : null}
             <div className="mt-5 border-t border-border pt-4">
-              <p className="editorial-kicker">Recent runs</p>
-              <div className="mt-3 space-y-2">
-                {data.recentRuns.length ? data.recentRuns.map((run) => (
-                  <div key={run.id} className="flex items-center justify-between gap-4 text-xs">
-                    <span className="capitalize">{run.runType.replaceAll("_", " ")}</span>
-                    <span className="font-mono text-muted-foreground">
-                      {run.status} · {run.processedCount} ok · {run.failedCount} failed
-                    </span>
+              <div className="flex items-center justify-between gap-3">
+                <p className="editorial-kicker">Recent runs</p>
+                <Link
+                  href="/dashboard/intelligence/operations"
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Full run ledger
+                </Link>
+              </div>
+              <div className="mt-3 space-y-3">
+                {data.recentRuns.length ? data.recentRuns.slice(0, 5).map((run) => (
+                  <div key={run.id} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="capitalize text-sm font-medium">
+                        {run.runType.replaceAll("_", " ")}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={runStatusVariant(run.status, run.isStale)}>{run.status}</Badge>
+                        {run.isStale ? <Badge variant="destructive">stale</Badge> : null}
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground sm:grid-cols-4">
+                      <span>{run.discoveredCount} discovered</span>
+                      <span>{run.processedCount} processed</span>
+                      <span>{run.failedCount} failed</span>
+                      <span>{run.excludedCount} excluded</span>
+                    </div>
+                    <div className="mt-2 space-y-1 text-[11px] leading-5 text-muted-foreground">
+                      <p>Created {runTimestamp(run.createdAt, "unknown")}</p>
+                      <p>
+                        Started {runTimestamp(run.startedAt, "not started")} · Last activity{" "}
+                        {runTimestamp(run.heartbeatAt, "no heartbeat")} · Completed{" "}
+                        {runTimestamp(run.completedAt, "not completed")}
+                      </p>
+                      <p>Elapsed {elapsedLabel(run.elapsedSeconds)}</p>
+                    </div>
+                    {run.errorSummary ? (
+                      <p className="mt-2 break-words text-xs leading-5 text-destructive">
+                        {run.errorSummary}
+                      </p>
+                    ) : null}
                   </div>
                 )) : <p className="text-xs text-muted-foreground">No run history yet.</p>}
               </div>

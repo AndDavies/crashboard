@@ -18,6 +18,28 @@ export const INTELLIGENCE_EMBEDDING_MODEL =
   process.env.OPENAI_INTELLIGENCE_EMBEDDING_MODEL?.trim() ||
   "text-embedding-3-small";
 
+// OpenAI embedding inputs are limited to 8,192 tokens. Without adding a runtime
+// tokenizer, UTF-8 bytes are a safe upper bound on token count because every
+// token consumes at least one input byte. The headroom also covers future
+// tokenizer differences while preserving long documents through a small batch.
+export const INTELLIGENCE_EMBEDDING_CHUNK_BYTES = 8_000;
+export const INTELLIGENCE_EMBEDDING_MAX_CHUNKS = 32;
+export const INTELLIGENCE_EXTRACTION_TIMEOUT_MS = 75_000;
+export const INTELLIGENCE_EMBEDDING_TIMEOUT_MS = 30_000;
+// The job checkpoint is the retry boundary. SDK retries would multiply the
+// per-message duration and can outlive the serverless worker's stop reserve.
+export const INTELLIGENCE_OPENAI_MAX_RETRIES = 0;
+
+const textEncoder = new TextEncoder();
+
+function utf8ByteLength(character: string) {
+  const codePoint = character.codePointAt(0) ?? 0;
+  if (codePoint <= 0x7f) return 1;
+  if (codePoint <= 0x7ff) return 2;
+  if (codePoint <= 0xffff) return 3;
+  return 4;
+}
+
 const EntitySchema = z
   .object({
     name: z.string().min(1).max(240),
@@ -82,6 +104,64 @@ function compactText(value: string, maxChars = 45_000) {
   return `${normalized.slice(0, maxChars - 120)} … [truncated for extraction]`;
 }
 
+export function prepareEmbeddingInputs(content: string) {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (!normalized) throw new Error("Cannot create an embedding for empty content.");
+
+  const chunks: string[] = [];
+  let chunk = "";
+  let chunkBytes = 0;
+
+  for (const character of normalized) {
+    const characterBytes = utf8ByteLength(character);
+    if (chunk && chunkBytes + characterBytes > INTELLIGENCE_EMBEDDING_CHUNK_BYTES) {
+      chunks.push(chunk);
+      if (chunks.length >= INTELLIGENCE_EMBEDDING_MAX_CHUNKS) break;
+      chunk = character;
+      chunkBytes = characterBytes;
+      continue;
+    }
+    chunk += character;
+    chunkBytes += characterBytes;
+  }
+
+  if (chunk && chunks.length < INTELLIGENCE_EMBEDDING_MAX_CHUNKS) {
+    chunks.push(chunk);
+  }
+  return chunks;
+}
+
+function combineEmbeddings(
+  inputs: string[],
+  data: Array<{ index: number; embedding: number[] }>,
+) {
+  const embeddings = new Map(data.map((item) => [item.index, item.embedding]));
+  const first = embeddings.get(0);
+  if (!first?.length || embeddings.size !== inputs.length) {
+    throw new Error("OpenAI returned an incomplete embedding batch.");
+  }
+
+  const combined = Array.from({ length: first.length }, () => 0);
+  let totalWeight = 0;
+  for (let index = 0; index < inputs.length; index += 1) {
+    const embedding = embeddings.get(index);
+    if (!embedding || embedding.length !== combined.length) {
+      throw new Error("OpenAI returned inconsistent embedding dimensions.");
+    }
+    const weight = textEncoder.encode(inputs[index]).byteLength;
+    totalWeight += weight;
+    for (let dimension = 0; dimension < embedding.length; dimension += 1) {
+      combined[dimension] += embedding[dimension] * weight;
+    }
+  }
+
+  const magnitude = Math.sqrt(
+    combined.reduce((total, value) => total + value * value, 0),
+  );
+  if (!totalWeight || !magnitude) throw new Error("OpenAI returned an empty embedding.");
+  return combined.map((value) => value / magnitude);
+}
+
 function nullableDate(value: string) {
   if (!value.trim()) return "";
   const parsed = new Date(value);
@@ -123,12 +203,13 @@ export async function extractIntelligence(
   const candidateTypes = classifyCandidateEventTypes(
     `${document.title ?? ""}\n${document.contentText}`,
   );
-  const response = await options.client.responses.parse({
-    model: options.model ?? INTELLIGENCE_EXTRACTION_MODEL,
-    input: [
-      {
-        role: "system",
-        content: `You extract auditable strategic intelligence from source documents.
+  const response = await options.client.responses.parse(
+    {
+      model: options.model ?? INTELLIGENCE_EXTRACTION_MODEL,
+      input: [
+        {
+          role: "system",
+          content: `You extract auditable strategic intelligence from source documents.
 
 Rules:
 - Report only facts supported by the supplied source. Never fill missing values from memory.
@@ -140,27 +221,32 @@ Rules:
 - Mark Canada/allied relevance for Canada, NATO, NORAD, Five Eyes, or material allied implications.
 - Confidence reflects extraction certainty; evidence quality reflects source authority and specificity.
 - Treat newsletter summaries as leads unless they directly contain the announcement details.`,
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            source: {
+              sourceType: document.sourceType,
+              title: document.title,
+              publisher: document.publisherName,
+              author: document.authorName,
+              publishedAt: document.publishedAt,
+              originalUrl: document.originalUrl,
+              candidateEventTypes: candidateTypes,
+            },
+            content: compactText(document.contentText),
+          }),
+        },
+      ],
+      text: {
+        format: zodTextFormat(IntelligenceExtractionSchema, "intelligence_extraction"),
       },
-      {
-        role: "user",
-        content: JSON.stringify({
-          source: {
-            sourceType: document.sourceType,
-            title: document.title,
-            publisher: document.publisherName,
-            author: document.authorName,
-            publishedAt: document.publishedAt,
-            originalUrl: document.originalUrl,
-            candidateEventTypes: candidateTypes,
-          },
-          content: compactText(document.contentText),
-        }),
-      },
-    ],
-    text: {
-      format: zodTextFormat(IntelligenceExtractionSchema, "intelligence_extraction"),
     },
-  });
+    {
+      timeout: INTELLIGENCE_EXTRACTION_TIMEOUT_MS,
+      maxRetries: INTELLIGENCE_OPENAI_MAX_RETRIES,
+    },
+  );
 
   if (!response.output_parsed) {
     throw new Error("OpenAI did not return parsed intelligence extraction output.");
@@ -172,13 +258,17 @@ export async function createEmbedding(
   content: string,
   options: { client: OpenAI; model?: string },
 ) {
-  const input = compactText(content, 24_000);
-  const response = await options.client.embeddings.create({
-    model: options.model ?? INTELLIGENCE_EMBEDDING_MODEL,
-    input,
-    encoding_format: "float",
-  });
-  const embedding = response.data[0]?.embedding;
-  if (!embedding?.length) throw new Error("OpenAI did not return an embedding.");
-  return embedding;
+  const inputs = prepareEmbeddingInputs(content);
+  const response = await options.client.embeddings.create(
+    {
+      model: options.model ?? INTELLIGENCE_EMBEDDING_MODEL,
+      input: inputs,
+      encoding_format: "float",
+    },
+    {
+      timeout: INTELLIGENCE_EMBEDDING_TIMEOUT_MS,
+      maxRetries: INTELLIGENCE_OPENAI_MAX_RETRIES,
+    },
+  );
+  return combineEmbeddings(inputs, response.data);
 }

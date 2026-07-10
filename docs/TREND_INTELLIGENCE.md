@@ -17,10 +17,11 @@ The Gmail integration requests `gmail.readonly` and `gmail.send`. It never archi
 
 ## Database
 
-The migration pair is:
+The migration set is:
 
 - `20260710174527_trend_intelligence_workbench.sql`
 - `20260710181250_trend_intelligence_indexes.sql`
+- `20260710220147_intelligence_pipeline_reliability.sql`
 
 The first migration is compatible with both the legacy production `documents` shape and the newer checked-in ingestion snapshot. It adds the intelligence document fields without removing legacy `url`, `content`, `summary`, or source behavior.
 
@@ -89,7 +90,9 @@ npm run intelligence:sync -- \
   --all
 ```
 
-Use `--reset` only when intentionally restarting that mode's checkpoint. Runs are idempotent by owner, source type, and Gmail message ID.
+Use `--reset` only when intentionally restarting that mode's checkpoint. Runs are idempotent by owner, source type, and Gmail message ID. Re-enrichment replaces the document's previous model-event evidence while retaining evidence contributed by other documents.
+
+Production syncs persist their Gmail page cursor, pending message IDs, counters, and heartbeat after every message. A worker stops before the Vercel hard limit and the next invocation resumes the saved pending IDs. A partial unique index permits only one running job per source; abandoned jobs are reconciled after their heartbeat expires.
 
 The connector bootstrap bridge accepts one JSON array per line on stdin for controlled local imports:
 
@@ -99,7 +102,7 @@ npm run intelligence:import-connector -- --owner "$INTELLIGENCE_OWNER_ID"
 
 Do not store private mailbox exports in the repository. Pipe them directly and delete any temporary export after a verified import.
 
-Vercel calls the sync endpoint at 08:00 and 09:00 UTC and the digest endpoint at 10:00 and 11:00 UTC. Each endpoint checks `America/Halifax` and runs only at 05:00 or 07:00 local time, respectively, so daylight-saving changes do not duplicate the job.
+Vercel calls sync at 08:00 and 09:00 UTC, trend refresh at 09:00 and 10:00 UTC, and digest delivery at 10:00 and 11:00 UTC. Each endpoint checks `America/Halifax` and runs only at 05:00, 06:00, or 07:00 local time, respectively, so daylight-saving changes do not duplicate a job.
 
 ## Trend model
 

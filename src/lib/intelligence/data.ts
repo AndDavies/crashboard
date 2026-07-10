@@ -8,7 +8,10 @@ import { createEmbedding } from "@/lib/intelligence/enrichment";
 import type {
   IntelligenceDashboardData,
   IntelligenceEventType,
+  IntelligenceRunDiagnostic,
 } from "@/lib/intelligence/types";
+
+const STALE_RUN_AFTER_MS = 6 * 60 * 1000;
 
 function missingSchema(error: { code?: string; message?: string } | null) {
   return Boolean(
@@ -17,6 +20,49 @@ function missingSchema(error: { code?: string; message?: string } | null) {
         error.code === "PGRST205" ||
         error.message?.includes("intelligence_")),
   );
+}
+
+function normalizeRunDiagnostic(
+  row: Record<string, unknown>,
+  now: Date,
+): IntelligenceRunDiagnostic {
+  const createdAt = typeof row.created_at === "string" ? row.created_at : now.toISOString();
+  const startedAt = typeof row.started_at === "string" ? row.started_at : null;
+  const heartbeatAt = typeof row.heartbeat_at === "string" ? row.heartbeat_at : null;
+  const completedAt = typeof row.completed_at === "string" ? row.completed_at : null;
+  const startMs = Date.parse(startedAt ?? createdAt);
+  const activityMs = Date.parse(heartbeatAt ?? startedAt ?? createdAt);
+  const endMs = completedAt ? Date.parse(completedAt) : now.getTime();
+  const validStartMs = Number.isFinite(startMs) ? startMs : now.getTime();
+  const validEndMs = Number.isFinite(endMs) ? endMs : now.getTime();
+  const status = String(row.status ?? "unknown");
+  const isActive = status === "queued" || status === "running";
+  const count = (value: unknown) => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  };
+
+  return {
+    id: String(row.id),
+    runType: String(row.run_type),
+    status,
+    discoveredCount: count(row.discovered_count),
+    processedCount: count(row.processed_count),
+    failedCount: count(row.failed_count),
+    excludedCount: count(row.excluded_count),
+    errorSummary: typeof row.error_summary === "string" && row.error_summary.trim()
+      ? row.error_summary.trim()
+      : null,
+    createdAt,
+    startedAt,
+    heartbeatAt,
+    completedAt,
+    elapsedSeconds: Math.max(0, Math.floor((validEndMs - validStartMs) / 1000)),
+    isStale:
+      isActive &&
+      now.getTime() - (Number.isFinite(activityMs) ? activityMs : validStartMs) >=
+        STALE_RUN_AFTER_MS,
+  };
 }
 
 function emptyDashboard(status: IntelligenceDashboardData["status"]): IntelligenceDashboardData {
@@ -78,7 +124,7 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
       .limit(160),
     admin
       .from("intelligence_runs")
-      .select("id,run_type,status,processed_count,failed_count,created_at")
+      .select("id,run_type,status,discovered_count,processed_count,failed_count,excluded_count,error_summary,started_at,heartbeat_at,completed_at,created_at")
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false })
       .limit(8),
@@ -144,9 +190,11 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
     .sort()
     .at(-1) ?? null;
 
+  const generatedAt = new Date();
+
   return {
     status: "ready",
-    generatedAt: new Date().toISOString(),
+    generatedAt: generatedAt.toISOString(),
     configuration: {
       gmailConnected: (sources.data ?? []).some(
         (source) => source.source_type === "gmail" && source.status === "active",
@@ -198,14 +246,9 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
     eventMix: [...eventMixMap.entries()]
       .map(([key, count]) => ({ label: EVENT_TYPE_LABELS[key], count }))
       .sort((a, b) => b.count - a.count),
-    recentRuns: (runs.data ?? []).map((row) => ({
-      id: String(row.id),
-      runType: String(row.run_type),
-      status: String(row.status),
-      processedCount: Number(row.processed_count),
-      failedCount: Number(row.failed_count),
-      createdAt: String(row.created_at),
-    })),
+    recentRuns: (runs.data ?? []).map((row) =>
+      normalizeRunDiagnostic(row as Record<string, unknown>, generatedAt),
+    ),
     alerts: (alerts.data ?? []).map((row) => ({
       id: String(row.id),
       severity: String(row.severity),
@@ -347,9 +390,12 @@ export async function getIntelligenceOperations() {
     return { sources: [], runs: [], digests: [], watchlists: [] };
   }
   if (error) throw new Error(error.message);
+  const generatedAt = new Date();
   return {
     sources: sources.data ?? [],
-    runs: runs.data ?? [],
+    runs: (runs.data ?? []).map((row) =>
+      normalizeRunDiagnostic(row as Record<string, unknown>, generatedAt),
+    ),
     digests: digests.data ?? [],
     watchlists: watchlists.data ?? [],
   };
