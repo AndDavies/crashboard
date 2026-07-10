@@ -13,7 +13,7 @@ import {
 } from "@/lib/intelligence/taxonomy";
 
 export const INTELLIGENCE_EXTRACTION_MODEL =
-  process.env.OPENAI_INTELLIGENCE_EXTRACTION_MODEL?.trim() || "gpt-5-mini";
+  process.env.OPENAI_INTELLIGENCE_EXTRACTION_MODEL?.trim() || "gpt-5.4-mini";
 export const INTELLIGENCE_EMBEDDING_MODEL =
   process.env.OPENAI_INTELLIGENCE_EMBEDDING_MODEL?.trim() ||
   "text-embedding-3-small";
@@ -24,7 +24,7 @@ export const INTELLIGENCE_EMBEDDING_MODEL =
 // tokenizer differences while preserving long documents through a small batch.
 export const INTELLIGENCE_EMBEDDING_CHUNK_BYTES = 8_000;
 export const INTELLIGENCE_EMBEDDING_MAX_CHUNKS = 32;
-export const INTELLIGENCE_EXTRACTION_TIMEOUT_MS = 75_000;
+export const INTELLIGENCE_EXTRACTION_TIMEOUT_MS = 105_000;
 export const INTELLIGENCE_EMBEDDING_TIMEOUT_MS = 30_000;
 // The job checkpoint is the retry boundary. SDK retries would multiply the
 // per-message duration and can outlive the serverless worker's stop reserve.

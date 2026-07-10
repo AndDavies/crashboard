@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   __testables,
+  persistIntelligenceDocument,
   synchronizeDocumentModelEvents,
 } from "@/lib/intelligence/persistence";
 
@@ -187,6 +188,51 @@ function cleanupAdmin() {
   };
 }
 
+function existingEnrichmentAdmin() {
+  let updatePayload: Record<string, unknown> | null = null;
+  const from = (table: string) => {
+    if (table !== "documents") throw new Error(`Unexpected table ${table}.`);
+    return {
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: "document-1",
+                  summary_short: "Prior enriched summary",
+                  extraction_method: "openai_structured",
+                  extraction_version: "intelligence-v1",
+                  metadata: {
+                    themes: ["Prior theme"],
+                    primary_domain: "Defence industry",
+                    novelty_signals: ["Prior novelty"],
+                    retained_metadata: "keep-me",
+                  },
+                  quality_flags: { flags: ["prior_quality_flag"] },
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+      update: (values: Record<string, unknown>) => {
+        updatePayload = values;
+        return {
+          eq: () => ({
+            eq: async () => ({ error: null }),
+          }),
+        };
+      },
+    };
+  };
+  return {
+    admin: { from } as unknown as SupabaseClient,
+    getUpdatePayload: () => updatePayload,
+  };
+}
+
 describe("intelligence persistence safeguards", () => {
   it("allows model updates only for unreviewed events", () => {
     expect(__testables.canModelUpdateEvent("unreviewed")).toBe(true);
@@ -241,6 +287,53 @@ describe("intelligence persistence safeguards", () => {
     ).toEqual([
       { event_id: "reviewed-new-link", evidence_text: "new supporting evidence" },
     ]);
+  });
+
+  it("keeps prior enrichment fields while marking a raw-first retry pending", async () => {
+    const { admin, getUpdatePayload } = existingEnrichmentAdmin();
+    const result = await persistIntelligenceDocument(
+      admin,
+      {
+        ownerId: "owner-1",
+        sourceType: "email_newsletter",
+        externalId: "message-1",
+        originalUrl: "https://mail.google.com/message-1",
+        title: "Updated raw title",
+        contentText: "  Updated   raw content.  ",
+        summaryShort: "Raw Gmail snippet",
+        labels: ["Newsletters/Defence"],
+        sourceChannel: "gmail_oauth",
+        metadata: { gmail_thread_id: "thread-1" },
+      },
+      {
+        preserveExistingEnrichment: true,
+        processingQualityFlags: ["enrichment_pending"],
+      },
+    );
+
+    expect(result.deduped).toBe(true);
+    expect(getUpdatePayload()).toEqual(
+      expect.objectContaining({
+        content_text: "Updated raw content.",
+        summary_short: "Prior enriched summary",
+        extraction_method: "openai_structured",
+        extraction_version: "intelligence-v1",
+        metadata: expect.objectContaining({
+          themes: ["Prior theme"],
+          primary_domain: "Defence industry",
+          novelty_signals: ["Prior novelty"],
+          retained_metadata: "keep-me",
+          gmail_thread_id: "thread-1",
+          labels: ["Newsletters/Defence"],
+          source_channel: "gmail_oauth",
+        }),
+        quality_flags: {
+          flags: ["prior_quality_flag", "enrichment_pending"],
+        },
+      }),
+    );
+    expect(getUpdatePayload()).not.toHaveProperty("review_status");
+    expect(getUpdatePayload()).not.toHaveProperty("captured_at");
   });
 
   it("cleans evidence-less event ghosts and repairs surviving canonical clusters", async () => {

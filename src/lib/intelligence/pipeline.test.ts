@@ -15,7 +15,7 @@ vi.mock("@/lib/intelligence/enrichment", () => ({
   createEmbedding: mocks.createEmbedding,
   extractIntelligence: mocks.extractIntelligence,
   INTELLIGENCE_EXTRACTION_MODEL: "test-extraction-model",
-  INTELLIGENCE_EXTRACTION_TIMEOUT_MS: 75_000,
+  INTELLIGENCE_EXTRACTION_TIMEOUT_MS: 105_000,
   INTELLIGENCE_OPENAI_MAX_RETRIES: 0,
   shouldDeeplyEnrich: () => true,
 }));
@@ -37,7 +37,9 @@ const document: IntelligenceDocumentEnvelope = {
 
 describe("processIntelligenceDocument", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mocks.createEmbedding.mockReset();
+    mocks.extractIntelligence.mockReset();
+    mocks.persistIntelligenceDocument.mockReset();
     mocks.extractIntelligence.mockResolvedValue({ events: [], entities: [] });
     mocks.persistIntelligenceDocument.mockResolvedValue({
       documentId: "document-1",
@@ -58,12 +60,26 @@ describe("processIntelligenceDocument", () => {
     });
 
     expect(result.embeddingStatus).toBe("failed");
-    expect(mocks.persistIntelligenceDocument).toHaveBeenCalledWith(
+    expect(mocks.persistIntelligenceDocument).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      document,
+      {
+        extraction: null,
+        embedding: null,
+        extractionModel: null,
+        preserveExistingEnrichment: true,
+        processingQualityFlags: ["enrichment_pending"],
+      },
+    );
+    expect(mocks.persistIntelligenceDocument).toHaveBeenNthCalledWith(
+      2,
       expect.anything(),
       document,
       expect.objectContaining({
         extraction: { events: [], entities: [] },
         embedding: null,
+        inProgressQualityFlags: ["enrichment_pending"],
         processingQualityFlags: ["embedding_failed"],
       }),
     );
@@ -74,15 +90,59 @@ describe("processIntelligenceDocument", () => {
     consoleError.mockRestore();
   });
 
-  it("still rejects the document when extraction fails", async () => {
-    mocks.extractIntelligence.mockRejectedValue(new Error("extraction failed"));
+  it("keeps the raw document and successful embedding when extraction fails", async () => {
+    const extractionError = new Error("extraction failed");
+    mocks.extractIntelligence.mockRejectedValue(extractionError);
     mocks.createEmbedding.mockResolvedValue([0.1, 0.2]);
+    mocks.persistIntelligenceDocument
+      .mockResolvedValueOnce({
+        documentId: "document-1",
+        deduped: false,
+        embeddingPersisted: null,
+        eventIds: [],
+        entityIds: [],
+      })
+      .mockResolvedValueOnce({
+        documentId: "document-1",
+        deduped: true,
+        embeddingPersisted: true,
+        eventIds: [],
+        entityIds: [],
+      });
 
     await expect(
       processIntelligenceDocument({} as never, document, {
         openaiApiKey: "test-key",
       }),
     ).rejects.toThrow("extraction failed");
-    expect(mocks.persistIntelligenceDocument).not.toHaveBeenCalled();
+    expect(mocks.persistIntelligenceDocument).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      document,
+      expect.objectContaining({
+        extraction: null,
+        embedding: null,
+        preserveExistingEnrichment: true,
+        processingQualityFlags: ["enrichment_pending"],
+      }),
+    );
+    expect(mocks.persistIntelligenceDocument).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      document,
+      expect.objectContaining({
+        extraction: null,
+        embedding: [0.1, 0.2],
+        inProgressQualityFlags: [],
+        preserveExistingEnrichment: true,
+        processingQualityFlags: ["enrichment_pending"],
+      }),
+    );
+    expect(mocks.persistIntelligenceDocument.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.extractIntelligence.mock.invocationCallOrder[0],
+    );
+    expect(mocks.persistIntelligenceDocument.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.createEmbedding.mock.invocationCallOrder[0],
+    );
   });
 });

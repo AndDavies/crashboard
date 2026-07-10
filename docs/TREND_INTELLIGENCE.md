@@ -45,7 +45,7 @@ Required for scheduled jobs:
 Already used by enrichment:
 
 - `OPENAI_API_KEY`
-- optional `OPENAI_INTELLIGENCE_EXTRACTION_MODEL`
+- optional `OPENAI_INTELLIGENCE_EXTRACTION_MODEL` — defaults to `gpt-5.4-mini`
 - optional `OPENAI_INTELLIGENCE_EMBEDDING_MODEL`
 
 Optional:

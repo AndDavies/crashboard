@@ -12,6 +12,8 @@ type PersistOptions = {
   extraction?: IntelligenceExtraction | null;
   embedding?: number[] | null;
   extractionModel?: string | null;
+  inProgressQualityFlags?: string[];
+  preserveExistingEnrichment?: boolean;
   processingQualityFlags?: string[];
 };
 
@@ -62,6 +64,19 @@ function hostname(value: string | null | undefined) {
   } catch {
     return null;
   }
+}
+
+function jsonObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function storedFlagValues(value: unknown) {
+  const flags = jsonObject(value).flags;
+  return Array.isArray(flags)
+    ? flags.filter((flag): flag is string => typeof flag === "string")
+    : [];
 }
 
 function sourceIndependenceKey(document: IntelligenceDocumentEnvelope) {
@@ -957,21 +972,45 @@ export async function persistIntelligenceDocument(
   const originalUrl = document.originalUrl.trim();
   const contentHash = sha256Hex(normalizedContent);
   const canonicalKey = `${document.sourceType}:${document.externalId}`;
-  const qualityFlags = [
-    ...new Set([
-      ...(options.extraction?.qualityFlags ?? []),
-      ...(options.processingQualityFlags ?? []),
-    ]),
-  ];
-
   const existing = await admin
     .from("documents")
-    .select("id")
+    .select(
+      "id,summary_short,extraction_method,extraction_version,metadata,quality_flags",
+    )
     .eq("owner_id", document.ownerId)
     .eq("source_type", document.sourceType)
     .eq("external_id", document.externalId)
     .maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
+
+  const preserveExistingEnrichment = Boolean(
+    options.preserveExistingEnrichment && existing.data?.id && !options.extraction,
+  );
+  const existingMetadata = preserveExistingEnrichment
+    ? jsonObject(existing.data?.metadata)
+    : {};
+  const qualityFlags = [
+    ...new Set([
+      ...(preserveExistingEnrichment
+        ? storedFlagValues(existing.data?.quality_flags)
+        : []),
+      ...(options.extraction?.qualityFlags ?? []),
+      ...(options.processingQualityFlags ?? []),
+    ]),
+  ];
+  const storedQualityFlags = [
+    ...new Set([...qualityFlags, ...(options.inProgressQualityFlags ?? [])]),
+  ];
+  const existingThemes = Array.isArray(existingMetadata.themes)
+    ? existingMetadata.themes
+    : [];
+  const existingNoveltySignals = Array.isArray(existingMetadata.novelty_signals)
+    ? existingMetadata.novelty_signals
+    : [];
+  const existingPrimaryDomain =
+    typeof existingMetadata.primary_domain === "string"
+      ? existingMetadata.primary_domain
+      : null;
 
   const row = {
     owner_id: document.ownerId,
@@ -987,21 +1026,35 @@ export async function persistIntelligenceDocument(
     published_at: document.publishedAt || null,
     content_text: normalizedContent,
     summary_short:
-      options.extraction?.documentSummary ?? document.summaryShort?.trim() ?? null,
+      options.extraction?.documentSummary ??
+      (preserveExistingEnrichment ? existing.data?.summary_short : null) ??
+      document.summaryShort?.trim() ??
+      null,
     ingestion_status: "ready",
-    extraction_method: options.extraction ? "openai_structured" : "deterministic",
-    extraction_version: options.extraction ? "intelligence-v1" : "rules-v1",
+    extraction_method: options.extraction
+      ? "openai_structured"
+      : preserveExistingEnrichment
+        ? existing.data?.extraction_method ?? "deterministic"
+        : "deterministic",
+    extraction_version: options.extraction
+      ? "intelligence-v1"
+      : preserveExistingEnrichment
+        ? existing.data?.extraction_version ?? "rules-v1"
+        : "rules-v1",
     content_hash: contentHash,
     canonical_key: canonicalKey,
     metadata: {
+      ...existingMetadata,
       ...(document.metadata ?? {}),
-      labels: document.labels ?? [],
-      source_channel: document.sourceChannel ?? null,
-      themes: options.extraction?.themes ?? [],
-      primary_domain: options.extraction?.primaryDomain ?? null,
-      novelty_signals: options.extraction?.noveltySignals ?? [],
+      labels: document.labels ?? existingMetadata.labels ?? [],
+      source_channel:
+        document.sourceChannel ?? existingMetadata.source_channel ?? null,
+      themes: options.extraction?.themes ?? existingThemes,
+      primary_domain: options.extraction?.primaryDomain ?? existingPrimaryDomain,
+      novelty_signals:
+        options.extraction?.noveltySignals ?? existingNoveltySignals,
     },
-    quality_flags: { flags: qualityFlags },
+    quality_flags: { flags: storedQualityFlags },
     updated_at: now,
   };
 
@@ -1039,7 +1092,9 @@ export async function persistIntelligenceDocument(
             documentId,
             error: error instanceof Error ? error.message : String(error),
           });
-          const failedFlags = [...new Set([...qualityFlags, "embedding_persistence_failed"])];
+          const failedFlags = [
+            ...new Set([...storedQualityFlags, "embedding_persistence_failed"]),
+          ];
           const flagResult = await admin
             .from("documents")
             .update({
@@ -1089,6 +1144,24 @@ export async function persistIntelligenceDocument(
     entityByKeyPromise,
     eventIdsPromise,
   ]);
+
+  if (options.inProgressQualityFlags?.length) {
+    const completedQualityFlags = [
+      ...new Set([
+        ...qualityFlags,
+        ...(embeddingPersisted === false ? ["embedding_persistence_failed"] : []),
+      ]),
+    ];
+    const completionResult = await admin
+      .from("documents")
+      .update({
+        quality_flags: { flags: completedQualityFlags },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("owner_id", document.ownerId)
+      .eq("id", documentId);
+    if (completionResult.error) throw new Error(completionResult.error.message);
+  }
 
   return {
     documentId,

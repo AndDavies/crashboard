@@ -45,8 +45,31 @@ export async function processIntelligenceDocument(
       })
     : null;
 
-  const [extraction, embeddingOutcome] = await Promise.all([
-    deepEnrichment && client ? extractIntelligence(document, { client }) : null,
+  const rawPersisted = await persistIntelligenceDocument(admin, document, {
+    extraction: null,
+    embedding: null,
+    extractionModel: null,
+    preserveExistingEnrichment: true,
+    processingQualityFlags: deepEnrichment ? ["enrichment_pending"] : [],
+  });
+
+  if (!client) {
+    return {
+      documentId: rawPersisted.documentId,
+      deduped: rawPersisted.deduped,
+      deepEnrichment,
+      embeddingStatus: "skipped",
+      eventCount: 0,
+      entityCount: 0,
+    };
+  }
+
+  const [extractionOutcome, embeddingOutcome] = await Promise.all([
+    deepEnrichment
+      ? extractIntelligence(document, { client })
+          .then((extraction) => ({ extraction, error: null }))
+          .catch((error: unknown) => ({ extraction: null, error }))
+      : Promise.resolve({ extraction: null, error: null }),
     client && !options.skipEmbedding
       ? createEmbedding(`${document.title ?? ""}\n${document.contentText}`, { client })
           .then((embedding) => ({ embedding, error: null }))
@@ -61,16 +84,28 @@ export async function processIntelligenceDocument(
       : Promise.resolve({ embedding: null, error: null }),
   ]);
 
+  const processingQualityFlags = [
+    ...(deepEnrichment && extractionOutcome.error ? ["enrichment_pending"] : []),
+    ...(embeddingOutcome.error ? ["embedding_failed"] : []),
+  ];
   const persisted = await persistIntelligenceDocument(admin, document, {
-    extraction,
+    extraction: extractionOutcome.extraction,
     embedding: embeddingOutcome.embedding,
-    extractionModel: extraction ? INTELLIGENCE_EXTRACTION_MODEL : null,
-    processingQualityFlags: embeddingOutcome.error ? ["embedding_failed"] : [],
+    extractionModel: extractionOutcome.extraction
+      ? INTELLIGENCE_EXTRACTION_MODEL
+      : null,
+    inProgressQualityFlags: extractionOutcome.extraction
+      ? ["enrichment_pending"]
+      : [],
+    preserveExistingEnrichment: !extractionOutcome.extraction,
+    processingQualityFlags,
   });
+
+  if (extractionOutcome.error) throw extractionOutcome.error;
 
   return {
     documentId: persisted.documentId,
-    deduped: persisted.deduped,
+    deduped: rawPersisted.deduped,
     deepEnrichment,
     embeddingStatus: options.skipEmbedding || !client
       ? "skipped"
