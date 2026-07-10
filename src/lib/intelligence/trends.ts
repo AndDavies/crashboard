@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { calculateTrendMetrics, normalizedRate } from "@/lib/intelligence/scoring";
+import {
+  calculateTrendMetrics,
+  normalizedRate,
+} from "@/lib/intelligence/scoring";
 import { EVENT_TYPE_LABELS } from "@/lib/intelligence/taxonomy";
 import type { IntelligenceEventType } from "@/lib/intelligence/types";
 
@@ -17,6 +20,13 @@ type EventRow = {
 type EvidenceRow = {
   event_id: string;
   source_independence_key: string | null;
+};
+
+type TrendSnapshotReplacement = {
+  applied: boolean;
+  snapshot_count: number;
+  stale_deleted_count: number;
+  generation_started_at: string;
 };
 
 function startOfDay(date: Date) {
@@ -42,20 +52,60 @@ function weekKey(value: string) {
   return isoDate(date);
 }
 
+async function replaceTrendSnapshotPeriod(
+  admin: SupabaseClient,
+  ownerId: string,
+  periodStart: string,
+  periodEnd: string,
+  generationStartedAt: string,
+  rows: Array<Record<string, unknown>>,
+) {
+  const replacement = await admin.rpc("replace_intelligence_trend_snapshots", {
+    p_owner_id: ownerId,
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+    p_generation_started_at: generationStartedAt,
+    p_rows: rows,
+  });
+  if (replacement.error) throw new Error(replacement.error.message);
+
+  const result = replacement.data as TrendSnapshotReplacement | null;
+  if (
+    !result ||
+    typeof result.applied !== "boolean" ||
+    !Number.isFinite(Number(result.snapshot_count)) ||
+    !Number.isFinite(Number(result.stale_deleted_count))
+  ) {
+    throw new Error("Trend replacement returned an invalid result.");
+  }
+
+  return {
+    applied: result.applied,
+    snapshotCount: Number(result.snapshot_count),
+    staleDeletedCount: Number(result.stale_deleted_count),
+    generationStartedAt: result.generation_started_at,
+  };
+}
+
 export async function refreshTrendSnapshots(
   admin: SupabaseClient,
   ownerId: string,
   anchor = new Date(),
 ) {
+  const generationStartedAt = new Date().toISOString();
   const periodEnd = startOfDay(anchor);
   const currentStart = daysBefore(periodEnd, 13);
   const baselineStart = daysBefore(currentStart, 42);
+  const periodStartDate = isoDate(currentStart);
+  const periodEndDate = isoDate(periodEnd);
   const since = baselineStart.toISOString();
 
   const [eventsResult, documentsResult] = await Promise.all([
     admin
       .from("intelligence_events")
-      .select("id,event_type,announced_at,evidence_quality,confidence,defence_relevance,canada_allied_relevance,metadata")
+      .select(
+        "id,event_type,announced_at,evidence_quality,confidence,defence_relevance,canada_allied_relevance,metadata",
+      )
       .eq("owner_id", ownerId)
       .gte("announced_at", since),
     admin
@@ -85,7 +135,8 @@ export async function refreshTrendSnapshots(
     published_at: string | null;
   }>;
   const currentDocumentCount = documents.filter(
-    (document) => document.published_at && new Date(document.published_at) >= currentStart,
+    (document) =>
+      document.published_at && new Date(document.published_at) >= currentStart,
   ).length;
   const baselineDocumentCount = documents.filter((document) => {
     if (!document.published_at) return false;
@@ -95,13 +146,17 @@ export async function refreshTrendSnapshots(
 
   const evidenceByEvent = new Map<string, Set<string>>();
   for (const row of evidence) {
-    if (!evidenceByEvent.has(row.event_id)) evidenceByEvent.set(row.event_id, new Set());
+    if (!evidenceByEvent.has(row.event_id))
+      evidenceByEvent.set(row.event_id, new Set());
     if (row.source_independence_key) {
       evidenceByEvent.get(row.event_id)?.add(row.source_independence_key);
     }
   }
 
-  const groups = new Map<string, { label: string; domain: string; events: EventRow[] }>();
+  const groups = new Map<
+    string,
+    { label: string; domain: string; events: EventRow[] }
+  >();
   for (const event of events) {
     const eventTypeKey = `event:${event.event_type}`;
     if (!groups.has(eventTypeKey)) {
@@ -114,17 +169,22 @@ export async function refreshTrendSnapshots(
     groups.get(eventTypeKey)?.events.push(event);
 
     for (const theme of event.metadata?.themes ?? []) {
-      const normalized = theme.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const normalized = theme
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
       if (!normalized) continue;
       const key = `theme:${normalized}`;
-      if (!groups.has(key)) groups.set(key, { label: theme, domain: "theme", events: [] });
+      if (!groups.has(key))
+        groups.set(key, { label: theme, domain: "theme", events: [] });
       groups.get(key)?.events.push(event);
     }
   }
 
   const rows = [...groups.entries()].flatMap(([trendKey, group]) => {
     const currentEvents = group.events.filter(
-      (event) => event.announced_at && new Date(event.announced_at) >= currentStart,
+      (event) =>
+        event.announced_at && new Date(event.announced_at) >= currentStart,
     );
     const baselineEvents = group.events.filter((event) => {
       if (!event.announced_at) return false;
@@ -133,13 +193,18 @@ export async function refreshTrendSnapshots(
     });
     if (!currentEvents.length) return [];
 
-    const currentRate = normalizedRate(currentEvents.length, currentDocumentCount);
+    const currentRate = normalizedRate(
+      currentEvents.length,
+      currentDocumentCount,
+    );
     const baselineRate = normalizedRate(
       baselineEvents.length,
       baselineDocumentCount,
     );
     const sources = new Set(
-      currentEvents.flatMap((event) => [...(evidenceByEvent.get(event.id) ?? [])]),
+      currentEvents.flatMap((event) => [
+        ...(evidenceByEvent.get(event.id) ?? []),
+      ]),
     );
     const activeWeeks = new Set(
       group.events
@@ -148,7 +213,8 @@ export async function refreshTrendSnapshots(
     ).size;
     const confidence =
       currentEvents.reduce(
-        (sum, event) => sum + (Number(event.evidence_quality) + Number(event.confidence)) / 2,
+        (sum, event) =>
+          sum + (Number(event.evidence_quality) + Number(event.confidence)) / 2,
         0,
       ) / currentEvents.length;
     const metrics = calculateTrendMetrics({
@@ -165,8 +231,8 @@ export async function refreshTrendSnapshots(
         trend_key: trendKey,
         trend_label: group.label,
         domain: group.domain,
-        period_start: isoDate(currentStart),
-        period_end: isoDate(periodEnd),
+        period_start: periodStartDate,
+        period_end: periodEndDate,
         document_count: currentDocumentCount,
         cluster_count: new Set(currentEvents.map((event) => event.id)).size,
         event_count: currentEvents.length,
@@ -179,20 +245,37 @@ export async function refreshTrendSnapshots(
         evidence_confidence: metrics.evidenceConfidence,
         trend_strength: metrics.trendStrength,
         novelty: baselineEvents.length === 0,
-        metadata: { baseline_event_rate: baselineRate, active_weeks: activeWeeks },
-        computed_at: new Date().toISOString(),
+        metadata: {
+          baseline_event_rate: baselineRate,
+          active_weeks: activeWeeks,
+        },
+        computed_at: generationStartedAt,
       },
     ];
   });
 
-  if (rows.length) {
-    const upsert = await admin.from("intelligence_trend_snapshots").upsert(rows, {
-      onConflict: "owner_id,trend_key,period_start,period_end",
-    });
-    if (upsert.error) throw new Error(upsert.error.message);
+  const replacement = await replaceTrendSnapshotPeriod(
+    admin,
+    ownerId,
+    periodStartDate,
+    periodEndDate,
+    generationStartedAt,
+    rows,
+  );
+
+  if (!replacement.applied) {
+    return {
+      snapshotCount: replacement.snapshotCount,
+      periodStart: periodStartDate,
+      periodEnd: periodEndDate,
+      staleDeletedCount: 0,
+      superseded: true,
+    };
   }
 
-  for (const row of rows.filter((candidate) => candidate.trend_strength >= 70)) {
+  for (const row of rows.filter(
+    (candidate) => candidate.trend_strength >= 70,
+  )) {
     const alert = await admin.from("intelligence_alerts").upsert(
       {
         owner_id: ownerId,
@@ -227,7 +310,8 @@ export async function refreshTrendSnapshots(
     for (const row of rows) {
       if (rules.defenceOnly || rules.canadaAlliedOnly) continue;
       const termMatch =
-        terms.length === 0 || terms.some((term) => row.trend_label.toLowerCase().includes(term));
+        terms.length === 0 ||
+        terms.some((term) => row.trend_label.toLowerCase().includes(term));
       if (!termMatch || row.trend_strength < minimumStrength) continue;
       const alert = await admin.from("intelligence_alerts").upsert(
         {
@@ -244,19 +328,24 @@ export async function refreshTrendSnapshots(
     }
 
     const currentEvents = events.filter(
-      (event) => event.announced_at && new Date(event.announced_at) >= currentStart,
+      (event) =>
+        event.announced_at && new Date(event.announced_at) >= currentStart,
     );
     for (const event of currentEvents) {
-      const eventText = `${EVENT_TYPE_LABELS[event.event_type]} ${(event.metadata?.themes ?? []).join(" ")}`.toLowerCase();
-      const termMatch = terms.length === 0 || terms.some((term) => eventText.includes(term));
+      const eventText =
+        `${EVENT_TYPE_LABELS[event.event_type]} ${(event.metadata?.themes ?? []).join(" ")}`.toLowerCase();
+      const termMatch =
+        terms.length === 0 || terms.some((term) => eventText.includes(term));
       const typeMatch =
-        !rules.eventTypes?.length || rules.eventTypes.includes(event.event_type);
+        !rules.eventTypes?.length ||
+        rules.eventTypes.includes(event.event_type);
       if (
         !termMatch ||
         !typeMatch ||
         (rules.defenceOnly && !event.defence_relevance) ||
         (rules.canadaAlliedOnly && !event.canada_allied_relevance)
-      ) continue;
+      )
+        continue;
       const alert = await admin.from("intelligence_alerts").upsert(
         {
           owner_id: ownerId,
@@ -273,5 +362,15 @@ export async function refreshTrendSnapshots(
     }
   }
 
-  return { snapshotCount: rows.length, periodStart: isoDate(currentStart), periodEnd: isoDate(periodEnd) };
+  return {
+    snapshotCount: replacement.snapshotCount,
+    periodStart: periodStartDate,
+    periodEnd: periodEndDate,
+    staleDeletedCount: replacement.staleDeletedCount,
+    superseded: false,
+  };
 }
+
+export const __testables = {
+  replaceTrendSnapshotPeriod,
+};
