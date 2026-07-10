@@ -62,7 +62,7 @@ export function WikiPageView({
         ]}
       />
 
-      <header className="grid min-w-0 gap-8 border-b border-border/80 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <header className="grid min-w-0 gap-8 border-b border-foreground/80 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="min-w-0">
           <p className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>{clusterLabel(page.cluster)}</span>
@@ -73,7 +73,7 @@ export function WikiPageView({
             <span aria-hidden>·</span>
             <span>{page.sourceNotes.length} sources</span>
           </p>
-          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-semibold leading-[0.98] text-foreground md:text-7xl">
+          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-semibold leading-[1.02] text-foreground md:text-6xl">
             {page.title}
           </h1>
           <span className="accent-rule mt-6" aria-hidden />
@@ -103,24 +103,26 @@ export function WikiPageView({
             summary={articleSummary}
           />
 
+          <details className="disclosure mb-8 border-b border-border/80 lg:hidden">
+            <summary>On this page</summary>
+            <WikiPageToc
+              headings={page.headings.filter(
+                (heading) => heading.level === 2 || heading.level === 3,
+              )}
+            />
+          </details>
+
           <WikiMarkdown markdown={page.markdown} charts={page.charts} />
 
           {faq.length > 0 ? (
-            <section
+            <details
               id="faq"
-              className="mt-14 border-t border-border/80 pt-8"
-              aria-labelledby="faq-heading"
+              className="disclosure mt-14 border-b border-border/80"
             >
-              <p className="eyebrow">Answers</p>
-              <h2
-                id="faq-heading"
-                className="mt-2 font-heading text-3xl font-semibold text-foreground"
-              >
-                Frequently asked
-              </h2>
-              <dl className="mt-6 grid gap-px border border-border/80 bg-border/80">
+              <summary>Frequently asked ({faq.length})</summary>
+              <dl className="divide-y divide-border/80 border-y border-border/80">
                 {faq.map((entry) => (
-                  <div key={entry.question} className="bg-card/70 p-5">
+                  <div key={entry.question} className="py-5">
                     <dt className="font-heading text-lg font-semibold text-foreground">
                       {entry.question}
                     </dt>
@@ -130,7 +132,7 @@ export function WikiPageView({
                   </div>
                 ))}
               </dl>
-            </section>
+            </details>
           ) : null}
 
           {related.length > 0 ? (
@@ -139,21 +141,23 @@ export function WikiPageView({
               <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
                 Related Pages
               </h2>
-              <div className="mt-6 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2">
+              <div className="mt-6 divide-y divide-border/80 border-y border-border/80">
                 {related.map((item) => (
                   <Link
                     key={item.slug}
                     href={`/wiki/${item.slug}`}
-                    className="group flex flex-col bg-card/70 p-5 motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group grid gap-3 py-5 motion-safe:transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[minmax(12rem,0.6fr)_minmax(0,1fr)_auto] sm:items-center"
                   >
-                    <p className="eyebrow">{clusterLabel(item.cluster)}</p>
-                    <h3 className="mt-3 font-heading text-lg font-semibold text-foreground">
-                      {item.title}
-                    </h3>
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                    <div>
+                      <p className="eyebrow">{clusterLabel(item.cluster)}</p>
+                      <h3 className="mt-2 font-heading text-lg font-semibold text-foreground">
+                        {item.title}
+                      </h3>
+                    </div>
+                    <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                       {item.description}
                     </p>
-                    <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
                       Read
                       <ArrowRightIcon
                         className="size-3.5 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
@@ -167,16 +171,13 @@ export function WikiPageView({
           ) : null}
 
           {page.sourceNotes.length > 0 ? (
-            <section className="mt-14 border-t border-border/80 pt-8">
-              <p className="eyebrow">Evidence</p>
-              <h2 className="mt-2 font-heading text-3xl font-semibold text-foreground">
-                Source Notes
-              </h2>
-              <ol className="mt-6 grid gap-px border border-border/80 bg-border/80">
+            <details className="disclosure mt-14 border-b border-border/80">
+              <summary>Source notes ({page.sourceNotes.length})</summary>
+              <ol className="divide-y divide-border/80 border-y border-border/80">
                 {page.sourceNotes.map((note, sourceIndex) => (
                   <li
                     key={`${note}-${sourceIndex}`}
-                    className="group/source flex items-start gap-4 bg-card/70 p-4 motion-safe:transition-colors hover:bg-card"
+                    className="group/source flex items-start gap-4 py-4 motion-safe:transition-colors hover:bg-card"
                   >
                     <span className="ordinal mt-0.5">
                       S{String(sourceIndex + 1).padStart(2, "0")}
@@ -187,7 +188,7 @@ export function WikiPageView({
                   </li>
                 ))}
               </ol>
-            </section>
+            </details>
           ) : null}
         </div>
 
@@ -195,7 +196,7 @@ export function WikiPageView({
           className="min-w-0 space-y-5 lg:sticky lg:top-24"
           aria-label="Article navigation"
         >
-          <div className="border border-border/80 bg-card/70 p-4">
+          <div className="border-t border-foreground/80 pt-4">
             <p className="eyebrow">Contents</p>
             <WikiPageToc
               headings={page.headings.filter(
@@ -205,14 +206,12 @@ export function WikiPageView({
           </div>
 
           {graph.nodes.length > 1 ? (
-            <section className="border border-border/80 bg-card/70" aria-label="Page neighborhood">
-              <div className="border-b border-border/80 px-4 py-3">
-                <p className="eyebrow">Page map</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  A small neighborhood around this page.
-                </p>
-              </div>
-              <div className="overflow-x-auto">
+            <details className="disclosure border-b border-border/80" aria-label="Page neighborhood">
+              <summary>Page map</summary>
+              <p className="pb-3 text-xs leading-relaxed text-muted-foreground">
+                A small neighborhood around this page.
+              </p>
+              <div className="overflow-x-auto border-t border-border/80">
                 <WikiGraph
                   nodes={graph.nodes}
                   edges={graph.edges}
@@ -222,7 +221,7 @@ export function WikiPageView({
                   showNodeList={false}
                 />
               </div>
-            </section>
+            </details>
           ) : null}
 
           <Link

@@ -5,33 +5,38 @@ import { SectionHeading, SectionShell } from "@/components/marketing/section-she
 import type { BlogPostSummary } from "@/lib/blog/data";
 
 export function WritingSection({ posts }: { posts: BlogPostSummary[] }) {
+  const [featured, ...archive] = posts;
+
   return (
-    <SectionShell id="writing" className="bg-card">
-      <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+    <SectionShell id="writing" className="bg-background">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:items-start">
         <div>
           <SectionHeading
             eyebrow="Latest briefs"
             title="Current signals with the source trail intact."
             description="Each morning brief identifies consequential developments, explains why they matter, and links back to the original reporting and deeper wiki context."
           />
-          <figure className="technical-grid relative aspect-[4/3] overflow-hidden border border-border/80 bg-background">
-            <Image
-              src="/images/marketing/crashboard-writing.jpg"
-              alt="Editorial desk with research notes and writing materials"
-              fill
-              sizes="(min-width: 1024px) 36vw, 100vw"
-              className="object-cover opacity-70 grayscale"
-            />
-          </figure>
+          {featured ? (
+            <Link href={`/blog/${featured.slug}`} className="group block border-y border-foreground/80 py-5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <figure className="relative aspect-[16/9] overflow-hidden bg-muted">
+                <Image src="/images/marketing/crashboard-writing.jpg" alt="Editorial desk with research notes and writing materials" fill sizes="(min-width: 1024px) 56vw, 100vw" className="object-cover grayscale transition-transform duration-500 group-hover:scale-[1.015]" />
+              </figure>
+              <p className="eyebrow mt-5">Current brief</p>
+              <h3 className="mt-2 max-w-3xl font-heading text-3xl font-semibold leading-tight text-foreground md:text-4xl">{featured.title}</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">{featured.excerpt}</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-foreground">Read the brief <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-1" aria-hidden /></span>
+            </Link>
+          ) : null}
         </div>
 
-        <div>
-          <ul className="grid gap-px border border-border/80 bg-border/80">
-            {posts.map((post) => (
-              <li key={post.slug} className="bg-card/70">
+        <div className="lg:pt-20">
+          <p className="eyebrow">Recent archive</p>
+          <ul className="mt-4 border-y border-foreground/80">
+            {archive.map((post) => (
+              <li key={post.slug} className="border-b border-border/80 last:border-b-0">
                 <Link
                   href={`/blog/${post.slug}`}
-                  className="group grid gap-4 p-5 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[1fr_auto]"
+                  className="group grid gap-4 py-5 outline-none hover:bg-card/70 focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[1fr_auto]"
                 >
                   <span>
                     <span className="meta-tag">
@@ -42,7 +47,7 @@ export function WritingSection({ posts }: { posts: BlogPostSummary[] }) {
                           })
                         : "Published"}
                     </span>
-                    <span className="mt-2 block font-heading text-xl font-semibold leading-tight text-foreground">
+                    <span className="mt-2 block font-heading text-2xl font-semibold leading-tight text-foreground">
                       {post.title}
                     </span>
                     <span className="mt-2 line-clamp-2 block text-sm leading-relaxed text-muted-foreground">

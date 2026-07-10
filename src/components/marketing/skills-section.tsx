@@ -26,14 +26,14 @@ export function SkillsSection() {
         title="From a daily signal to durable context."
         description="The public notebook is organized in layers so readers can scan what changed, follow a recurring question, or inspect the deeper synthesis behind it."
       />
-      <ol className="card-grid md:grid-cols-3">
+      <ol className="border-y border-foreground/80">
         {researchLayers.map((layer, index) => (
-          <li key={layer.title} className="flex flex-col gap-3 bg-card/70 p-5">
+          <li key={layer.title} className="grid gap-4 border-b border-border/80 py-6 last:border-b-0 md:grid-cols-[5rem_15rem_1fr] md:items-start">
             <span className="ordinal">{String(index + 1).padStart(2, "0")}</span>
-            <h3 className="font-heading text-xl font-semibold text-foreground">
+            <h3 className="font-heading text-2xl font-semibold text-foreground">
               {layer.title}
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {layer.description}
             </p>
           </li>

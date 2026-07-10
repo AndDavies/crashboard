@@ -10,7 +10,7 @@ export function BlogPostBody({
   return (
     <div
       className={cn(
-        "blog-content max-w-3xl text-base leading-8 text-foreground",
+        "blog-content max-w-[44rem] text-base leading-8 text-foreground",
         className,
       )}
       dangerouslySetInnerHTML={{ __html: html }}

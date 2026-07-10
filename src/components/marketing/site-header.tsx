@@ -12,17 +12,24 @@ const mainNav: NavItem[] = [
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-foreground/80 bg-background/95 backdrop-blur-md">
+      <div className="hidden border-b border-border/80 md:block">
+        <div className="container-wide flex h-8 items-center justify-between">
+          <p className="editorial-kicker">{siteConfig.brandWordmark} / Public research notebook</p>
+          <p className="editorial-kicker">{siteConfig.location}</p>
+        </div>
+      </div>
+      <div className="container-wide flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
-          className="group font-heading text-[15px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group inline-flex items-baseline gap-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {siteConfig.publicName}
-          <span className="ml-2 hidden font-mono text-[10px] uppercase text-muted-foreground sm:inline">
+          <span className="font-heading text-2xl font-semibold leading-none text-foreground">
+            {siteConfig.publicName}
+          </span>
+          <span className="hidden font-mono text-[10px] uppercase text-muted-foreground sm:inline">
             {siteConfig.brandWordmark}
           </span>
-          <span className="mt-1 block h-0.5 w-14 bg-accent motion-safe:transition-[width] motion-safe:group-hover:w-20" />
         </Link>
 
         <MainNav items={mainNav} />
@@ -30,9 +37,9 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           <Link
             href="/blog"
-            className="hidden border border-foreground bg-foreground px-4 py-1.5 text-sm font-medium text-background motion-safe:transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+            className="hidden min-h-10 items-center border-l border-border/80 px-4 text-sm font-semibold text-foreground transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
           >
-            Latest brief
+            Latest brief <span className="ml-2" aria-hidden>→</span>
           </Link>
           <MobileNav links={mainNav} brandWordmark={siteConfig.brandWordmark} />
         </div>

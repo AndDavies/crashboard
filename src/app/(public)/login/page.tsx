@@ -6,7 +6,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -28,9 +27,9 @@ export default async function LoginPage({ searchParams }: Props) {
       <Card className="mx-auto w-full max-w-md">
         <CardHeader className="text-center sm:text-left">
           <p className="eyebrow">Dashboard access</p>
-          <CardTitle className="font-heading text-3xl font-semibold">
+          <h1 className="font-heading text-3xl font-semibold">
             Sign in
-          </CardTitle>
+          </h1>
           <CardDescription>
             Use the email and password for your Supabase user. You’ll stay signed
             in until you sign out.
@@ -40,7 +39,7 @@ export default async function LoginPage({ searchParams }: Props) {
           {error === "auth" ? (
             <p
               role="alert"
-              className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground"
+              className="border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground"
             >
               Something went wrong confirming your session. Try again.
             </p>
@@ -48,7 +47,7 @@ export default async function LoginPage({ searchParams }: Props) {
           {error === "whoop_session" ? (
             <p
               role="alert"
-              className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground"
+              className="border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground"
             >
               Sign in to finish linking WHOOP, then open the Whoop dashboard and
               choose <strong className="font-medium">Connect WHOOP</strong>{" "}

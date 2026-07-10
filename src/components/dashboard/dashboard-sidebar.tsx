@@ -3,26 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  dashboardNavGroups,
-  type DashboardNavGroup,
+  flattenDashboardNav,
   type DashboardNavLeaf,
 } from "@/lib/dashboard/nav-config";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
 
 function pathIsActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -45,7 +38,7 @@ function NavLink({
 
   const className = cn(
     "flex items-center gap-2.5 text-sm font-medium outline-none transition-colors",
-    collapsed ? "size-9 justify-center px-0" : "border-l-2 px-2.5 py-2",
+    collapsed ? "size-10 justify-center px-0" : "border-l-2 px-3 py-2.5",
     active
       ? collapsed
         ? "bg-accent/10 text-accent"
@@ -95,57 +88,6 @@ function NavLink({
   return link;
 }
 
-function GroupBlock({
-  group,
-  pathname,
-  collapsed,
-  onNavigate,
-}: {
-  group: DashboardNavGroup;
-  pathname: string;
-  collapsed: boolean;
-  onNavigate?: () => void;
-}) {
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center gap-1 py-1">
-        {group.items.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            pathname={pathname}
-            collapsed
-            onNavigate={onNavigate}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  const openDefault = group.defaultOpen !== false;
-
-  return (
-    <Collapsible defaultOpen={openDefault} className="group/collapsible">
-      <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase outline-none transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring group-data-open/collapsible:text-foreground">
-        <group.icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
-        <span className="min-w-0 flex-1 truncate">{group.title}</span>
-        <ChevronDownIcon className="size-3.5 shrink-0 opacity-50 transition-transform duration-200 group-data-open/collapsible:rotate-180" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0">
-        {group.items.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            pathname={pathname}
-            collapsed={false}
-            onNavigate={onNavigate}
-          />
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 export function DashboardSidebar({
   collapsed,
   onNavigate,
@@ -157,6 +99,7 @@ export function DashboardSidebar({
   className?: string;
 }) {
   const pathname = usePathname() ?? "/dashboard";
+  const items = flattenDashboardNav();
 
   return (
     <TooltipProvider delay={300}>
@@ -166,7 +109,7 @@ export function DashboardSidebar({
           className,
         )}
       >
-        <div className="flex h-14 shrink-0 items-center border-b border-border/80 px-3">
+        <div className="flex h-16 shrink-0 items-center border-b border-foreground/80 px-3">
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger
@@ -174,7 +117,7 @@ export function DashboardSidebar({
                   <Link
                     href="/dashboard"
                     onClick={onNavigate}
-                    className="mx-auto flex size-9 items-center justify-center rounded-lg font-heading text-sm font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="mx-auto flex size-10 items-center justify-center font-heading text-lg font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Crashboard — dashboard home"
                   />
                 }
@@ -187,27 +130,25 @@ export function DashboardSidebar({
             <Link
               href="/dashboard"
               onClick={onNavigate}
-              className="font-heading text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+              className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Crashboard
+              <span className="block font-heading text-xl font-semibold text-foreground">Crashboard</span>
+              <span className="editorial-kicker mt-0.5 block">Content desk</span>
             </Link>
           )}
         </div>
 
-        <ScrollArea className="flex-1 px-2 py-3">
-          <nav className="flex flex-col gap-3" aria-label="Dashboard">
-            {dashboardNavGroups.map((group, index) => (
-              <div key={group.id}>
-                {index > 0 ? (
-                  <Separator className="mb-3 bg-border/60" />
-                ) : null}
-                <GroupBlock
-                  group={group}
-                  pathname={pathname}
-                  collapsed={collapsed}
-                  onNavigate={onNavigate}
-                />
-              </div>
+        <ScrollArea className="flex-1 px-2 py-4">
+          {!collapsed ? <p className="eyebrow px-3 pb-3">Workspace</p> : null}
+          <nav className="flex flex-col gap-1" aria-label="Dashboard">
+            {items.map((item) => (
+              <NavLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+              />
             ))}
           </nav>
         </ScrollArea>

@@ -19,11 +19,11 @@ export function SectionShell({
       id={id}
       className={cn(
         "border-b border-border/80",
-        dense ? "py-14 md:py-20" : "py-20 md:py-28",
+        dense ? "py-12 md:py-16" : "py-16 md:py-24",
         className,
       )}
     >
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</div>
+      <div className="container-wide">{children}</div>
     </section>
   );
 }
@@ -40,18 +40,15 @@ export function SectionHeading({
   accentRule?: boolean;
 }) {
   return (
-    <div className="mb-10 max-w-4xl md:mb-14">
+    <div className="mb-8 max-w-4xl md:mb-12">
       {eyebrow ? (
-        <p className="eyebrow mb-4 flex items-center gap-3">
-          <span className="h-1 w-10 bg-accent" aria-hidden />
-          {eyebrow}
-        </p>
+        <p className="eyebrow mb-4">{eyebrow}</p>
       ) : null}
-      <h2 className="font-heading text-4xl leading-[1.02] font-semibold text-foreground md:text-6xl">
+      <h2 className="font-heading text-4xl leading-[1.02] font-semibold text-foreground md:text-5xl">
         {title}
       </h2>
       {accentRule ? (
-        <span className="accent-rule mt-6" aria-hidden />
+        <span className="mt-5 block h-0.5 w-16 bg-accent" aria-hidden />
       ) : null}
       {description ? (
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">

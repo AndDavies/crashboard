@@ -217,12 +217,9 @@ export default async function BlogPostPage({ params }: Props) {
       />
 
       <article className="mt-8">
-        <header className="max-w-5xl border-b border-border/80 pb-10">
-          <p className="eyebrow flex items-center gap-3">
-            <span className="h-1 w-10 bg-accent" aria-hidden />
-            Morning brief
-          </p>
-          <h1 className="mt-5 max-w-5xl break-words font-heading text-4xl font-semibold leading-tight text-foreground sm:text-5xl lg:text-6xl">
+        <header className="max-w-5xl border-b border-foreground/80 pb-10">
+          <p className="eyebrow">Morning brief</p>
+          <h1 className="mt-5 max-w-4xl break-words font-heading text-5xl font-semibold leading-[1.02] text-foreground sm:text-6xl">
             {post.title}
           </h1>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -267,12 +264,12 @@ export default async function BlogPostPage({ params }: Props) {
           </figure>
         ) : null}
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
           <div className="min-w-0">
             {post.answerSummary ? (
-              <section className="max-w-3xl border-y border-border/80 border-l-2 border-l-accent bg-card/70 px-5 py-5">
+              <section className="max-w-[44rem] border-y border-foreground/80 py-5">
                 <p className="eyebrow">Bottom line</p>
-                <p className="mt-3 text-lg leading-relaxed text-foreground">
+                <p className="mt-3 font-heading text-2xl leading-snug text-foreground">
                   {post.answerSummary}
                 </p>
               </section>
@@ -282,27 +279,47 @@ export default async function BlogPostPage({ params }: Props) {
               </p>
             ) : null}
 
+            {prepared.headings.some((heading) => heading.level === 2) ? (
+              <details className="disclosure mb-8 border-b border-border/80 lg:hidden">
+                <summary>In this brief</summary>
+                <ol className="space-y-2 pb-4">
+                  {prepared.headings
+                    .filter((heading) => heading.level === 2)
+                    .map((heading) => (
+                      <li key={heading.id}>
+                        <a href={`#${heading.id}`} className="link-accent text-sm">
+                          {heading.text}
+                        </a>
+                      </li>
+                    ))}
+                </ol>
+              </details>
+            ) : null}
+
             <BlogPostBody html={prepared.html} className="mt-10" />
 
             {post.sourceLinks.length > 0 ? (
-              <section id="sources" className="mt-14 max-w-3xl scroll-mt-24 border-t border-border/80 pt-8">
-                <p className="eyebrow">Evidence trail</p>
-                <h2 className="mt-3 font-heading text-3xl font-semibold text-foreground">
-                  Sources and references
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                  Each source opens the original publication. Labels identify the publisher and the role the source plays in this brief.
-                </p>
-                <ol className="mt-6 grid gap-3">
+              <details id="sources" className="disclosure mt-14 max-w-[44rem] scroll-mt-24 border-b border-border/80">
+                <summary>
+                  <span>
+                    Sources and references
+                    <span className="ml-2 font-normal text-muted-foreground">({post.sourceLinks.length})</span>
+                  </span>
+                </summary>
+                <div className="pb-8">
+                  <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                    Each source opens the original publication. Labels identify the publisher and the role the source plays in this brief.
+                  </p>
+                  <ol className="mt-6 divide-y divide-border/80 border-y border-border/80">
                   {post.sourceLinks.map((source, sourceIndex) => {
                     const { sourceName, tag } = splitSourceNote(source.note);
                     return (
-                      <li key={`${source.label}-${source.url}`} className="border border-border/80 bg-card/70 shadow-sm">
+                      <li key={`${source.label}-${source.url}`}>
                         <a
                           href={source.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group/source grid gap-3 p-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[auto_1fr_auto]"
+                          className="group/source grid gap-3 py-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto]"
                         >
                           <span className="ordinal mt-1">
                             S{String(sourceIndex + 1).padStart(2, "0")}
@@ -335,22 +352,25 @@ export default async function BlogPostPage({ params }: Props) {
                       </li>
                     );
                   })}
-                </ol>
-              </section>
+                  </ol>
+                </div>
+              </details>
             ) : null}
 
             {relatedWikiPages.length > 0 || relatedPosts.length > 0 ? (
-              <section className="mt-14 grid gap-8 border-t border-border/80 pt-8 md:grid-cols-2">
+              <details className="disclosure mt-10 max-w-[44rem] border-b border-border/80">
+                <summary>Related research and further reading</summary>
+                <section className="grid gap-8 pb-8 md:grid-cols-2">
                 {relatedWikiPages.length > 0 ? (
                   <div>
                     <p className="eyebrow">Related wiki pages</p>
                     <h2 className="mt-3 font-heading text-2xl font-semibold text-foreground">
                       Deeper context
                     </h2>
-                    <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
+                    <ul className="mt-5 divide-y divide-border/80 border-y border-border/80">
                       {relatedWikiPages.map((page) => (
-                        <li key={page.slug} className="bg-card/70">
-                          <Link href={`/wiki/${page.slug}`} className="group block p-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring">
+                        <li key={page.slug}>
+                          <Link href={`/wiki/${page.slug}`} className="group block py-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring">
                             <span className="font-medium text-foreground group-hover:underline group-hover:decoration-accent">
                               {page.title}
                             </span>
@@ -369,10 +389,10 @@ export default async function BlogPostPage({ params }: Props) {
                     <h2 className="mt-3 font-heading text-2xl font-semibold text-foreground">
                       Continue reading
                     </h2>
-                    <ul className="mt-5 grid gap-px border border-border/80 bg-border/80">
+                    <ul className="mt-5 divide-y divide-border/80 border-y border-border/80">
                       {relatedPosts.map((item) => (
-                        <li key={item.slug} className="bg-card/70">
-                          <Link href={`/blog/${item.slug}`} className="group block p-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring">
+                        <li key={item.slug}>
+                          <Link href={`/blog/${item.slug}`} className="group block py-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring">
                             <span className="font-medium text-foreground group-hover:underline group-hover:decoration-accent">
                               {item.title}
                             </span>
@@ -385,13 +405,14 @@ export default async function BlogPostPage({ params }: Props) {
                     </ul>
                   </div>
                 ) : null}
-              </section>
+                </section>
+              </details>
             ) : null}
           </div>
 
           <aside className="space-y-5 lg:sticky lg:top-24" aria-label="Article navigation">
             {prepared.headings.some((heading) => heading.level === 2) ? (
-              <nav className="border border-border/80 bg-card/70 p-4" aria-label="Table of contents">
+              <nav className="border-t border-foreground/80 pt-4" aria-label="Table of contents">
                 <p className="eyebrow flex items-center gap-2">
                   <BookOpenIcon className="size-3.5" aria-hidden />
                   In this brief
@@ -410,7 +431,7 @@ export default async function BlogPostPage({ params }: Props) {
               </nav>
             ) : null}
 
-            <div className="border border-border/80 bg-card/70 p-4">
+            <div className="border-t border-border/80 pt-4">
               <p className="eyebrow">Article details</p>
               <dl className="mt-4 grid gap-3 text-sm">
                 <div className="flex justify-between gap-4">
@@ -433,7 +454,7 @@ export default async function BlogPostPage({ params }: Props) {
             </div>
 
             {topics.length > 0 ? (
-              <div className="border border-border/80 bg-card/70 p-4">
+              <div className="border-t border-border/80 pt-4">
                 <p className="eyebrow">Research topics</p>
                 <ul className="mt-3 space-y-2">
                   {topics.map((topic) => (

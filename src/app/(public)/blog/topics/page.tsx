@@ -46,14 +46,14 @@ export default async function BlogTopicsPage() {
         </p>
       </header>
 
-      <ol className="mt-10 grid gap-px border border-border/80 bg-border/80 lg:grid-cols-2">
+      <ol className="mt-10 border-y border-foreground/80">
         {blogTopics.map((topic) => {
           const count = posts.filter((post) => matchesBlogTopic(post, topic)).length;
           return (
-            <li key={topic.slug} className="bg-card/70">
+            <li key={topic.slug} className="border-b border-border/80 last:border-b-0">
               <Link
                 href={`/blog/topics/${topic.slug}`}
-                className="group grid h-full gap-5 p-5 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[9rem_1fr]"
+                className="group grid h-full gap-5 py-6 outline-none motion-safe:transition-colors hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[11rem_minmax(0,1fr)_auto] sm:items-center"
               >
                 <Image
                   src={topic.heroImage}
@@ -61,20 +61,20 @@ export default async function BlogTopicsPage() {
                   width={1200}
                   height={630}
                   unoptimized
-                  className="aspect-[1.45/1] w-full border border-border/80 object-cover grayscale"
+                  className="aspect-[16/9] w-full object-cover grayscale"
                 />
                 <span>
                   <span className="meta-tag">{count} matching briefs</span>
-                  <span className="mt-2 block font-heading text-2xl font-semibold leading-tight text-foreground">
+                  <span className="mt-2 block font-heading text-3xl font-semibold leading-tight text-foreground">
                     {topic.title}
                   </span>
                   <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">
                     {topic.description}
                   </span>
-                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-accent">
-                    Open topic
-                    <ArrowRightIcon className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" aria-hidden />
-                  </span>
+                </span>
+                <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                  Open topic
+                  <ArrowRightIcon className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" aria-hidden />
                 </span>
               </Link>
             </li>

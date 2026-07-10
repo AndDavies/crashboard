@@ -9,8 +9,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-sans);
-  --font-heading: var(--font-sans);
+  --font-serif: var(--font-editorial);
+  --font-heading: var(--font-editorial);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -123,7 +123,8 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    text-rendering: optimizeLegibility;
   }
   ::selection {
     background: color-mix(in oklch, var(--accent) 26%, transparent);
@@ -134,6 +135,57 @@
 }
 
 @layer components {
+  .container-wide {
+    @apply mx-auto w-full max-w-[80rem] px-4 sm:px-6;
+  }
+
+  .container-editorial {
+    @apply mx-auto w-full max-w-[64rem] px-4 sm:px-6;
+  }
+
+  .container-reading {
+    @apply mx-auto w-full max-w-[46rem] px-4 sm:px-6;
+  }
+
+  .editorial-kicker {
+    @apply font-sans text-[0.6875rem] font-bold uppercase text-muted-foreground;
+    letter-spacing: 0.08em;
+  }
+
+  .editorial-title {
+    @apply font-heading font-semibold text-foreground;
+    letter-spacing: 0;
+  }
+
+  .section-rule {
+    @apply border-t border-foreground/80;
+  }
+
+  .editorial-row {
+    @apply border-t border-border/90 transition-colors hover:bg-card/80 focus-within:bg-card/80;
+  }
+
+  .disclosure {
+    @apply border-t border-border/80;
+  }
+
+  .disclosure > summary {
+    @apply flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 py-3 font-sans text-sm font-semibold text-foreground outline-none transition-colors hover:text-accent focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .disclosure > summary::after {
+    content: "+";
+    @apply font-mono text-base font-normal text-muted-foreground;
+  }
+
+  .disclosure[open] > summary::after {
+    content: "−";
+  }
+
   .technical-grid {
     background-image:
       linear-gradient(to right, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px),
@@ -162,7 +214,7 @@
 
   .blog-editor .tiptap h2,
   .blog-content h2 {
-    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-3xl font-semibold text-foreground;
+    @apply mt-14 max-w-[44rem] border-t border-border/80 pt-8 font-heading text-3xl font-semibold text-foreground;
   }
 
   .blog-editor .tiptap h2 + h3,
@@ -172,24 +224,24 @@
 
   .blog-editor .tiptap h3,
   .blog-content h3 {
-    @apply mt-10 max-w-3xl border-t border-border/70 pt-6 font-heading text-2xl font-semibold leading-tight text-foreground;
+    @apply mt-10 max-w-[44rem] pt-2 font-heading text-2xl font-semibold leading-tight text-foreground;
   }
 
   .blog-editor .tiptap h4,
   .blog-content h4 {
-    @apply mt-6 max-w-3xl font-heading text-lg font-semibold text-foreground;
+    @apply mt-6 max-w-[44rem] font-heading text-xl font-semibold text-foreground;
   }
 
   .blog-editor .tiptap p,
   .blog-content p {
-    @apply my-5 max-w-3xl text-[1rem] leading-7 text-muted-foreground;
+    @apply my-6 max-w-[44rem] font-serif text-[1.0625rem] leading-8 text-foreground/85;
   }
 
   .blog-editor .tiptap ul,
   .blog-content ul,
   .blog-editor .tiptap ol,
   .blog-content ol {
-    @apply my-5 max-w-3xl space-y-2 pl-5 text-muted-foreground;
+    @apply my-6 max-w-[44rem] space-y-2 pl-5 font-serif text-[1.0625rem] text-foreground/85;
   }
 
   .blog-editor .tiptap ul,
@@ -204,7 +256,7 @@
 
   .blog-editor .tiptap li,
   .blog-content li {
-    @apply pl-1 leading-7;
+    @apply pl-1 leading-8;
   }
 
   .blog-content .brief-labeled-point {
@@ -238,7 +290,7 @@
 
   .blog-editor .tiptap blockquote,
   .blog-content blockquote {
-    @apply my-7 max-w-3xl border-y border-l-2 border-border/80 border-l-accent bg-card/70 px-5 py-4 font-heading text-lg leading-8 text-foreground;
+    @apply my-8 max-w-[44rem] border-y border-l-2 border-border/80 border-l-accent bg-card/70 px-5 py-5 font-heading text-xl leading-8 text-foreground;
   }
 
   .blog-content .brief-source,
@@ -304,11 +356,11 @@
   }
 
   .wiki-prose {
-    @apply max-w-none text-[1rem] leading-7 text-foreground;
+    @apply max-w-none text-[1.0625rem] leading-8 text-foreground;
   }
 
   .wiki-prose h2 {
-    @apply mt-12 max-w-3xl border-t border-border/80 pt-8 font-heading text-2xl font-semibold text-foreground;
+    @apply mt-14 max-w-[44rem] border-t border-border/80 pt-8 font-heading text-3xl font-semibold text-foreground;
   }
 
   .wiki-prose h2 + h3 {
@@ -316,20 +368,20 @@
   }
 
   .wiki-prose h3 {
-    @apply mt-10 max-w-3xl font-heading text-xl font-semibold text-foreground;
+    @apply mt-10 max-w-[44rem] font-heading text-2xl font-semibold text-foreground;
   }
 
   .wiki-prose h4 {
-    @apply mt-6 max-w-3xl font-heading text-lg font-semibold text-foreground;
+    @apply mt-6 max-w-[44rem] font-heading text-xl font-semibold text-foreground;
   }
 
   .wiki-prose p {
-    @apply my-5 max-w-3xl text-[1rem] leading-7 text-muted-foreground;
+    @apply my-6 max-w-[44rem] font-serif text-[1.0625rem] leading-8 text-foreground/85;
   }
 
   .wiki-prose ul,
   .wiki-prose ol {
-    @apply my-5 max-w-3xl space-y-2 pl-5 text-muted-foreground;
+    @apply my-6 max-w-[44rem] space-y-2 pl-5 font-serif text-[1.0625rem] text-foreground/85;
   }
 
   .wiki-prose ul {
@@ -341,7 +393,7 @@
   }
 
   .wiki-prose li {
-    @apply pl-1 leading-7;
+    @apply pl-1 leading-8;
   }
 
   .wiki-prose a {
@@ -381,7 +433,8 @@
   }
 
   .eyebrow {
-    @apply font-sans text-[11px] font-bold uppercase text-accent;
+    @apply font-sans text-[11px] font-bold uppercase text-muted-foreground;
+    letter-spacing: 0.08em;
   }
 
   .ordinal {
@@ -390,6 +443,7 @@
 
   .meta-tag {
     @apply font-sans text-[11px] font-semibold uppercase text-muted-foreground;
+    letter-spacing: 0.06em;
   }
 
   .stack-fade > * {
@@ -431,11 +485,11 @@
   }
 
   .cta-primary {
-    @apply inline-flex items-center justify-center gap-2 border border-accent bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 border border-foreground bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
   .cta-secondary {
-    @apply inline-flex items-center justify-center gap-2 border border-border bg-transparent px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 border border-border bg-transparent px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 

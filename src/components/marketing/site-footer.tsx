@@ -16,11 +16,11 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t border-border/80 bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <div className="container-wide py-12">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="eyebrow">{siteConfig.brandWordmark}</p>
-            <p className="mt-2 font-heading text-base font-medium text-foreground">
+            <p className="mt-2 font-heading text-2xl font-semibold text-foreground">
               {siteConfig.publicName}
             </p>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Inter, Newsreader } from "next/font/google";
 import { getPublicSiteOrigin } from "@/lib/site-url";
 import {
   SEO_DEFAULT_DESCRIPTION,
@@ -20,6 +20,13 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const newsreader = Newsreader({
+  variable: "--font-editorial",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
 });
 
 const googleSiteVerification = getGoogleSiteVerification();
@@ -65,7 +72,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} ${newsreader.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <GoogleConsentDefaultScript />

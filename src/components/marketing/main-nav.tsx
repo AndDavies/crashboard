@@ -14,7 +14,7 @@ export function MainNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+    <nav className="hidden h-full items-stretch md:flex" aria-label="Primary">
       {items.map(({ href, label }) => {
         const active = isActive(pathname, href);
         return (
@@ -23,7 +23,7 @@ export function MainNav({ items }: { items: NavItem[] }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "group relative px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+              "group relative inline-flex min-w-16 items-center justify-center px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
@@ -32,7 +32,7 @@ export function MainNav({ items }: { items: NavItem[] }) {
             {label}
             <span
               className={cn(
-                "absolute inset-x-3 -bottom-px h-0.5 origin-left bg-accent transition-transform duration-200",
+                "absolute inset-x-3 bottom-0 h-0.5 origin-left bg-accent transition-transform duration-200",
                 active
                   ? "scale-x-100"
                   : "scale-x-0 group-hover:scale-x-100",

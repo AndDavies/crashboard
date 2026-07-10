@@ -111,13 +111,10 @@ export default function WikiPage() {
         }}
       />
 
-      <header className="grid gap-8 border-b border-border/80 pb-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-end">
+      <header className="grid gap-8 border-b border-foreground/80 pb-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-end">
         <div>
-          <p className="eyebrow flex items-center gap-3">
-            <span className="h-1 w-10 bg-accent" aria-hidden />
-            Public wiki
-          </p>
-          <h1 className="mt-4 max-w-4xl font-heading text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
+          <p className="eyebrow">Public wiki</p>
+          <h1 className="mt-4 max-w-4xl font-heading text-5xl font-semibold leading-[1.02] text-foreground sm:text-6xl">
             Search the public knowledge system.
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground md:text-lg">
@@ -128,9 +125,9 @@ export default function WikiPage() {
             {index.pages.length} pages · {sourceNotes} sources · {linkedEdges} links
           </p>
         </div>
-        <dl className="hidden grid-cols-2 gap-px border border-border/80 bg-border/80 lg:grid">
+        <dl className="hidden grid-cols-2 border-y border-foreground/80 lg:grid">
           {stats.map((stat) => (
-            <div key={stat.label} className="bg-card/70 p-4">
+            <div key={stat.label} className="border-b border-r border-border/80 p-4 even:border-r-0 nth-[n+3]:border-b-0">
               <dt className="eyebrow">{stat.label}</dt>
               <dd className="mt-1 font-heading text-3xl font-semibold tabular-nums text-foreground">
                 {stat.value}
@@ -152,23 +149,23 @@ export default function WikiPage() {
         </Suspense>
       </section>
 
-      <section className="mt-14 border-t border-border/80 pt-8" aria-labelledby="domain-heading">
-        <div className="max-w-3xl">
-          <p className="eyebrow">Coverage</p>
-          <h2 id="domain-heading" className="mt-2 font-heading text-3xl font-semibold text-foreground">
-            Published domains
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Distribution reflects the current public corpus and changes as new
-            source-backed synthesis is exported.
-          </p>
-        </div>
-        <div className="mt-6 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 lg:grid-cols-4">
+      <details className="disclosure mt-14 border-b border-border/80" aria-labelledby="domain-heading">
+        <summary>
+          <span>
+            <span id="domain-heading" className="font-heading text-2xl font-semibold">Corpus distribution</span>
+            <span className="ml-3 font-sans text-sm font-normal text-muted-foreground">Coverage across published domains</span>
+          </span>
+        </summary>
+        <p className="max-w-3xl pb-5 text-sm leading-relaxed text-muted-foreground">
+          Distribution reflects the current public corpus and changes as new
+          source-backed synthesis is exported.
+        </p>
+        <div className="grid border-y border-border/80 sm:grid-cols-2 lg:grid-cols-4">
           {clusterDistribution.map((item) => {
             const percent =
               clusterTotal > 0 ? Math.round((item.count / clusterTotal) * 100) : 0;
             return (
-              <div key={item.id} className="bg-card/70 p-4">
+              <div key={item.id} className="border-b border-r border-border/80 p-4 last:border-r-0">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-medium leading-snug text-foreground">
@@ -191,7 +188,7 @@ export default function WikiPage() {
             );
           })}
         </div>
-      </section>
+      </details>
     </div>
   );
 }

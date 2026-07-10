@@ -64,7 +64,7 @@ const EMPTY_DOC: JSONContent = {
   content: [{ type: "paragraph" }],
 };
 
-const panelClass = "border border-border/80 bg-card p-5";
+const panelClass = "border-y border-foreground/80 bg-card/40 py-5";
 const fieldClass =
   "h-10 border border-border/80 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 const textareaClass =
@@ -115,7 +115,7 @@ function ToolbarButton({
       title={label}
       onClick={onClick}
       className={cn(
-        "inline-flex size-8 items-center justify-center border border-border/80 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex size-10 items-center justify-center border border-border/80 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active && "border-foreground/40 bg-accent/10 text-accent",
       )}
     >
@@ -143,7 +143,7 @@ function GeneratedPromptCard({
   onCopy: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-border/80 bg-background p-3">
+    <div className="border border-border/80 bg-background p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-foreground">{prompt.label}</p>
@@ -156,7 +156,7 @@ function GeneratedPromptCard({
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
-      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap rounded-md border border-border/80 bg-muted/25 p-3 text-xs leading-5 text-muted-foreground">
+      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap border border-border/80 bg-muted/25 p-3 text-xs leading-5 text-muted-foreground">
         {prompt.prompt}
       </pre>
     </div>
@@ -499,21 +499,24 @@ export function BlogPostEditor({
   ].filter((warning): warning is string => Boolean(warning));
 
   return (
-    <form action={isEditing ? saveBlogPostAction : createBlogPostAction} className="space-y-8">
+    <form
+      action={isEditing ? saveBlogPostAction : createBlogPostAction}
+      className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start"
+    >
       {isEditing ? <input type="hidden" name="postId" value={editorPost.id} /> : null}
       <input type="hidden" name="contentJson" value={contentJson} />
       <input type="hidden" name="contentHtml" value={contentHtml} />
       <input type="hidden" name="coverImagePath" value={coverImagePath} />
       <input type="hidden" name="ogImagePath" value={ogImagePath} />
 
-      <section className={panelClass}>
+      <section className={cn(panelClass, "order-3 xl:col-span-2")}>
         <div className="flex flex-col gap-4 border-b border-border/80 pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="eyebrow">
               Article fields
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
-              Details, metadata, and publishing
+              Metadata and discovery
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
               Leave these blank while drafting. After the body is in the editor,
@@ -521,61 +524,22 @@ export function BlogPostEditor({
               fields, answer summary, tags, and related wiki links.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:flex-col lg:items-end">
-            <Button
-              type="button"
-              size="lg"
-              onClick={() => void runAiEnrichment()}
-              disabled={enriching}
-              className="h-10 px-4"
-            >
-              {enriching ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : (
-                <SparklesIcon className="size-4" />
-              )}
-              {enriching ? "Enriching" : "AI Enrichment"}
-            </Button>
-            <p className="max-w-56 text-xs leading-relaxed text-muted-foreground lg:text-right">
-              {enrichmentAppliedAt
-                ? `Last populated at ${enrichmentAppliedAt}`
-                : "Uses the current editor body and existing field values."}
-            </p>
-          </div>
         </div>
 
-        {enrichmentError ? (
-          <div className="mt-5 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {enrichmentError}
-          </div>
-        ) : null}
-
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="mt-5">
           <div className="space-y-5">
-            <div className="rounded-lg border border-border/80 bg-muted/15 p-4">
+            <div className="border border-border/80 bg-muted/15 p-4">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h3 className="font-heading text-lg font-semibold text-foreground">
                     Article identity
                   </h3>
                   <p className={helperClass}>
-                    These values define the public URL, blog listing, and publish
-                    state.
+                    These values define the public URL and blog listing.
                   </p>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    value={titleValue}
-                    onChange={(event) => setTitleValue(event.target.value)}
-                    className={fieldClass}
-                    placeholder="The public article title"
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="slug">Slug</Label>
                   <Input
@@ -590,23 +554,6 @@ export function BlogPostEditor({
                     Public URL: {slugValue ? `/blog/${slugValue}` : "/blog/..."}
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    name="status"
-                    defaultValue={editorPost.status}
-                    className={selectClass}
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                  <p className={helperClass}>
-                    Publishing makes the post live immediately unless scheduled.
-                  </p>
-                </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="excerpt">Excerpt</Label>
                   <textarea
@@ -619,24 +566,10 @@ export function BlogPostEditor({
                     placeholder="Short listing summary for the blog index"
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="scheduledAt">Scheduled publish time</Label>
-                  <Input
-                    id="scheduledAt"
-                    name="scheduledAt"
-                    type="datetime-local"
-                    defaultValue={
-                      editorPost.scheduledAt
-                        ? new Date(editorPost.scheduledAt).toISOString().slice(0, 16)
-                        : ""
-                    }
-                    className={fieldClass}
-                  />
-                </div>
               </div>
             </div>
 
-            <div className="rounded-lg border border-border/80 bg-muted/15 p-4">
+            <div className="border border-border/80 bg-muted/15 p-4">
               <div className="mb-4">
                 <h3 className="font-heading text-lg font-semibold text-foreground">
                   SEO and answer metadata
@@ -752,113 +685,10 @@ export function BlogPostEditor({
             </div>
           </div>
 
-          <aside className="space-y-4">
-            <div className="rounded-lg border border-border/80 bg-muted/15 p-4">
-              <p className="text-sm font-medium text-foreground">Cover image</p>
-              <div className="relative mt-3 aspect-[1200/630] overflow-hidden rounded-md border border-border/80 bg-background">
-                {coverImageUrl ? (
-                  <Image
-                    src={coverImageUrl}
-                    alt=""
-                    fill
-                    sizes="20rem"
-                    className="object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                    No cover image
-                  </div>
-                )}
-              </div>
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  void onCoverImageSelected(event.target.files?.[0]);
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-3 w-full bg-background"
-                onClick={() => coverInputRef.current?.click()}
-                disabled={uploading}
-              >
-                Upload cover
-              </Button>
-              {uploadError ? (
-                <p className="mt-2 text-sm text-destructive">{uploadError}</p>
-              ) : null}
-            </div>
-
-            <div className="space-y-3 rounded-lg border border-border/80 bg-muted/15 p-4">
-              <div className="flex items-center gap-2 text-sm">
-                {seoWarnings.length === 0 && publishWarnings.length === 0 ? (
-                  <>
-                    <CheckCircle2Icon className="size-4 text-green-600" />
-                    <span className="font-medium text-foreground">Ready</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircleIcon className="size-4 text-amber-600" />
-                    <span className="font-medium text-foreground">
-                      {seoWarnings.length + publishWarnings.length} note
-                      {seoWarnings.length + publishWarnings.length === 1 ? "" : "s"}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              <PreviewField
-                label="Public URL"
-                value={slugValue ? `/blog/${slugValue}` : "Not set"}
-              />
-              <PreviewField
-                label="Search title"
-                value={seoTitleValue || titleValue || "Not set"}
-              />
-              <PreviewField
-                label="Tags"
-                value={tagsValue.trim() || "Not set"}
-              />
-
-              {publishWarnings.length > 0 || seoWarnings.length > 0 ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-                  {publishWarnings.length > 0 ? (
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        Required before publish
-                      </p>
-                      <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-                        {publishWarnings.map((warning) => (
-                          <li key={warning}>{warning}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {seoWarnings.length > 0 ? (
-                    <div className={publishWarnings.length > 0 ? "mt-4" : ""}>
-                      <p className="text-sm font-medium text-foreground">
-                        Advisory SEO/AEO notes
-                      </p>
-                      <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-                        {seoWarnings.map((warning) => (
-                          <li key={warning}>{warning}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </aside>
         </div>
 
         {enrichment ? (
-          <div className="mt-5 rounded-lg border border-border/80 bg-muted/15 p-4">
+          <div className="mt-5 border border-border/80 bg-muted/15 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="font-heading text-lg font-semibold text-foreground">
@@ -881,7 +711,7 @@ export function BlogPostEditor({
             </div>
 
             {enrichment.warnings.length > 0 ? (
-              <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+              <div className="mt-4 border border-amber-500/30 bg-amber-500/10 p-3">
                 <p className="text-sm font-medium text-foreground">
                   Review notes
                 </p>
@@ -929,17 +759,23 @@ export function BlogPostEditor({
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
+      <section className="order-1 min-w-0 overflow-hidden border-y border-foreground/80 bg-card xl:col-start-1 xl:row-start-1">
         <div className="border-b border-border/80 p-5">
           <p className="eyebrow">
             Body
           </p>
-          <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
-            Article content
-          </h2>
+          <Label htmlFor="title" className="sr-only">Article title</Label>
+          <Input
+            id="title"
+            name="title"
+            value={titleValue}
+            onChange={(event) => setTitleValue(event.target.value)}
+            className="mt-2 h-auto border-0 bg-transparent p-0 font-heading text-3xl font-semibold leading-tight shadow-none focus-visible:ring-0 md:text-4xl"
+            placeholder="Article title"
+          />
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Paste Markdown or write directly. This is the content AI enrichment
-            reads when it fills the metadata section above.
+            Paste Markdown or write directly. AI enrichment reads this body and
+            fills the metadata workspace below.
           </p>
         </div>
         <div className="flex flex-wrap gap-1 border-b border-border/80 bg-muted/25 p-3">
@@ -1042,55 +878,190 @@ export function BlogPostEditor({
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          {isEditing
-            ? `Last updated ${new Date(editorPost.updatedAt).toLocaleString()}`
-            : "New post"}
+      <aside className="order-2 border-y border-foreground/80 bg-card/60 p-4 xl:sticky xl:top-24 xl:col-start-2 xl:row-start-1 xl:self-start" aria-label="Publishing inspector">
+        <div className="flex items-center justify-between gap-3 border-b border-border/80 pb-3">
+          <div>
+            <p className="eyebrow">Publishing</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isEditing
+                ? `Updated ${new Date(editorPost.updatedAt).toLocaleString()}`
+                : "New post"}
+            </p>
+          </div>
+          {seoWarnings.length === 0 && publishWarnings.length === 0 ? (
+            <CheckCircle2Icon className="size-5 text-green-600" aria-label="Ready" />
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+              <AlertCircleIcon className="size-4" aria-hidden />
+              {seoWarnings.length + publishWarnings.length} notes
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <select
+              id="status"
+              name="status"
+              defaultValue={editorPost.status}
+              className={selectClass}
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="scheduledAt">Schedule</Label>
+            <Input
+              id="scheduledAt"
+              name="scheduledAt"
+              type="datetime-local"
+              defaultValue={
+                editorPost.scheduledAt
+                  ? new Date(editorPost.scheduledAt).toISOString().slice(0, 16)
+                  : ""
+              }
+              className={fieldClass}
+            />
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-foreground">Cover image</p>
+            <div className="relative mt-2 aspect-[1200/630] overflow-hidden border border-border/80 bg-background">
+              {coverImageUrl ? (
+                <Image
+                  src={coverImageUrl}
+                  alt=""
+                  fill
+                  sizes="21rem"
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
+                  No cover image
+                </div>
+              )}
+            </div>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                void onCoverImageSelected(event.target.files?.[0]);
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 w-full bg-background"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploading}
+            >
+              Upload cover
+            </Button>
+            {uploadError ? <p className="mt-2 text-xs text-destructive">{uploadError}</p> : null}
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => void runAiEnrichment()}
+            disabled={enriching}
+            className="w-full"
+          >
+            {enriching ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <SparklesIcon className="size-4" />
+            )}
+            {enriching ? "Enriching" : "AI Enrichment"}
+          </Button>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {enrichmentAppliedAt
+              ? `Fields populated at ${enrichmentAppliedAt}`
+              : "Populates title, excerpt, SEO fields, summary, tags, and image prompts from the current body."}
+          </p>
+
+          {enrichmentError ? (
+            <div className="border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+              {enrichmentError}
+            </div>
+          ) : null}
+
+          <details className="disclosure border-b border-border/80">
+            <summary>Readiness notes</summary>
+            <div className="space-y-3 pb-4">
+              <PreviewField label="Public URL" value={slugValue ? `/blog/${slugValue}` : "Not set"} />
+              <PreviewField label="Search title" value={seoTitleValue || titleValue || "Not set"} />
+              {publishWarnings.length > 0 ? (
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Required before publish</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
+                    {publishWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+              {seoWarnings.length > 0 ? (
+                <div>
+                  <p className="text-xs font-semibold text-foreground">SEO/AEO guidance</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
+                    {seoWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </details>
+
+          <div className="grid gap-2 border-t border-border/80 pt-4">
           {isEditing ? (
             <Button
               nativeButton={false}
               variant="outline"
-              className="bg-background"
+              className="w-full bg-background"
               render={<Link href={`/dashboard/content/blog/${editorPost.id}/preview`} />}
             >
               Preview
             </Button>
           ) : null}
-          <Button type="submit" name="intent" value="save" variant="outline" className="bg-background">
+          <Button type="submit" name="intent" value="save" variant="outline" className="w-full bg-background">
             <SaveIcon className="size-4" />
             Save draft
           </Button>
-          <Button type="submit" name="intent" value="schedule" variant="outline" className="bg-background">
+          <Button type="submit" name="intent" value="schedule" variant="outline" className="w-full bg-background">
             Schedule
           </Button>
-          <Button type="submit" name="intent" value="publish">
+          <Button type="submit" name="intent" value="publish" className="w-full">
             <SendIcon className="size-4" />
             Publish
           </Button>
           {isEditing ? (
             <>
-              <Button type="submit" name="intent" value="archive" variant="outline" className="bg-background">
+              <Button type="submit" name="intent" value="archive" variant="outline" className="w-full bg-background">
                 Archive
               </Button>
               {editorPost.deletedAt ? (
-                <Button type="submit" name="intent" value="restore" variant="outline" className="bg-background">
+                <Button type="submit" name="intent" value="restore" variant="outline" className="w-full bg-background">
                   Restore
                 </Button>
               ) : (
-                <Button type="submit" name="intent" value="delete" variant="destructive">
+                <Button type="submit" name="intent" value="delete" variant="destructive" className="w-full">
                   <Trash2Icon className="size-4" />
                   Delete
                 </Button>
               )}
             </>
           ) : null}
+          </div>
         </div>
-      </section>
+      </aside>
 
-      <section className={panelClass}>
+      <section className={cn(panelClass, "order-4 xl:col-span-2")}>
         <div className="flex flex-col gap-3 border-b border-border/80 pb-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="font-heading text-base font-semibold text-foreground">
@@ -1116,7 +1087,7 @@ export function BlogPostEditor({
 	          {BLOG_IMAGE_FORMATS.map((format) => (
             <div
               key={format.id}
-              className="rounded-lg border border-border/80 bg-background p-4"
+              className="border border-border/80 bg-background p-4"
             >
               <p className="text-sm font-medium text-foreground">{format.label}</p>
               <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -1132,7 +1103,7 @@ export function BlogPostEditor({
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div>
             <p className="text-sm font-medium text-foreground">Prompt template</p>
-            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-border/80 bg-background p-4 text-xs leading-6 text-muted-foreground">{BLOG_IMAGE_PROMPT_TEMPLATE}</pre>
+            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap border border-border/80 bg-background p-4 text-xs leading-6 text-muted-foreground">{BLOG_IMAGE_PROMPT_TEMPLATE}</pre>
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">Style rules</p>
@@ -1149,7 +1120,7 @@ export function BlogPostEditor({
       </section>
 
       {revisions.length > 0 ? (
-        <section className={panelClass}>
+        <section className={cn(panelClass, "order-5 xl:col-span-2")}>
           <h2 className="font-heading text-base font-semibold text-foreground">
             Recent revisions
           </h2>

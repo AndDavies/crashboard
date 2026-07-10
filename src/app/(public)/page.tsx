@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { MarketingHero } from "@/components/marketing/hero";
-import { AboutSection } from "@/components/marketing/about-section";
 import { ProjectsSection } from "@/components/marketing/projects-section";
 import { SkillsSection } from "@/components/marketing/skills-section";
 import { WritingSection } from "@/components/marketing/writing-section";
-import { ContactSection } from "@/components/marketing/contact-section";
 import { StructuredData } from "@/components/seo/structured-data";
 import { getPublishedBlogPosts } from "@/lib/blog/data";
 import {
@@ -67,11 +65,9 @@ export default async function Home() {
         ]}
       />
       <MarketingHero />
-      <AboutSection />
-      <ProjectsSection />
-      <SkillsSection />
       <WritingSection posts={posts.slice(0, 3)} />
-      <ContactSection />
+      <SkillsSection />
+      <ProjectsSection />
     </>
   );
 }

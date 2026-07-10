@@ -77,7 +77,7 @@ const modeOptions: Array<{
   label: string;
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }> = [
-  { id: "paths", label: "Guides", icon: BookOpenIcon },
+  { id: "paths", label: "Domains", icon: BookOpenIcon },
   { id: "all-pages", label: "All pages", icon: ListIcon },
   { id: "map", label: "Map", icon: MapIcon },
 ];
@@ -102,7 +102,7 @@ const SORT_VALUES: SortOption[] = [
 function parseMode(value: string | null): ExplorerMode {
   return value && EXPLORER_MODES.includes(value as ExplorerMode)
     ? (value as ExplorerMode)
-    : "all-pages";
+    : "paths";
 }
 
 function parseSort(value: string | null): SortOption {
@@ -393,7 +393,7 @@ export function WikiExplorer({
   // Keep the URL in sync so a filtered/scoped view is shareable and survives refresh.
   useEffect(() => {
     const params = new URLSearchParams();
-    if (mode !== "all-pages") params.set("view", mode);
+    if (mode !== "paths") params.set("view", mode);
     if (cluster !== "all") params.set("cluster", cluster);
     if (role !== "all") params.set("role", role);
     if (sort !== "cluster") params.set("sort", sort);
@@ -521,18 +521,32 @@ export function WikiExplorer({
       ) : null}
 
       {mode === "paths" ? (
-        <PathsMode
-          index={index}
-          isDesktop={isDesktop}
-          readerPaths={readerPaths}
-          readingTrails={readingTrails}
-          relationMaps={relationMaps}
-          pageBySlug={pageBySlug}
-          selectedPage={selectedPage}
-          onHover={setActiveNodeId}
-          onSelect={selectPage}
-          onFollowTrail={followTrail}
-        />
+        deferredQuery ? (
+          <IndexMode
+            pages={pages}
+            isDesktop={isDesktop}
+            relationMaps={relationMaps}
+            selectedNodeId={selectedNodeId}
+            selectedPage={selectedPage}
+            entryPages={entryPages}
+            pageBySlug={pageBySlug}
+            onHover={setActiveNodeId}
+            onSelect={selectPage}
+          />
+        ) : (
+          <PathsMode
+            index={index}
+            isDesktop={isDesktop}
+            readerPaths={readerPaths}
+            readingTrails={readingTrails}
+            relationMaps={relationMaps}
+            pageBySlug={pageBySlug}
+            selectedPage={selectedPage}
+            onHover={setActiveNodeId}
+            onSelect={selectPage}
+            onFollowTrail={followTrail}
+          />
+        )
       ) : null}
 
       {mode === "all-pages" ? (
@@ -647,7 +661,7 @@ function TrailProgress({
 
   return (
     <section
-      className="sticky top-14 z-30 border border-accent/40 bg-accent/5 backdrop-blur sm:top-16"
+      className="sticky top-16 z-30 border border-accent/40 bg-accent/5 backdrop-blur md:top-24"
       aria-label="Trail progress"
     >
       <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -765,14 +779,14 @@ function ExplorerControls({
 
   return (
     <section
-      className="border border-border/80 bg-card/70"
+      className="border-y border-foreground/80 bg-background"
       aria-label="Explorer controls"
     >
       <div className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="eyebrow">Reader view</p>
+          <p className="eyebrow">Browse</p>
           <div
-            className="mt-2 inline-flex border border-border/80 bg-background"
+            className="mt-2 inline-flex border border-border/80 bg-card/60"
             role="tablist"
             aria-label="Reader view"
           >
@@ -825,34 +839,36 @@ function ExplorerControls({
         </div>
       </div>
 
-      {showAllPageFilters || showMapFilter ? (
-        <div className="grid gap-4 border-t border-border/80 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem] lg:items-end">
-          {showAllPageFilters ? (
-            <label className="space-y-2">
-              <span className="eyebrow flex items-center gap-2">
-                <SearchIcon className="size-3.5" aria-hidden />
-                Search
-              </span>
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search concepts, workflows, source notes..."
-                className="h-10 rounded-none border-border/80 bg-background"
-              />
-            </label>
-          ) : (
-            <p className="text-sm leading-relaxed text-muted-foreground lg:max-w-md">
-              Scope the map by cluster, click a node to focus a neighborhood, or
-              reveal the whole vault.
-            </p>
-          )}
+      <div className="grid gap-4 border-t border-border/80 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem] lg:items-end">
+          <label className="space-y-2">
+            <span className="eyebrow flex items-center gap-2">
+              <SearchIcon className="size-3.5" aria-hidden />
+              Search the wiki
+            </span>
+            <Input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                if (event.target.value && mode !== "all-pages") setMode("all-pages");
+              }}
+              placeholder="Search concepts, workflows, source notes..."
+              className="border-border/80 bg-background"
+            />
+          </label>
 
+          {showAllPageFilters || showMapFilter ? (
           <FilterSelect
             labelText="Cluster"
             value={cluster}
             onValueChange={setClusterFilter}
             options={clusterOptions}
           />
+
+          ) : (
+            <p className="text-sm leading-relaxed text-muted-foreground lg:col-span-3">
+              Search first, or open a domain below to browse its published pages.
+            </p>
+          )}
 
           {showAllPageFilters ? (
             <>
@@ -874,11 +890,10 @@ function ExplorerControls({
                 }))}
               />
             </>
-          ) : (
+          ) : showMapFilter ? (
             <div className="hidden lg:block lg:col-span-2" />
-          )}
+          ) : null}
         </div>
-      ) : null}
     </section>
   );
 }
@@ -949,6 +964,7 @@ function PathsMode({
   selectedPage: PublicWikiIndexPage | null;
 }) {
   const showInlineDrawer = isDesktop && Boolean(selectedPage);
+  const domainGroups = groupPagesByCluster(index.pages);
   return (
     <div
       className={cn(
@@ -956,51 +972,99 @@ function PathsMode({
         showInlineDrawer && "xl:grid-cols-[minmax(0,1fr)_22rem]",
       )}
     >
-      <div className="min-w-0 space-y-12">
+      <div className="min-w-0 space-y-10">
         <section>
           <SectionHeader
-            eyebrow="Reader guides"
-            title="Explore a curated route through the knowledge system."
-            description="Each path opens a primary page, then points to supporting notes once the topic has a clear shape."
+            eyebrow="Knowledge domains"
+            title="Browse the publication by subject."
+            description="Domains stay collapsed until you need them. Search above when you already know the concept, source, or workflow you are looking for."
           />
-          <div className="stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-            {readerPaths.map((path) => (
-              <ReaderPathCard
-                key={path.id}
-                onHover={onHover}
-                onSelect={onSelect}
-                path={path}
-                relationMaps={relationMaps}
-              />
-            ))}
+          <div className="mt-6 border-y border-foreground/80">
+            {domainGroups.map(([clusterId, clusterPages]) => {
+              const sourceCount = clusterPages.reduce(
+                (total, page) => total + page.sourceNotes.length,
+                0,
+              );
+              return (
+                <details key={clusterId} className="disclosure px-1 first:border-t-0">
+                  <summary>
+                    <span className="grid flex-1 gap-2 sm:grid-cols-[13rem_1fr_auto] sm:items-center">
+                      <span className="font-heading text-xl font-semibold">
+                        {clusterLabel(clusterId)}
+                      </span>
+                      <span className="hidden line-clamp-2 font-normal text-muted-foreground sm:block">
+                        {clusterPages[0]?.description}
+                      </span>
+                      <span className="meta-tag whitespace-nowrap">
+                        {clusterPages.length} {clusterPages.length === 1 ? "page" : "pages"} · {sourceCount} sources
+                      </span>
+                    </span>
+                  </summary>
+                  <ol className="divide-y divide-border/80 border-t border-border/80 pb-2">
+                    {clusterPages.map((page) => (
+                      <li key={page.slug}>
+                        <Link
+                          href={`/wiki/${page.slug}`}
+                          className="group grid gap-2 py-4 outline-none hover:bg-card/70 focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[minmax(12rem,0.65fr)_minmax(0,1fr)_auto] sm:items-center"
+                          onMouseEnter={() => onHover(page.slug)}
+                          onMouseLeave={() => onHover(null)}
+                        >
+                          <span className="font-heading text-lg font-semibold text-foreground">
+                            {page.title}
+                          </span>
+                          <span className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                            {page.description}
+                          </span>
+                          <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                            Read
+                            <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              );
+            })}
           </div>
         </section>
 
-        <section>
-          <SectionHeader
-            eyebrow="Reading trails"
-            title="Then branch into a cluster."
-            description="Auto-generated routes through the highest-linked pages in each cluster."
-          />
-          <div className="stack-fade mt-6 grid gap-px border border-border/80 bg-border/80 md:grid-cols-2">
-            {readingTrails.map((trail, trailIndex) => (
-              <ReadingTrailCard
-                key={trail.id}
-                className={
-                  trailIndex === readingTrails.length - 1 &&
-                  readingTrails.length % 2 === 1
-                    ? "md:col-span-2"
-                    : ""
-                }
-                onFollowTrail={onFollowTrail}
-                onHover={onHover}
-                onSelect={onSelect}
-                relationMaps={relationMaps}
-                trail={trail}
-              />
-            ))}
+        <details className="disclosure border-b border-border/80">
+          <summary>Curated reading guides</summary>
+          <div className="grid gap-px border border-border/80 bg-border/80 md:grid-cols-2 lg:grid-cols-3">
+              {readerPaths.map((path) => (
+                <ReaderPathCard
+                  key={path.id}
+                  onHover={onHover}
+                  onSelect={onSelect}
+                  path={path}
+                  relationMaps={relationMaps}
+                />
+              ))}
           </div>
-        </section>
+        </details>
+
+        <details className="disclosure border-b border-border/80">
+          <summary>Generated reading trails</summary>
+          <div className="grid gap-px border border-border/80 bg-border/80 md:grid-cols-2">
+              {readingTrails.map((trail, trailIndex) => (
+                <ReadingTrailCard
+                  key={trail.id}
+                  className={
+                    trailIndex === readingTrails.length - 1 &&
+                    readingTrails.length % 2 === 1
+                      ? "md:col-span-2"
+                      : ""
+                  }
+                  onFollowTrail={onFollowTrail}
+                  onHover={onHover}
+                  onSelect={onSelect}
+                  relationMaps={relationMaps}
+                  trail={trail}
+                />
+              ))}
+          </div>
+        </details>
       </div>
 
       {showInlineDrawer ? (

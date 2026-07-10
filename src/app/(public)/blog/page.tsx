@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
@@ -9,7 +10,11 @@ import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { StructuredData } from "@/components/seo/structured-data";
 import { Badge } from "@/components/ui/badge";
 import { getPublishedBlogPosts } from "@/lib/blog/data";
-import { blogTopics, matchesBlogTopic } from "@/lib/blog/topics";
+import {
+  blogTopics,
+  getBlogTopicsForPost,
+  matchesBlogTopic,
+} from "@/lib/blog/topics";
 import {
   SEO_AUTHOR_NAME,
   SEO_AUTHOR_SAME_AS,
@@ -109,6 +114,14 @@ export default async function BlogPage({ searchParams }: Props) {
     ? (currentPage - 1) * PAGE_SIZE + 1
     : 0;
   const visibleEnd = Math.min(currentPage * PAGE_SIZE, filteredPosts.length);
+  const featuredPost =
+    currentPage === 1 && !query && !selectedTag ? visiblePosts[0] ?? null : null;
+  const archivePosts = featuredPost ? visiblePosts.slice(1) : visiblePosts;
+  const featuredImage = featuredPost
+    ? featuredPost.coverImageUrl ??
+      getBlogTopicsForPost(featuredPost)[0]?.heroImage ??
+      "/images/marketing/crashboard-writing.jpg"
+    : null;
 
   return (
     <MarketingPageFrame className="py-0">
@@ -148,14 +161,11 @@ export default async function BlogPage({ searchParams }: Props) {
         ]}
       />
 
-      <header className="border-b border-border/80 py-10 md:py-14">
+      <header className="border-b border-foreground/80 py-12 md:py-16">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_28rem] lg:items-end">
           <div>
-            <p className="eyebrow flex items-center gap-3">
-              <span className="h-1 w-10 bg-accent" aria-hidden />
-              Crashboard blog
-            </p>
-            <h1 className="mt-4 max-w-4xl font-heading text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
+            <p className="eyebrow">Crashboard blog</p>
+            <h1 className="mt-4 max-w-4xl font-heading text-5xl font-semibold leading-[1.02] text-foreground sm:text-6xl">
               Daily signals, connected to durable research.
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground md:text-lg">
@@ -164,7 +174,7 @@ export default async function BlogPage({ searchParams }: Props) {
             </p>
           </div>
 
-          <form action="/blog" method="get" className="border border-border/80 bg-card/70 p-4">
+          <form action="/blog" method="get" className="border-t border-foreground/80 pt-4">
             <label htmlFor="blog-search" className="eyebrow flex items-center gap-2">
               <SearchIcon className="size-3.5" aria-hidden />
               Search the archive
@@ -191,6 +201,50 @@ export default async function BlogPage({ searchParams }: Props) {
         </div>
       </header>
 
+      {featuredPost && featuredImage ? (
+        <section className="border-b border-foreground/80 py-8 md:py-12" aria-labelledby="featured-story">
+          <Link
+            href={`/blog/${featuredPost.slug}`}
+            className="group grid gap-6 outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid-cols-[minmax(0,1.25fr)_minmax(19rem,0.75fr)] lg:items-end"
+          >
+            <figure className="relative aspect-[16/9] overflow-hidden bg-muted">
+              <Image
+                src={featuredImage}
+                alt=""
+                fill
+                priority
+                unoptimized={featuredImage.endsWith(".svg") || featuredImage.startsWith("http")}
+                sizes="(min-width: 1024px) 62vw, 100vw"
+                className="object-cover grayscale transition-transform duration-500 group-hover:scale-[1.015]"
+              />
+            </figure>
+            <div className="pb-1">
+              <p className="eyebrow">Featured / {featuredPost.focusTopic || "Current brief"}</p>
+              <h2 id="featured-story" className="mt-3 font-heading text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+                {featuredPost.title}
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+                {featuredPost.excerpt}
+              </p>
+              <div className="mt-5 flex items-center justify-between border-t border-border/80 pt-4 text-sm font-semibold text-foreground">
+                <span>
+                  {featuredPost.publishedAt
+                    ? new Date(featuredPost.publishedAt).toLocaleDateString("en-CA", {
+                        dateStyle: "medium",
+                        timeZone: "UTC",
+                      })
+                    : "Published"}
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  Read story
+                  <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                </span>
+              </div>
+            </div>
+          </Link>
+        </section>
+      ) : null}
+
       <section className="border-b border-border/80 py-8" aria-labelledby="topic-heading">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -204,14 +258,14 @@ export default async function BlogPage({ searchParams }: Props) {
             <ArrowRightIcon className="size-4" aria-hidden />
           </Link>
         </div>
-        <ul className="mt-5 grid gap-px border border-border/80 bg-border/80 sm:grid-cols-2 xl:grid-cols-5">
+        <ul className="mt-5 grid border-y border-foreground/80 sm:grid-cols-2 lg:grid-cols-5">
           {blogTopics.map((topic) => {
             const count = posts.filter((post) => matchesBlogTopic(post, topic)).length;
             return (
-              <li key={topic.slug} className="bg-card/70">
+              <li key={topic.slug} className="border-b border-border/80 sm:border-r lg:border-b-0 last:border-r-0">
                 <Link
                   href={`/blog/topics/${topic.slug}`}
-                  className="group block h-full p-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group block h-full px-3 py-4 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="meta-tag">{count} briefs</span>
                   <span className="mt-2 block font-heading text-base font-semibold leading-snug text-foreground group-hover:underline group-hover:decoration-accent">
@@ -272,9 +326,9 @@ export default async function BlogPage({ searchParams }: Props) {
           </form>
         </div>
 
-        {visiblePosts.length > 0 ? (
+        {archivePosts.length > 0 ? (
           <ol className="divide-y divide-border/80 border-b border-border/80">
-            {visiblePosts.map((post) => (
+            {archivePosts.map((post) => (
               <li key={post.id}>
                 <Link
                   href={`/blog/${post.slug}`}
@@ -315,7 +369,7 @@ export default async function BlogPage({ searchParams }: Props) {
               </li>
             ))}
           </ol>
-        ) : (
+        ) : featuredPost ? null : (
           <div className="border-b border-border/80 py-12">
             <h3 className="font-heading text-2xl font-semibold text-foreground">
               No matching briefs.

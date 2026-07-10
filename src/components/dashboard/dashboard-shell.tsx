@@ -84,8 +84,8 @@ export function DashboardShell({ children, userEmail }: Props) {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-svh shrink-0 border-r border-border/80 transition-[width] duration-200 ease-out md:block",
-          collapsed ? "w-17" : "w-56 lg:w-60",
+          "sticky top-0 hidden h-svh shrink-0 border-r border-foreground/80 transition-[width] duration-200 ease-out md:block",
+          collapsed ? "w-17" : "w-56",
         )}
         aria-label="Dashboard navigation"
       >
@@ -93,7 +93,7 @@ export function DashboardShell({ children, userEmail }: Props) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 md:px-5">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-foreground/80 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 md:px-5">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={
@@ -158,7 +158,7 @@ export function DashboardShell({ children, userEmail }: Props) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-6 md:py-8 lg:px-8">
+        <main className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-6 md:px-6 md:py-8 lg:px-8">
           {children}
         </main>
 

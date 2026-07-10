@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon, BookOpenIcon, NetworkIcon } from "lucide-react";
-import { homeLinks, siteConfig } from "@/lib/marketing/site-config";
+import { ArrowRightIcon } from "lucide-react";
+import { homeLinks, operatingNotes, siteConfig } from "@/lib/marketing/site-config";
 
 export function MarketingHero() {
   return (
-    <section className="technical-grid relative overflow-hidden border-b border-border/80 bg-card text-foreground">
+    <section className="border-b border-border/80 bg-card text-foreground">
+      <div className="technical-grid relative min-h-[32rem] overflow-hidden border-b border-border/80 sm:min-h-[38rem]">
       <div className="absolute inset-0">
         <Image
           src="/images/marketing/crashboard-hero.jpg"
@@ -13,68 +14,72 @@ export function MarketingHero() {
           fill
           priority
           sizes="100vw"
-          className="object-cover opacity-[0.18] grayscale contrast-125 brightness-150 mix-blend-multiply"
+          className="object-cover opacity-[0.23] grayscale contrast-125 brightness-150 mix-blend-multiply"
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(250,250,248,0.96)_0%,rgba(250,250,248,0.82)_45%,rgba(250,250,248,0.36)_100%)]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-[calc(100svh-8rem)] max-w-7xl flex-col justify-end px-4 pt-20 pb-10 sm:px-6 md:min-h-[42rem] md:pt-24 md:pb-14">
-        <div className="max-w-5xl pb-10">
-          <p className="eyebrow flex items-center gap-3">
-            <span className="h-1 w-10 bg-accent" aria-hidden />
-            {siteConfig.location} / {siteConfig.brandWordmark}
-          </p>
-          <h1 className="mt-6 max-w-5xl font-heading text-6xl font-bold leading-none text-foreground sm:text-7xl md:text-8xl">
+      <div className="container-wide relative flex min-h-[32rem] flex-col justify-end py-12 sm:min-h-[38rem] sm:py-16">
+        <div className="max-w-4xl">
+          <p className="eyebrow">{siteConfig.location} / {siteConfig.brandWordmark}</p>
+          <h1 className="mt-6 max-w-4xl font-heading text-5xl font-semibold leading-[0.98] text-foreground sm:text-6xl md:text-7xl">
             {siteConfig.publicName}
           </h1>
-          <span className="accent-rule mt-6" aria-hidden />
-          <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-2xl md:leading-relaxed">
+          <p className="mt-7 max-w-2xl font-heading text-2xl leading-snug text-foreground/80 md:text-3xl">
+            {siteConfig.title}
+          </p>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
             {siteConfig.shortBio}
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link
-              href="/wiki"
-              className="group inline-flex items-center justify-between gap-3 border border-accent bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground motion-safe:transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              <span className="inline-flex items-center gap-2">
-                <NetworkIcon className="size-4" aria-hidden />
-                Browse the wiki
-              </span>
-              <ArrowRightIcon
-                className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
-                aria-hidden
-              />
-            </Link>
-            <Link
-              href="/blog"
-              className="group inline-flex items-center justify-between gap-3 border border-border bg-card/70 px-5 py-3 text-sm font-semibold text-foreground motion-safe:transition-colors hover:border-foreground hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="inline-flex items-center gap-2">
-                <BookOpenIcon className="size-4" aria-hidden />
-                Read the latest briefs
-              </span>
-              <ArrowRightIcon
-                className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
-                aria-hidden
-              />
+        </div>
+      </div>
+      </div>
+
+      <div className="container-wide py-12 md:py-16">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="max-w-3xl space-y-5 font-serif text-lg leading-8 text-foreground/80">
+            <p>
+              Crashboard is where finished-enough thinking leaves the private
+              notebook. The wiki holds the current corpus: source-backed pages,
+              recurring concepts, and the connective tissue between them.
+            </p>
+            <p>
+              The blog is for questions that need a fuller answer than a wiki
+              page can carry: how a workflow works, what a source trail proves,
+              and where the judgment is still uncertain.
+            </p>
+            <Link href="/about" className="link-accent inline-flex items-center gap-2 font-sans text-sm">
+              Read the fuller profile
+              <ArrowRightIcon className="size-4" aria-hidden />
             </Link>
           </div>
+          <aside className="section-rule pt-4">
+            <p className="eyebrow">Operating posture</p>
+            <ol className="mt-3 divide-y divide-border/80 border-b border-border/80">
+              {operatingNotes.map((note, index) => (
+                <li key={note} className="grid grid-cols-[2rem_1fr] gap-3 py-3 text-sm leading-relaxed">
+                  <span className="ordinal">{String(index + 1).padStart(2, "0")}</span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ol>
+          </aside>
         </div>
 
-        <div className="card-grid md:grid-cols-3">
+        <nav className="mt-12 border-y border-foreground/80" aria-label="Start exploring">
           {homeLinks.map((block) => (
             <Link
               key={block.href}
               href={block.href}
-              className="card-grid-cell group p-5 backdrop-blur"
+              className="group grid gap-3 border-b border-border/80 py-5 last:border-b-0 sm:grid-cols-[11rem_1fr_auto] sm:items-center"
             >
-              <h2 className="text-sm font-medium text-foreground">
+              <h2 className="font-heading text-xl font-semibold text-foreground">
                 {block.title}
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
                 {block.body}
               </p>
-              <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent">
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-foreground">
                 {block.label}
                 <ArrowRightIcon
                   className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-1"
@@ -83,7 +88,7 @@ export function MarketingHero() {
               </span>
             </Link>
           ))}
-        </div>
+        </nav>
       </div>
     </section>
   );

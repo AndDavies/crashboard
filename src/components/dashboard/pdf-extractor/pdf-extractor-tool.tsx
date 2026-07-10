@@ -160,7 +160,7 @@ export function PdfExtractorTool() {
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="eyebrow">Tools</p>
-          <h2 className="mt-2 font-heading text-3xl font-semibold tracking-tight text-foreground">
+          <h2 className="mt-2 font-heading text-4xl font-semibold tracking-tight text-foreground">
             PDF extractor
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -175,7 +175,7 @@ export function PdfExtractorTool() {
         ) : null}
       </section>
 
-      <section className="grid gap-4 rounded-xl border border-border/80 bg-card p-5">
+      <section className="grid gap-4 border-y border-foreground/80 bg-card/40 py-5">
         <div className="grid gap-3 md:grid-cols-3">
           {(["upload", "url", "path"] as const).map((mode) => (
             <Button
@@ -202,7 +202,7 @@ export function PdfExtractorTool() {
               }
             />
             {oversizedUpload ? (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+              <div className="flex items-start gap-2 border border-amber-500/30 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
                 <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <p>
                   This PDF is {selectedFileSizeLabel}. Browser uploads are
@@ -246,7 +246,7 @@ export function PdfExtractorTool() {
           <select
             value={outputMode}
             onChange={(event) => setOutputMode(event.target.value as PdfOutputMode)}
-            className="h-8 rounded-lg border border-border/80 bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+            className="h-10 border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
           >
             <option value="markdown">Markdown</option>
             <option value="text">Text</option>
@@ -304,14 +304,14 @@ export function PdfExtractorTool() {
       </section>
 
       {error ? (
-        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>{error}</p>
         </div>
       ) : null}
 
       {saved ? (
-        <div className="flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 p-4 text-sm text-foreground">
+        <div className="flex items-start gap-2 border border-accent/30 bg-accent/10 p-4 text-sm text-foreground">
           <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
           <div className="min-w-0">
             <p className="font-medium">Saved companion output.</p>
@@ -327,7 +327,7 @@ export function PdfExtractorTool() {
 
       {result ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <section className="min-w-0 rounded-xl border border-border/80 bg-card p-5">
+          <section className="min-w-0 border-y border-foreground/80 bg-card/40 py-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Button
@@ -354,12 +354,12 @@ export function PdfExtractorTool() {
             <textarea
               readOnly
               value={previewText}
-              className="mt-4 min-h-[32rem] w-full resize-y rounded-lg border border-border/80 bg-background p-4 font-mono text-xs leading-relaxed text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+              className="mt-4 min-h-[32rem] w-full resize-y border border-border/80 bg-background p-4 font-mono text-xs leading-relaxed text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
             />
           </section>
 
           <aside className="space-y-4">
-            <section className="rounded-xl border border-border/80 bg-card p-4">
+            <section className="border-t border-foreground/80 pt-4">
               <h3 className="font-heading text-sm font-semibold text-foreground">
                 Diagnostics
               </h3>
@@ -369,7 +369,7 @@ export function PdfExtractorTool() {
                     <div
                       key={`${item.code}-${index}`}
                       className={cn(
-                        "rounded-lg border p-3 text-xs leading-relaxed",
+                        "border p-3 text-xs leading-relaxed",
                         item.level === "error"
                           ? "border-destructive/30 bg-destructive/5 text-destructive"
                           : "border-border/80 bg-background text-muted-foreground",
@@ -378,7 +378,7 @@ export function PdfExtractorTool() {
                       <p className="font-medium text-foreground">{item.code}</p>
                       <p className="mt-1">{item.message}</p>
                       {item.detail ? (
-                        <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/70 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                        <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words bg-background/70 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
                           {item.detail}
                         </pre>
                       ) : null}
@@ -390,7 +390,7 @@ export function PdfExtractorTool() {
               </div>
             </section>
 
-            <section className="rounded-xl border border-border/80 bg-card p-4">
+            <section className="border-t border-foreground/80 pt-4">
               <div className="flex items-center gap-2">
                 <ImageIcon className="size-4 text-muted-foreground" aria-hidden />
                 <h3 className="font-heading text-sm font-semibold text-foreground">
@@ -402,7 +402,7 @@ export function PdfExtractorTool() {
                   result.visualAssets.slice(0, 18).map((asset) => (
                     <div
                       key={`${asset.kind}-${asset.absolutePath}`}
-                      className="rounded-lg border border-border/80 bg-background p-3 text-xs"
+                      className="border border-border/80 bg-background p-3 text-xs"
                     >
                       <p className="font-medium text-foreground">{asset.fileName}</p>
                       <p className="mt-1 text-muted-foreground">
