@@ -337,6 +337,15 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
         "success",
         name === "digest"
           ? "Daily intelligence digest sent."
+          : name === "trends"
+            ? [
+                `${String(result.result?.snapshotCount ?? 0)} trend snapshots refreshed`,
+                result.result?.periodStart && result.result?.periodEnd
+                  ? `${String(result.result.periodStart)} to ${String(result.result.periodEnd)}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
           : [
               `${String(result.result?.discovered ?? 0)} discovered`,
               `${String(result.result?.processed ?? 0)} processed`,
@@ -580,6 +589,13 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                 onClick={() => runAction("discovery", "/api/intelligence/sync", { mode: "discovery", maxMessages: 25 })}
               >
                 <Search className="size-4" /> Discover senders
+              </Button>
+              <Button
+                variant="outline"
+                disabled={data.status !== "ready" || Boolean(action)}
+                onClick={() => runAction("trends", "/api/intelligence/trends")}
+              >
+                <Activity className={cn("size-4", action === "trends" && "animate-pulse")} /> Refresh trends
               </Button>
               <Button
                 disabled={!configurationReady || Boolean(action)}
