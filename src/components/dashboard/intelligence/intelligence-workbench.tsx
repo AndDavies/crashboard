@@ -308,6 +308,8 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     total: number;
     failed: number;
   } | null>(null);
+  const [reprocessConfirmationPending, setReprocessConfirmationPending] =
+    useState(false);
   const fullBackfillStopRef = useRef(false);
   const actionRunningRef = useRef(false);
   const topTrend = data.trends[0];
@@ -371,6 +373,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     body: Record<string, unknown> = {},
   ) {
     if (actionRunningRef.current) return;
+    setReprocessConfirmationPending(false);
     actionRunningRef.current = true;
     setAction(name);
     setFeedback(null);
@@ -491,11 +494,8 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
 
   async function runArchiveReprocess() {
     if (actionRunningRef.current) return;
-    const confirmed = window.confirm(
-      "Rebuild article segments, source identities, and canonical concept facts for the complete Gmail archive? Existing enrichment is preserved. Keep this tab open.",
-    );
-    if (!confirmed) return;
     actionRunningRef.current = true;
+    setReprocessConfirmationPending(false);
     setAction("reprocess");
     setFeedback(null);
     setReprocessProgress({ complete: 0, total: data.coverage.documentCount, failed: 0 });
@@ -798,7 +798,10 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
               <Button
                 variant="outline"
                 disabled={!configurationReady || Boolean(action)}
-                onClick={runArchiveReprocess}
+                onClick={() => {
+                  if (reprocessConfirmationPending) void runArchiveReprocess();
+                  else setReprocessConfirmationPending(true);
+                }}
               >
                 <Sparkles className={cn("size-4", action === "reprocess" && "animate-pulse")} /> Rebuild archive analytics
               </Button>
@@ -828,6 +831,13 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
             {action === "reprocess" && reprocessProgress ? (
               <p className="mt-3 border-t border-border pt-3 text-sm" aria-live="polite">
                 Rebuilding archive analytics · {reprocessProgress.complete} / {reprocessProgress.total} documents visited · {reprocessProgress.failed} failed · keep this tab open
+              </p>
+            ) : null}
+            {reprocessConfirmationPending && !action ? (
+              <p className="mt-3 border-t border-border pt-3 text-sm" aria-live="polite">
+                Rebuild confirmation ready. Existing enrichment is preserved; keep this tab open.
+                Select <strong>Rebuild archive analytics</strong> again to start or select another
+                action to cancel.
               </p>
             ) : null}
             {feedback ? (
