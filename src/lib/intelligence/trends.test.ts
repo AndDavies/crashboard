@@ -100,4 +100,48 @@ describe("window-scoped signal reads", () => {
     expect(rows).toHaveLength(205);
     expect(queryPage.mock.calls.map((call) => call[0].length)).toEqual([100, 100, 5]);
   });
+
+  it("selects resumable historical windows without changing their baseline bounds", () => {
+    const windows: SignalWindow[] = [
+      { windowType: "pulse", periodStart: "2026-07-04", periodEnd: "2026-07-10", baselineStart: "2026-06-06", baselineEnd: "2026-07-03" },
+      { windowType: "operating", periodStart: "2026-06-13", periodEnd: "2026-07-10", baselineStart: "2026-03-21", baselineEnd: "2026-06-12" },
+      { windowType: "strategic", periodStart: "2026-04-12", periodEnd: "2026-07-10", baselineStart: "2026-01-12", baselineEnd: "2026-04-11" },
+      { windowType: "weekly", periodStart: "2026-01-05", periodEnd: "2026-01-11", baselineStart: "2025-12-08", baselineEnd: "2026-01-04" },
+      { windowType: "weekly", periodStart: "2026-01-12", periodEnd: "2026-01-18", baselineStart: "2025-12-15", baselineEnd: "2026-01-11" },
+    ];
+
+    const selection = __testables.selectSignalWindows(windows, {
+      windowOffset: 3,
+      windowLimit: 2,
+    });
+
+    expect(selection.windows.map((window) => window.periodStart)).toEqual([
+      "2026-01-05",
+      "2026-01-12",
+    ]);
+    expect(__testables.signalWindowDataBounds(selection.windows)).toEqual({
+      dataStart: "2025-12-08",
+      dataEnd: "2026-01-18",
+    });
+  });
+
+  it("limits scheduled refreshes to current horizons and the latest completed week", () => {
+    const windows: SignalWindow[] = [
+      { windowType: "pulse", periodStart: "2026-07-04", periodEnd: "2026-07-10", baselineStart: "2026-06-06", baselineEnd: "2026-07-03" },
+      { windowType: "operating", periodStart: "2026-06-13", periodEnd: "2026-07-10", baselineStart: "2026-03-21", baselineEnd: "2026-06-12" },
+      { windowType: "strategic", periodStart: "2026-04-12", periodEnd: "2026-07-10", baselineStart: "2026-01-12", baselineEnd: "2026-04-11" },
+      { windowType: "weekly", periodStart: "2026-01-05", periodEnd: "2026-01-11", baselineStart: "2025-12-08", baselineEnd: "2026-01-04" },
+      { windowType: "weekly", periodStart: "2026-06-29", periodEnd: "2026-07-05", baselineStart: "2026-06-01", baselineEnd: "2026-06-28" },
+    ];
+
+    const selection = __testables.selectSignalWindows(windows, { currentWindowsOnly: true });
+
+    expect(selection.windows.map((window) => window.windowType)).toEqual([
+      "pulse",
+      "operating",
+      "strategic",
+      "weekly",
+    ]);
+    expect(selection.windows.at(-1)?.periodStart).toBe("2026-06-29");
+  });
 });

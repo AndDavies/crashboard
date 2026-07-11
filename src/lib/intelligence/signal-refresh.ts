@@ -139,6 +139,32 @@ type SignalRefreshOptions = {
   currentWindowsOnly?: boolean;
 };
 
+function selectSignalWindows(
+  allWindows: SignalWindow[],
+  options: SignalRefreshOptions,
+) {
+  const selectableWindows = options.currentWindowsOnly
+    ? [
+        ...allWindows.filter((window) => window.windowType !== "weekly"),
+        ...allWindows.filter((window) => window.windowType === "weekly").slice(-1),
+      ]
+    : allWindows;
+  const windowOffset = Math.max(0, Math.floor(options.windowOffset ?? 0));
+  const windowLimit = Math.max(1, Math.floor(options.windowLimit ?? selectableWindows.length));
+  return {
+    selectableWindows,
+    windowOffset,
+    windows: selectableWindows.slice(windowOffset, windowOffset + windowLimit),
+  };
+}
+
+function signalWindowDataBounds(windows: SignalWindow[]) {
+  return {
+    dataStart: windows.map((window) => window.baselineStart).sort()[0]!,
+    dataEnd: windows.map((window) => window.periodEnd).sort().at(-1)!,
+  };
+}
+
 async function fetchAllRows<T>(
   queryPage: (from: number, to: number) => PromiseLike<QueryResult<T>>,
 ) {
@@ -335,20 +361,11 @@ export async function refreshSignalSnapshots(
     .map((document) => document.dateKey)
     .sort()[0]!;
   const allWindows = buildSignalWindows({ earliestDateKey, anchor });
-  const selectableWindows = options.currentWindowsOnly
-    ? [
-        ...allWindows.filter((window) => window.windowType !== "weekly"),
-        ...allWindows.filter((window) => window.windowType === "weekly").slice(-1),
-      ]
-    : allWindows;
-  const windowOffset = Math.max(0, Math.floor(options.windowOffset ?? 0));
-  const windowLimit = Math.max(1, Math.floor(options.windowLimit ?? selectableWindows.length));
-  const windows = selectableWindows.slice(windowOffset, windowOffset + windowLimit);
+  const { selectableWindows, windowOffset, windows } = selectSignalWindows(allWindows, options);
   if (!windows.length) {
     throw new Error("No signal windows remain at the requested checkpoint.");
   }
-  const dataStart = windows.map((window) => window.baselineStart).sort()[0]!;
-  const dataEnd = windows.map((window) => window.periodEnd).sort().at(-1)!;
+  const { dataStart, dataEnd } = signalWindowDataBounds(windows);
   for (const [documentId, document] of documentById) {
     if (!withinDateWindow(document.dateKey, dataStart, dataEnd)) {
       documentById.delete(documentId);
@@ -909,4 +926,6 @@ export const __testables = {
   fetchAllRowsForIds,
   filterActions,
   replaceSignalSnapshotPeriod,
+  selectSignalWindows,
+  signalWindowDataBounds,
 };
