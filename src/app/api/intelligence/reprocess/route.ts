@@ -13,9 +13,29 @@ export async function POST(request: Request) {
   try {
     const ownerId = (await requireDashboardUser()).id;
     const body = (await request.json().catch(() => ({}))) as { offset?: number; limit?: number };
-    const offset = Math.max(0, Math.floor(Number(body.offset ?? 0)));
+    const requestedOffset = Math.max(0, Math.floor(Number(body.offset ?? 0)));
+    let offset = requestedOffset;
     const limit = Math.max(1, Math.min(50, Math.floor(Number(body.limit ?? 25))));
     const admin = createAdminClient();
+    if (requestedOffset === 0) {
+      const previous = await admin
+        .from("intelligence_runs")
+        .select("checkpoint_after")
+        .eq("owner_id", ownerId)
+        .eq("run_type", "reprocess")
+        .in("status", ["completed", "partial"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (previous.error) throw new Error(previous.error.message);
+      const checkpoint = (previous.data?.checkpoint_after ?? {}) as {
+        has_more?: boolean;
+        next_offset?: number;
+      };
+      if (checkpoint.has_more && Number(checkpoint.next_offset) > 0) {
+        offset = Number(checkpoint.next_offset);
+      }
+    }
     const source = await getGmailSource(admin, ownerId);
     if (!source) return NextResponse.json({ error: "Connect Gmail before reprocessing." }, { status: 409 });
     const { accessToken } = await gmailAccessTokenForSource(source);
