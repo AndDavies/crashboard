@@ -34,6 +34,15 @@ export async function POST(request: Request) {
       };
       if (checkpoint.has_more && Number(checkpoint.next_offset) > 0) {
         offset = Number(checkpoint.next_offset);
+      } else if (Number(checkpoint.next_offset) > 0) {
+        const missing = await admin
+          .from("documents")
+          .select("id", { count: "exact", head: true })
+          .eq("owner_id", ownerId)
+          .eq("source_type", "email_newsletter")
+          .is("analytics_ready_at", null);
+        if (missing.error) throw new Error(missing.error.message);
+        if (Number(missing.count ?? 0) > 0) offset = Number(checkpoint.next_offset);
       }
     }
     const source = await getGmailSource(admin, ownerId);
