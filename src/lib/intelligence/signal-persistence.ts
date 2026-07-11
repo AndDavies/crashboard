@@ -77,11 +77,11 @@ function descriptorFromExtracted(concept: IntelligenceExtractedConcept): Concept
   const canonical = canonicalizeExtractedConcept(concept);
   return {
     conceptType: canonical.conceptType,
-    canonicalLabel: canonical.canonicalLabel,
+    canonicalLabel: stripControlCharacters(canonical.canonicalLabel).trim(),
     normalizedKey: normalizeConceptKey(canonical.canonicalLabel),
-    domain: canonical.domain,
-    subdomain: canonical.subdomain,
-    aliases: canonical.aliases,
+    domain: stripControlCharacters(canonical.domain).trim(),
+    subdomain: stripControlCharacters(canonical.subdomain).trim(),
+    aliases: canonical.aliases.map((alias) => stripControlCharacters(alias).trim()).filter(Boolean),
     description: "",
     source: "model",
     confidence: canonical.confidence,
@@ -99,6 +99,16 @@ function stringValues(value: unknown) {
         .map((item) => stripControlCharacters(item).trim())
         .filter(Boolean)
     : [];
+}
+
+function safeEvidenceText(value: string) {
+  return stripControlCharacters(value).trim() || null;
+}
+
+function safeStringList(values: string[]) {
+  return values
+    .map((value) => stripControlCharacters(value).trim())
+    .filter(Boolean);
 }
 
 export async function persistSourceIdentity(
@@ -359,8 +369,8 @@ export async function persistConceptGraph(
       source: "rule",
       mention_count: mention.mentionCount,
       confidence: 0.98,
-      evidence_text: mention.evidenceText || null,
-      surface_forms: mention.surfaceForms,
+      evidence_text: safeEvidenceText(mention.evidenceText),
+      surface_forms: safeStringList(mention.surfaceForms),
       extraction_version: INTELLIGENCE_CONCEPT_EXTRACTION_VERSION,
       metadata: {},
       updated_at: new Date().toISOString(),
@@ -381,10 +391,13 @@ export async function persistConceptGraph(
       source: "model",
       mention_count: 1,
       confidence: concept.confidence,
-      evidence_text: concept.evidenceText || null,
-      surface_forms: [concept.canonicalLabel, ...concept.aliases],
+      evidence_text: safeEvidenceText(concept.evidenceText),
+      surface_forms: safeStringList([concept.canonicalLabel, ...concept.aliases]),
       extraction_version: INTELLIGENCE_CONCEPT_EXTRACTION_VERSION,
-      metadata: { domain: concept.domain, subdomain: concept.subdomain },
+      metadata: {
+        domain: stripControlCharacters(concept.domain).trim(),
+        subdomain: stripControlCharacters(concept.subdomain).trim(),
+      },
       updated_at: new Date().toISOString(),
     });
   }
@@ -458,6 +471,8 @@ export async function persistConceptGraph(
 
 export const __testables = {
   descriptorFromCurated,
+  safeEvidenceText,
+  safeStringList,
   descriptorFromExtracted,
   descriptorKey,
   stringValues,
