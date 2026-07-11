@@ -47,6 +47,7 @@ export function ArchiveReprocessControl() {
       try {
         await runBatchedTrendRefresh({
           runBatch: (body) => post("/api/intelligence/trends", body),
+          rebuildRelationships: true,
         });
         setResult(
           `Archive materialization complete: ${offset} documents visited, ${failed} batch failures, ${remainingMissing} records still missing analytics. Relationships and trend snapshots refreshed.`,

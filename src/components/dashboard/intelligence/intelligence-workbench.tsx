@@ -108,9 +108,10 @@ async function postAction(
   return payload;
 }
 
-async function refreshAllTrendWindows() {
+async function refreshAllTrendWindows(rebuildRelationships = false) {
   return runBatchedTrendRefresh({
     runBatch: async (body) => (await postAction("/api/intelligence/trends", body)).result ?? {},
+    rebuildRelationships,
   });
 }
 
@@ -499,7 +500,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
           `Full backfill stopped safely after ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · checkpoint saved. Run Full Backfill again to resume.`,
         );
       } else {
-        await refreshAllTrendWindows();
+        await refreshAllTrendWindows(true);
         saveFeedback(
           "success",
           `Full backfill complete · ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · ${result.excluded} excluded · ${result.deadLettered} dead-lettered · checkpoint complete · trend analytics refreshed.`,
@@ -541,7 +542,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
         setReprocessProgress({ complete: offset, total, failed });
         if (!result.hasMore) break;
       }
-      await refreshAllTrendWindows();
+      await refreshAllTrendWindows(true);
       saveFeedback(
         failed ? "error" : "success",
         `Archive analytics rebuilt · ${offset} documents visited · ${failed} failed · source identities, article segments, concepts, relationships, and trend snapshots refreshed.`,

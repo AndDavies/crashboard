@@ -14,6 +14,7 @@ export type TrendRefreshProgress = {
 export async function runBatchedTrendRefresh(input: {
   runBatch: (body: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onProgress?: (progress: TrendRefreshProgress) => void;
+  rebuildRelationships?: boolean;
 }) {
   let cursor = 0;
   let snapshotCount = 0;
@@ -22,7 +23,7 @@ export async function runBatchedTrendRefresh(input: {
     const raw = await input.runBatch({
       cursor,
       limit: 1,
-      rebuildRelationships: cursor === 0,
+      rebuildRelationships: cursor === 0 && Boolean(input.rebuildRelationships),
     });
     const batch: TrendRefreshBatch = {
       snapshotCount: Number(raw.snapshotCount ?? 0),

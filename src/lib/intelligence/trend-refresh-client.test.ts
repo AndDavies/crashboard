@@ -14,7 +14,11 @@ describe("batched trend refresh", () => {
     });
     const onProgress = vi.fn();
 
-    await expect(runBatchedTrendRefresh({ runBatch, onProgress })).resolves.toEqual({
+    await expect(runBatchedTrendRefresh({
+      runBatch,
+      onProgress,
+      rebuildRelationships: true,
+    })).resolves.toEqual({
       complete: 3,
       total: 3,
       snapshotCount: 33,
@@ -23,6 +27,19 @@ describe("batched trend refresh", () => {
     expect(runBatch.mock.calls[0]?.[0]).toMatchObject({ rebuildRelationships: true });
     expect(runBatch.mock.calls[1]?.[0]).toMatchObject({ rebuildRelationships: false });
     expect(onProgress).toHaveBeenLastCalledWith({ complete: 3, total: 3, snapshotCount: 33 });
+  });
+
+  it("skips relationship materialization for routine signal refreshes", async () => {
+    const runBatch = vi.fn(async () => ({
+      snapshotCount: 3,
+      nextWindowOffset: 1,
+      totalWindowCount: 1,
+      hasMore: false,
+    }));
+
+    await runBatchedTrendRefresh({ runBatch });
+
+    expect(runBatch).toHaveBeenCalledWith(expect.objectContaining({ rebuildRelationships: false }));
   });
 
   it("rejects a batch that cannot advance", async () => {
