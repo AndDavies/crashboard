@@ -316,9 +316,12 @@ export async function persistConceptGraph(
   const aliasRows = descriptorList.flatMap((descriptor) => {
     const conceptId = conceptIdByKey.get(descriptorKey(descriptor));
     if (!conceptId) return [];
-    return [...new Set([descriptor.canonicalLabel, ...descriptor.aliases])]
+    return [...new Map(
+      [descriptor.canonicalLabel, ...descriptor.aliases]
       .map((alias) => ({ alias: alias.trim(), normalizedAlias: normalizeConceptKey(alias) }))
       .filter((alias) => alias.alias && alias.normalizedAlias)
+      .map((alias) => [alias.normalizedAlias, alias]),
+    ).values()]
       .map((alias) => ({
         owner_id: document.ownerId,
         concept_id: conceptId,
@@ -396,7 +399,7 @@ export async function persistConceptGraph(
     if (insertFacts.error) throw new Error(insertFacts.error.message);
   }
 
-  const eventRows = linkedEvents.flatMap((event) =>
+  const eventRows = [...new Map(linkedEvents.flatMap((event) =>
     event.themes.flatMap((theme) => {
       const curated = resolveCuratedConcept(theme);
       if (!curated) return [];
@@ -417,7 +420,7 @@ export async function persistConceptGraph(
         updated_at: new Date().toISOString(),
       }];
     }),
-  );
+  ).map((row) => [row.association_key, row])).values()];
   const eventIds = linkedEvents.map((event) => event.id);
   if (eventIds.length) {
     const removeEventFacts = await admin
