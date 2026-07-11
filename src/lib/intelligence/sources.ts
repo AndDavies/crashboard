@@ -1,4 +1,5 @@
 import { normalizeConceptKey } from "@/lib/intelligence/concepts";
+import { stripControlCharacters } from "@/lib/ingestion/normalize";
 import type { IntelligenceDocumentEnvelope } from "@/lib/intelligence/types";
 
 const FAMILY_RULES: Array<{ pattern: RegExp; family: string }> = [
@@ -10,13 +11,15 @@ const FAMILY_RULES: Array<{ pattern: RegExp; family: string }> = [
 ];
 
 export function sourceFamilyName(value: string) {
-  const cleaned = value.trim() || "Unknown source";
+  const cleaned = stripControlCharacters(value).trim() || "Unknown source";
   return FAMILY_RULES.find((rule) => rule.pattern.test(cleaned))?.family ?? cleaned;
 }
 
 export function sourceIdentityDescriptor(document: IntelligenceDocumentEnvelope) {
   const canonicalName =
-    document.publisherName?.trim() || document.authorName?.trim() || "Unknown source";
+    (document.publisherName ? stripControlCharacters(document.publisherName).trim() : "") ||
+    (document.authorName ? stripControlCharacters(document.authorName).trim() : "") ||
+    "Unknown source";
   const family = sourceFamilyName(canonicalName);
   const authorityTier =
     document.sourceType === "official_release" || document.sourceType === "procurement_notice"
@@ -28,7 +31,7 @@ export function sourceIdentityDescriptor(document: IntelligenceDocumentEnvelope)
           : "specialist";
   const senderEmail =
     typeof document.metadata?.sender_email === "string"
-      ? document.metadata.sender_email.trim().toLowerCase()
+      ? stripControlCharacters(document.metadata.sender_email).trim().toLowerCase()
       : null;
   const normalizedName =
     normalizeConceptKey(canonicalName) ||
@@ -42,7 +45,10 @@ export function sourceIdentityDescriptor(document: IntelligenceDocumentEnvelope)
     normalizedName,
     sourceFamily: family,
     normalizedFamily,
-    externalKey: senderEmail || document.sourceChannel?.trim() || null,
+    externalKey:
+      senderEmail ||
+      (document.sourceChannel ? stripControlCharacters(document.sourceChannel).trim() : "") ||
+      null,
     authorityTier,
   };
 }

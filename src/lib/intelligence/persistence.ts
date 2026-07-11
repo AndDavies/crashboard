@@ -68,7 +68,11 @@ export type PersistIntelligenceResult = {
 };
 
 function cleanUrl(value: string | null | undefined) {
-  return value?.trim() || null;
+  return value ? stripControlCharacters(value).trim() || null : null;
+}
+
+function cleanString(value: string | null | undefined) {
+  return value ? stripControlCharacters(value).trim() || null : null;
 }
 
 function hostname(value: string | null | undefined) {
@@ -1013,9 +1017,10 @@ export async function persistIntelligenceDocument(
   if (!normalizedContent) throw new Error("Cannot persist an empty intelligence document.");
 
   const canonicalUrl = cleanUrl(document.canonicalUrl);
-  const originalUrl = document.originalUrl.trim();
+  const originalUrl = cleanUrl(document.originalUrl) ?? "";
+  const externalId = cleanString(document.externalId) ?? document.externalId;
   const contentHash = sha256Hex(normalizedContent);
-  const canonicalKey = `${document.sourceType}:${document.externalId}`;
+  const canonicalKey = `${document.sourceType}:${externalId}`;
   const [existing, sourceIdentityId] = await Promise.all([
     admin
       .from("documents")
@@ -1024,7 +1029,7 @@ export async function persistIntelligenceDocument(
       )
       .eq("owner_id", document.ownerId)
       .eq("source_type", document.sourceType)
-      .eq("external_id", document.externalId)
+      .eq("external_id", externalId)
       .maybeSingle(),
     persistSourceIdentity(admin, document),
   ]);
@@ -1062,22 +1067,22 @@ export async function persistIntelligenceDocument(
   const row = {
     owner_id: document.ownerId,
     source_type: document.sourceType,
-    source_channel: document.sourceChannel?.trim() || null,
+    source_channel: cleanString(document.sourceChannel),
     source_identity_id: sourceIdentityId,
     original_url: originalUrl,
     canonical_url: canonicalUrl,
     url_host: hostname(canonicalUrl ?? originalUrl),
-    external_id: document.externalId,
-    title: document.title?.trim() || null,
-    author_name: document.authorName?.trim() || null,
-    publisher_name: document.publisherName?.trim() || null,
-    language: document.language?.trim() || null,
+    external_id: externalId,
+    title: cleanString(document.title),
+    author_name: cleanString(document.authorName),
+    publisher_name: cleanString(document.publisherName),
+    language: cleanString(document.language),
     published_at: document.publishedAt || null,
     content_text: normalizedContent,
     summary_short:
       options.extraction?.documentSummary ??
       (preserveExistingEnrichment ? existing.data?.summary_short : null) ??
-      document.summaryShort?.trim() ??
+      cleanString(document.summaryShort) ??
       null,
     ingestion_status: "ready",
     extraction_method: options.extraction
