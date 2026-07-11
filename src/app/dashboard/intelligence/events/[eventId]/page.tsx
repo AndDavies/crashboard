@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { EVENT_TYPE_LABELS } from "@/lib/intelligence/taxonomy";
 import { getIntelligenceEvent } from "@/lib/intelligence/data";
@@ -39,16 +40,15 @@ export default async function IntelligenceEventPage({ params }: { params: Promis
           <div className="border-b border-foreground/80 pb-3"><p className="editorial-kicker">Evidence chain</p><h2 className="mt-1 font-heading text-2xl font-semibold">Supporting sources</h2></div>
           <div className="border-x border-b border-border">
             {result.evidence.map((row, index) => {
-              const evidence = row as unknown as { evidence_role: string; evidence_text: string | null; documents: Record<string, unknown> | null };
+              const evidence = row as unknown as { document_id: string; evidence_role: string; evidence_text: string | null; documents: Record<string, unknown> | null };
               const document = evidence.documents ?? {};
-              const url = String(document.canonical_url ?? document.original_url ?? "#");
               return (
-                <a key={`${evidence.evidence_role}-${index}`} href={url} target="_blank" rel="noopener noreferrer" className="block border-t border-border bg-card px-4 py-4 hover:bg-muted/50">
+                <Link key={`${evidence.evidence_role}-${index}`} href={`/dashboard/intelligence/documents/${String(evidence.document_id)}`} className="block border-t border-border bg-card px-4 py-4 hover:bg-muted/50">
                   <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{evidence.evidence_role.replaceAll("_", " ")}</Badge>{document.publisher_name ? <span className="text-xs text-muted-foreground">{String(document.publisher_name)}</span> : null}</div>
                   <h3 className="mt-2 font-heading text-lg font-semibold">{String(document.title ?? "Untitled source")}</h3>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">{evidence.evidence_text ?? String(document.summary_short ?? "")}</p>
                   {document.published_at ? <p className="mt-2 font-mono text-xs text-muted-foreground">{String(document.published_at).slice(0, 10)}</p> : null}
-                </a>
+                </Link>
               );
             })}
           </div>

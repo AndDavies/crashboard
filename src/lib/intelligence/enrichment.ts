@@ -2,11 +2,13 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import {
+  INTELLIGENCE_CONCEPT_TYPES,
   INTELLIGENCE_ENTITY_TYPES,
   INTELLIGENCE_EVENT_TYPES,
   type IntelligenceDocumentEnvelope,
   type IntelligenceExtraction,
 } from "@/lib/intelligence/types";
+import { canonicalizeExtractedConcept } from "@/lib/intelligence/concepts";
 import {
   classifyCandidateEventTypes,
   hasDefenceRelevance,
@@ -14,6 +16,7 @@ import {
 
 export const INTELLIGENCE_EXTRACTION_MODEL =
   process.env.OPENAI_INTELLIGENCE_EXTRACTION_MODEL?.trim() || "gpt-5.4-mini";
+export const INTELLIGENCE_EXTRACTION_VERSION = "intelligence-v2";
 export const INTELLIGENCE_EMBEDDING_MODEL =
   process.env.OPENAI_INTELLIGENCE_EMBEDDING_MODEL?.trim() ||
   "text-embedding-3-small";
@@ -47,6 +50,18 @@ const EntitySchema = z
     role: z.string().max(120),
     countryCode: z.string().max(3),
     aliases: z.array(z.string().min(1).max(240)).max(8),
+    confidence: z.number().min(0).max(1),
+    evidenceText: z.string().max(500),
+  })
+  .strict();
+
+const ConceptSchema = z
+  .object({
+    conceptType: z.enum(INTELLIGENCE_CONCEPT_TYPES),
+    canonicalLabel: z.string().min(1).max(120),
+    domain: z.string().min(1).max(80),
+    subdomain: z.string().max(100),
+    aliases: z.array(z.string().min(1).max(120)).max(12),
     confidence: z.number().min(0).max(1),
     evidenceText: z.string().max(500),
   })
@@ -92,6 +107,7 @@ export const IntelligenceExtractionSchema = z
     primaryDomain: z.string().min(1).max(100),
     themes: z.array(z.string().min(1).max(100)).max(20),
     noveltySignals: z.array(z.string().min(1).max(240)).max(12),
+    concepts: z.array(ConceptSchema).max(40),
     events: z.array(EventSchema).max(12),
     entities: z.array(EntitySchema).max(50),
     qualityFlags: z.array(z.string().min(1).max(180)).max(12),
@@ -173,6 +189,7 @@ function normalizeExtraction(value: IntelligenceExtraction): IntelligenceExtract
     ...value,
     themes: [...new Set(value.themes.map((theme) => theme.trim()).filter(Boolean))],
     noveltySignals: [...new Set(value.noveltySignals.map((item) => item.trim()).filter(Boolean))],
+    concepts: value.concepts.map(canonicalizeExtractedConcept),
     events: value.events.map((event) => ({
       ...event,
       occurredAt: nullableDate(event.occurredAt),
@@ -217,6 +234,8 @@ Rules:
 - Use empty strings and zero for unknown optional scalar values.
 - Evidence text must be a short paraphrase, not a long quotation.
 - Prefer canonical organization, agency, program, system, technology, sector, geography, alliance, and person names.
+- Return concise canonical concepts for decision-relevant keywords, phrases, themes, and capabilities. Map acronyms and synonyms to one canonical label; do not return newsletter names, navigation, promotions, or boilerplate as concepts.
+- Use broad domains such as AI, Cybersecurity, Defence, Business, Health, Space, Energy, or Policy, plus a useful subdomain.
 - Mark defence relevance only for military, national-security, dual-use, allied capability, or defence-industrial implications.
 - Mark Canada/allied relevance for Canada, NATO, NORAD, Five Eyes, or material allied implications.
 - Confidence reflects extraction certainty; evidence quality reflects source authority and specificity.

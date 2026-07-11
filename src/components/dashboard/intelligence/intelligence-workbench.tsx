@@ -303,6 +303,11 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
   const [fullBackfillProgress, setFullBackfillProgress] =
     useState<FullBackfillProgress | null>(null);
   const [fullBackfillStopRequested, setFullBackfillStopRequested] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState<{
+    complete: number;
+    total: number;
+    failed: number;
+  } | null>(null);
   const fullBackfillStopRef = useRef(false);
   const actionRunningRef = useRef(false);
   const topTrend = data.trends[0];
@@ -310,6 +315,12 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     ? Math.max(
         0,
         Math.round((Date.now() - new Date(data.coverage.lastSyncedAt).getTime()) / 3_600_000),
+      )
+    : null;
+  const analyticsFreshness = data.coverage.analyticsComputedAt
+    ? Math.max(
+        0,
+        Math.round((Date.now() - new Date(data.coverage.analyticsComputedAt).getTime()) / 3_600_000),
       )
     : null;
 
@@ -455,9 +466,10 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
           `Full backfill stopped safely after ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · checkpoint saved. Run Full Backfill again to resume.`,
         );
       } else {
+        await postAction("/api/intelligence/trends");
         saveFeedback(
           "success",
-          `Full backfill complete · ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · ${result.excluded} excluded · ${result.deadLettered} dead-lettered · checkpoint complete. Refresh trends to recompute analytics.`,
+          `Full backfill complete · ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · ${result.excluded} excluded · ${result.deadLettered} dead-lettered · checkpoint complete · trend analytics refreshed.`,
         );
       }
     } catch (error) {
@@ -473,6 +485,46 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
       setFullBackfillStopRequested(false);
       setFullBackfillProgress(null);
       setAction(null);
+      router.refresh();
+    }
+  }
+
+  async function runArchiveReprocess() {
+    if (actionRunningRef.current) return;
+    const confirmed = window.confirm(
+      "Rebuild article segments, source identities, and canonical concept facts for the complete Gmail archive? Existing enrichment is preserved. Keep this tab open.",
+    );
+    if (!confirmed) return;
+    actionRunningRef.current = true;
+    setAction("reprocess");
+    setFeedback(null);
+    setReprocessProgress({ complete: 0, total: data.coverage.documentCount, failed: 0 });
+    let offset = 0;
+    let failed = 0;
+    try {
+      while (true) {
+        const response = await postAction("/api/intelligence/reprocess", { offset, limit: 25 });
+        const result = response.result ?? {};
+        offset = Number(result.nextOffset ?? offset);
+        failed += Number(result.failed ?? 0);
+        const total = Number(result.total ?? data.coverage.documentCount);
+        setReprocessProgress({ complete: offset, total, failed });
+        if (!result.hasMore) break;
+      }
+      await postAction("/api/intelligence/trends");
+      saveFeedback(
+        failed ? "error" : "success",
+        `Archive analytics rebuilt · ${offset} documents visited · ${failed} failed · source identities, article segments, concepts, relationships, and trend snapshots refreshed.`,
+      );
+    } catch (error) {
+      saveFeedback(
+        "error",
+        `Archive reprocessing paused at ${offset} documents · ${error instanceof Error ? error.message : "Action failed."}`,
+      );
+    } finally {
+      actionRunningRef.current = false;
+      setAction(null);
+      setReprocessProgress(null);
       router.refresh();
     }
   }
@@ -496,6 +548,9 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
             <Button variant="outline" nativeButton={false} render={<Link href="/dashboard/intelligence/explorer" />}>
               <Search className="size-4" /> Explore evidence
             </Button>
+            <Button variant="outline" nativeButton={false} render={<Link href="/dashboard/intelligence/trends" />}>
+              <Activity className="size-4" /> Explore trends
+            </Button>
             <Button variant="outline" nativeButton={false} render={<Link href="/dashboard/intelligence/defence" />}>
               <Shield className="size-4" /> Defence view
             </Button>
@@ -508,7 +563,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
 
       <SetupState data={data} />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <MetricCard
           label="Source documents"
           value={compactNumber(data.coverage.documentCount)}
@@ -534,10 +589,16 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
           icon={Activity}
         />
         <MetricCard
-          label="Freshness"
+          label="Source freshness"
           value={freshness === null ? "—" : `${freshness}h`}
           detail={readableDate(data.coverage.lastSyncedAt)}
           icon={RefreshCw}
+        />
+        <MetricCard
+          label="Analytics freshness"
+          value={analyticsFreshness === null ? "—" : `${analyticsFreshness}h`}
+          detail={readableDate(data.coverage.analyticsComputedAt)}
+          icon={Activity}
         />
       </section>
 
@@ -562,7 +623,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
           <CardContent className="space-y-4">
             {data.trends.length ? (
               data.trends.slice(0, 7).map((trend) => (
-                <div key={trend.key} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+                <Link href={`/dashboard/intelligence/trends/${encodeURIComponent(trend.key)}`} key={trend.key} className="block border-t border-border pt-3 first:border-t-0 first:pt-0 hover:text-accent">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -578,7 +639,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                   <div className="mt-2 h-1.5 bg-muted">
                     <div className="h-full bg-accent" style={{ width: `${trend.strength}%` }} />
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <p className="py-12 text-center text-sm text-muted-foreground">
@@ -735,6 +796,13 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                 <Activity className={cn("size-4", action === "trends" && "animate-pulse")} /> Refresh trends
               </Button>
               <Button
+                variant="outline"
+                disabled={!configurationReady || Boolean(action)}
+                onClick={runArchiveReprocess}
+              >
+                <Sparkles className={cn("size-4", action === "reprocess" && "animate-pulse")} /> Rebuild archive analytics
+              </Button>
+              <Button
                 disabled={!configurationReady || Boolean(action)}
                 onClick={() => runAction("digest", "/api/intelligence/digest")}
               >
@@ -755,6 +823,11 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
                     {fullBackfillProgress.deadLettered} dead-lettered · keep this tab open
                   </>
                 )}
+              </p>
+            ) : null}
+            {action === "reprocess" && reprocessProgress ? (
+              <p className="mt-3 border-t border-border pt-3 text-sm" aria-live="polite">
+                Rebuilding archive analytics · {reprocessProgress.complete} / {reprocessProgress.total} documents visited · {reprocessProgress.failed} failed · keep this tab open
               </p>
             ) : null}
             {feedback ? (

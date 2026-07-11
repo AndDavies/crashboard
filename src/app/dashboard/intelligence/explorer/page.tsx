@@ -43,14 +43,11 @@ export default async function IntelligenceExplorerPage({
           </div>
           <div className="border-x border-b border-border">
             {results.length ? results.map((row) => {
-              const url = String(row.canonical_url ?? row.original_url ?? "#");
               const matchTypes = row.match_types as string[];
               return (
-                <a
+                <Link
                   key={String(row.document_id ?? row.id)}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/dashboard/intelligence/documents/${String(row.document_id ?? row.id)}`}
                   className="block border-t border-border bg-card px-4 py-4 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -64,7 +61,7 @@ export default async function IntelligenceExplorerPage({
                     {row.publisher_name ? <span>{String(row.publisher_name)}</span> : null}
                     {row.published_at ? <span>{String(row.published_at).slice(0, 10)}</span> : null}
                   </div>
-                </a>
+                </Link>
               );
             }) : (
               <div className="border-t border-border px-6 py-16 text-center text-sm text-muted-foreground">

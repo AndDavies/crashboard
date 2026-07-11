@@ -3,6 +3,7 @@ import {
   Activity,
   Database,
   FileText,
+  LineChart,
   Search,
   Shield,
   Wrench,
@@ -37,6 +38,7 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
     defaultOpen: true,
     items: [
       { title: "Overview", href: "/dashboard/intelligence", icon: Activity },
+      { title: "Trends", href: "/dashboard/intelligence/trends", icon: LineChart },
       { title: "Explorer", href: "/dashboard/intelligence/explorer", icon: Search },
       { title: "Defence", href: "/dashboard/intelligence/defence", icon: Shield },
       { title: "Operations", href: "/dashboard/intelligence/operations", icon: Database },
@@ -72,13 +74,13 @@ export function flattenDashboardNav(): DashboardNavLeaf[] {
 }
 
 export function findNavTitleForPath(pathname: string): string | null {
-  for (const group of dashboardNavGroups) {
-    for (const item of group.items) {
-      if (item.href === pathname) return item.title;
-      if (pathname.startsWith(`${item.href}/`)) return item.title;
-    }
-  }
-  return null;
+  return (
+    flattenDashboardNav()
+      .filter(
+        (item) => item.href === pathname || pathname.startsWith(`${item.href}/`),
+      )
+      .sort((a, b) => b.href.length - a.href.length)[0]?.title ?? null
+  );
 }
 
 export type BreadcrumbItem = { label: string; href: string };
@@ -93,8 +95,8 @@ export function getDashboardBreadcrumbs(pathname: string): BreadcrumbItem[] {
   let acc = "/dashboard";
   for (let i = 1; i < parts.length; i++) {
     acc += `/${parts[i]}`;
-    const label =
-      findNavTitleForPath(acc) ??
+    const exact = flattenDashboardNav().find((item) => item.href === acc);
+    const label = exact?.title ??
       parts[i]!.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     crumbs.push({ label, href: acc });
   }

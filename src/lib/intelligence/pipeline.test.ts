@@ -47,6 +47,8 @@ describe("processIntelligenceDocument", () => {
       embeddingPersisted: null,
       eventIds: [],
       entityIds: [],
+      segmentIds: [],
+      conceptIds: [],
     });
   });
 
@@ -101,6 +103,8 @@ describe("processIntelligenceDocument", () => {
         embeddingPersisted: null,
         eventIds: [],
         entityIds: [],
+        segmentIds: [],
+        conceptIds: [],
       })
       .mockResolvedValueOnce({
         documentId: "document-1",
@@ -108,6 +112,8 @@ describe("processIntelligenceDocument", () => {
         embeddingPersisted: true,
         eventIds: [],
         entityIds: [],
+        segmentIds: [],
+        conceptIds: [],
       });
 
     await expect(

@@ -1,5 +1,13 @@
 import sanitizeHtml from "sanitize-html";
 import type { IntelligenceDocumentEnvelope } from "@/lib/intelligence/types";
+import {
+  chooseCanonicalSourceUrl,
+  extractHttpLinks,
+} from "@/lib/intelligence/source-url";
+import {
+  INTELLIGENCE_SEGMENT_PARSER_VERSION,
+  segmentNewsletterContent,
+} from "@/lib/intelligence/segments";
 
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -243,19 +251,11 @@ function htmlToText(html: string) {
 }
 
 function externalLinks(html: string) {
-  const matches = [...html.matchAll(/href=["'](https?:\/\/[^"']+)["']/giu)];
-  return [...new Set(matches.map((match) => match[1].replace(/&amp;/g, "&")))].slice(0, 100);
+  return extractHttpLinks(html).slice(0, 100);
 }
 
 function likelyCanonicalLink(links: string[]) {
-  return (
-    links.find((link) => {
-      const lower = link.toLowerCase();
-      return !/(unsubscribe|preferences|mailto:|facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com)/u.test(
-        lower,
-      );
-    }) ?? null
-  );
+  return chooseCanonicalSourceUrl(links);
 }
 
 export function gmailMessageToEnvelope(
@@ -267,8 +267,9 @@ export function gmailMessageToEnvelope(
   const bodies = { plain: [] as string[], html: [] as string[] };
   collectBodies(message.payload, bodies);
   const html = bodies.html.join("\n");
+  const plainText = bodies.plain.join("\n").replace(/\s+/g, " ").trim();
   const contentText =
-    bodies.plain.join("\n").replace(/\s+/g, " ").trim() ||
+    plainText ||
     htmlToText(html) ||
     message.snippet?.trim() ||
     "[No readable body content]";
@@ -277,14 +278,22 @@ export function gmailMessageToEnvelope(
   const publishedAt = Number.isFinite(internalDate)
     ? new Date(internalDate).toISOString()
     : isoDateOrNull(headerMap.get("date"));
+  const title = headerMap.get("subject") ?? "Untitled newsletter";
+  const canonicalUrl = likelyCanonicalLink(links);
+  const segments = segmentNewsletterContent({
+    html,
+    plainText: contentText,
+    fallbackTitle: title,
+    fallbackCanonicalUrl: canonicalUrl,
+  });
 
   return {
     ownerId,
     sourceType: "email_newsletter",
     externalId: message.id,
     originalUrl: `https://mail.google.com/mail/u/0/#all/${message.id}`,
-    canonicalUrl: likelyCanonicalLink(links),
-    title: headerMap.get("subject") ?? "Untitled newsletter",
+    canonicalUrl,
+    title,
     authorName: senderName(from),
     publisherName: senderName(from),
     language: "en",
@@ -293,12 +302,15 @@ export function gmailMessageToEnvelope(
     summaryShort: message.snippet ?? null,
     sourceChannel: "gmail",
     labels: message.labelIds ?? [],
+    segments,
     metadata: {
       gmail_thread_id: message.threadId ?? null,
       sender_email: senderEmail(from),
       list_unsubscribe: headerMap.get("list-unsubscribe") ?? null,
       precedence: headerMap.get("precedence") ?? null,
       extracted_links: links,
+      segment_parser_version: INTELLIGENCE_SEGMENT_PARSER_VERSION,
+      segment_count: segments.length,
     },
   };
 }

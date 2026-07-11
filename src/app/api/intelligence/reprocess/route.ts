@@ -1,0 +1,47 @@
+import { NextResponse } from "next/server";
+import { requireDashboardUser } from "@/lib/blog/data";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getGmailMessage, gmailMessageToEnvelope } from "@/lib/intelligence/gmail";
+import { getGmailSource, gmailAccessTokenForSource } from "@/lib/intelligence/jobs";
+import { persistIntelligenceDocument } from "@/lib/intelligence/persistence";
+import { bootstrapLongTailConcepts } from "@/lib/intelligence/long-tail";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+export async function POST(request: Request) {
+  try {
+    const ownerId = (await requireDashboardUser()).id;
+    const body = (await request.json().catch(() => ({}))) as { offset?: number; limit?: number };
+    const offset = Math.max(0, Math.floor(Number(body.offset ?? 0)));
+    const limit = Math.max(1, Math.min(50, Math.floor(Number(body.limit ?? 25))));
+    const admin = createAdminClient();
+    const source = await getGmailSource(admin, ownerId);
+    if (!source) return NextResponse.json({ error: "Connect Gmail before reprocessing." }, { status: 409 });
+    const { accessToken } = await gmailAccessTokenForSource(source);
+    const documents = await admin.from("documents").select("id,external_id", { count: "exact" }).eq("owner_id", ownerId).eq("source_type", "email_newsletter").order("published_at", { ascending: true }).range(offset, offset + limit - 1);
+    if (documents.error) throw new Error(documents.error.message);
+    const startedAt = new Date().toISOString();
+    const run = await admin.from("intelligence_runs").insert({ owner_id: ownerId, source_id: source.id, run_type: "reprocess", status: "running", started_at: startedAt, heartbeat_at: startedAt, checkpoint_before: { offset, limit }, discovered_count: (documents.data ?? []).length }).select("id").single();
+    if (run.error) throw new Error(run.error.message);
+    let processed = 0; let failed = 0; let segments = 0; let concepts = 0;
+    const errors: string[] = [];
+    for (const document of documents.data ?? []) {
+      try {
+        const message = await getGmailMessage(accessToken, String(document.external_id), "full");
+        const result = await persistIntelligenceDocument(admin, gmailMessageToEnvelope(message, ownerId), { extraction: null, embedding: null, preserveExistingEnrichment: true });
+        processed += 1; segments += result.segmentIds.length; concepts += result.conceptIds.length;
+      } catch (error) { failed += 1; errors.push(`${String(document.external_id)}: ${error instanceof Error ? error.message : String(error)}`); }
+    }
+    const nextOffset = offset + (documents.data ?? []).length;
+    const hasMore = nextOffset < Number(documents.count ?? nextOffset);
+    const longTail = hasMore ? null : await bootstrapLongTailConcepts(admin, ownerId);
+    const completedAt = new Date().toISOString();
+    const finish = await admin.from("intelligence_runs").update({ status: failed ? "partial" : "completed", processed_count: processed, failed_count: failed, error_summary: errors.slice(0, 5).join("\n") || null, checkpoint_after: { next_offset: nextOffset, has_more: hasMore, long_tail: longTail }, heartbeat_at: completedAt, completed_at: completedAt }).eq("id", run.data.id);
+    if (finish.error) throw new Error(finish.error.message);
+    return NextResponse.json({ result: { offset, nextOffset, total: documents.count ?? nextOffset, hasMore, processed, failed, segments, concepts, errors: errors.slice(0, 5), longTail } });
+  } catch (error) {
+    console.error("[intelligence] Archive reprocessing failed.", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Archive reprocessing failed." }, { status: 500 });
+  }
+}

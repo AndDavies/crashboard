@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireDashboardUser } from "@/lib/blog/data";
 import { EVENT_TYPE_LABELS } from "@/lib/intelligence/taxonomy";
 import { createEmbedding } from "@/lib/intelligence/enrichment";
+import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
 import type {
   IntelligenceDashboardData,
   IntelligenceEventType,
@@ -12,6 +13,28 @@ import type {
 } from "@/lib/intelligence/types";
 
 const STALE_RUN_AFTER_MS = 6 * 60 * 1000;
+
+async function fetchAllPages<T>(
+  query: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: T[] | null;
+    error: { code?: string; message: string } | null;
+    count?: number | null;
+  }>,
+) {
+  const data: T[] = [];
+  let count: number | null = null;
+  for (let from = 0; ; from += 1_000) {
+    const result = await query(from, from + 999);
+    if (result.error) return { data: null, error: result.error, count };
+    if (count === null && typeof result.count === "number") count = result.count;
+    data.push(...(result.data ?? []));
+    if ((result.data ?? []).length < 1_000) break;
+  }
+  return { data, error: null, count };
+}
 
 function missingSchema(error: { code?: string; message?: string } | null) {
   return Boolean(
@@ -83,6 +106,7 @@ function emptyDashboard(status: IntelligenceDashboardData["status"]): Intelligen
       sourceCount: 0,
       failedCount: 0,
       lastSyncedAt: null,
+      analyticsComputedAt: null,
     },
     trends: [],
     trendSeries: [],
@@ -99,26 +123,45 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
   const admin = createAdminClient();
   const ownerId = user.id;
 
-  const [documents, events, sources, trends, runs, alerts] = await Promise.all([
-    admin
-      .from("documents")
-      .select("id,source_type,published_at", { count: "exact" })
-      .eq("owner_id", ownerId)
-      .order("published_at", { ascending: false }),
+  const completeThrough = latestCompleteDateKey();
+  const [documents, events, eventPopulation, sources, sourceIdentities, trends, runs, alerts] = await Promise.all([
+    fetchAllPages((from, to) =>
+      admin
+        .from("documents")
+        .select("id,source_type,source_identity_id,published_at", { count: "exact" })
+        .eq("owner_id", ownerId)
+        .order("published_at", { ascending: false })
+        .range(from, to),
+    ),
     admin
       .from("intelligence_events")
       .select("id,title,event_type,lifecycle_status,summary,announced_at,amount,currency,geography,defence_relevance,canada_allied_relevance,confidence", { count: "exact" })
       .eq("owner_id", ownerId)
       .order("announced_at", { ascending: false })
       .limit(30),
+    fetchAllPages((from, to) =>
+      admin
+        .from("intelligence_events")
+        .select("event_type")
+        .eq("owner_id", ownerId)
+        .range(from, to),
+    ),
     admin
       .from("intelligence_sources")
       .select("id,source_type,status,last_synced_at")
       .eq("owner_id", ownerId),
     admin
-      .from("intelligence_trend_snapshots")
-      .select("trend_key,trend_label,domain,period_start,period_end,event_count,mention_rate,event_rate,momentum,independent_source_count,trend_strength,novelty")
+      .from("intelligence_source_identities")
+      .select("id,source_family")
       .eq("owner_id", ownerId)
+      .range(0, 9999),
+    admin
+      .from("intelligence_trend_snapshots")
+      .select("trend_key,trend_label,domain,window_type,channel,qualification_status,period_start,period_end,event_count,mention_rate,event_rate,momentum,independent_source_count,trend_strength,novelty,computed_at")
+      .eq("owner_id", ownerId)
+      .in("window_type", ["operating", "weekly"])
+      .eq("channel", "all")
+      .lte("period_end", completeThrough)
       .order("period_end", { ascending: false })
       .order("trend_strength", { ascending: false })
       .limit(160),
@@ -137,7 +180,7 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
       .limit(8),
   ]);
 
-  const errors = [documents.error, events.error, sources.error, trends.error, runs.error, alerts.error];
+  const errors = [documents.error, events.error, eventPopulation.error, sources.error, sourceIdentities.error, trends.error, runs.error, alerts.error];
   if (errors.some(missingSchema)) return emptyDashboard("schema_missing");
   const error = errors.find(Boolean);
   if (error) throw new Error(error.message);
@@ -159,24 +202,29 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
   }
 
   const sourceMixMap = new Map<string, number>();
+  const sourceFamilyById = new Map(
+    (sourceIdentities.data ?? []).map((row) => [String(row.id), String(row.source_family)]),
+  );
   for (const row of documents.data ?? []) {
-    const key = String(row.source_type);
+    const key = sourceFamilyById.get(String(row.source_identity_id)) ?? String(row.source_type);
     sourceMixMap.set(key, (sourceMixMap.get(key) ?? 0) + 1);
   }
 
   const eventMixMap = new Map<IntelligenceEventType, number>();
-  for (const row of eventRows) {
+  for (const row of eventPopulation.data ?? []) {
     const key = row.event_type as IntelligenceEventType;
     eventMixMap.set(key, (eventMixMap.get(key) ?? 0) + 1);
   }
 
-  const latestPeriod = String((trends.data ?? [])[0]?.period_end ?? "");
+  const latestPeriod = String(
+    (trends.data ?? []).find((row) => row.window_type === "operating")?.period_end ?? "",
+  );
   const latestTrends = (trends.data ?? []).filter(
-    (row) => String(row.period_end) === latestPeriod,
+    (row) => row.window_type === "operating" && String(row.period_end) === latestPeriod,
   );
   const trendSeriesMap = new Map<string, { eventRate: number; mentionRate: number }>();
   for (const row of trends.data ?? []) {
-    if (String(row.domain) !== "event_type") continue;
+    if (String(row.domain) !== "event_type" || row.window_type !== "weekly") continue;
     const period = String(row.period_end);
     const current = trendSeriesMap.get(period) ?? { eventRate: 0, mentionRate: 0 };
     current.eventRate += Number(row.event_rate ?? 0);
@@ -211,6 +259,11 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
       sourceCount: (sources.data ?? []).filter((source) => source.status === "active").length,
       failedCount: (runs.data ?? []).reduce((sum, run) => sum + Number(run.failed_count ?? 0), 0),
       lastSyncedAt,
+      analyticsComputedAt: latestTrends
+        .map((row) => (typeof row.computed_at === "string" ? row.computed_at : null))
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null,
     },
     trends: latestTrends.slice(0, 12).map((row) => ({
       key: String(row.trend_key),

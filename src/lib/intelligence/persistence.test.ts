@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+vi.mock("@/lib/intelligence/signal-persistence", () => ({
+  persistSourceIdentity: vi.fn().mockResolvedValue("source-identity-1"),
+  persistDocumentSegments: vi
+    .fn()
+    .mockResolvedValue(new Map([[0, { id: "segment-1", position: 0 }]])),
+  persistConceptGraph: vi.fn().mockResolvedValue(["concept-1"]),
+}));
 import {
   __testables,
   persistIntelligenceDocument,

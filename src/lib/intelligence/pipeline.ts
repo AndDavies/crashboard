@@ -18,6 +18,8 @@ export type ProcessDocumentResult = {
   embeddingStatus: "created" | "failed" | "skipped";
   eventCount: number;
   entityCount: number;
+  segmentCount: number;
+  conceptCount: number;
 };
 
 function errorMessage(error: unknown) {
@@ -61,6 +63,8 @@ export async function processIntelligenceDocument(
       embeddingStatus: "skipped",
       eventCount: 0,
       entityCount: 0,
+      segmentCount: rawPersisted.segmentIds.length,
+      conceptCount: rawPersisted.conceptIds.length,
     };
   }
 
@@ -114,5 +118,7 @@ export async function processIntelligenceDocument(
         : "created",
     eventCount: persisted.eventIds.length,
     entityCount: persisted.entityIds.length,
+    segmentCount: persisted.segmentIds.length,
+    conceptCount: persisted.conceptIds.length,
   };
 }

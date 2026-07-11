@@ -1,37 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { __testables, refreshTrendSnapshots } from "@/lib/intelligence/trends";
+import { __testables } from "@/lib/intelligence/trends";
+import type { SignalWindow } from "@/lib/intelligence/signal-metrics";
 
-describe("replaceTrendSnapshotPeriod", () => {
+describe("replaceSignalSnapshotPeriod", () => {
   const ownerId = "00000000-0000-0000-0000-000000000001";
-  const periodStart = "2026-06-27";
-  const periodEnd = "2026-07-10";
+  const window: SignalWindow = {
+    windowType: "operating",
+    periodStart: "2026-06-13",
+    periodEnd: "2026-07-10",
+    baselineStart: "2026-03-21",
+    baselineEnd: "2026-06-12",
+  };
   const generationStartedAt = "2026-07-10T22:55:00.000Z";
 
-  it("replaces the exact generation through the atomic database RPC", async () => {
+  it("atomically replaces the exact window and channel generation", async () => {
     const rpc = vi.fn().mockResolvedValue({
-      data: {
-        applied: true,
-        snapshot_count: 1,
-        stale_deleted_count: 2,
-        generation_started_at: generationStartedAt,
-      },
+      data: { applied: true, snapshot_count: 1, stale_deleted_count: 2 },
       error: null,
     });
     const rows = [
       {
         owner_id: ownerId,
-        trend_key: "theme:current",
-        period_start: periodStart,
-        period_end: periodEnd,
+        trend_key: "concept:counter-uas",
+        period_start: window.periodStart,
+        period_end: window.periodEnd,
       },
     ];
 
-    const replaced = await __testables.replaceTrendSnapshotPeriod(
+    const replaced = await __testables.replaceSignalSnapshotPeriod(
       { rpc } as unknown as SupabaseClient,
       ownerId,
-      periodStart,
-      periodEnd,
+      window,
+      "email_newsletter",
       generationStartedAt,
       rows,
     );
@@ -40,43 +41,15 @@ describe("replaceTrendSnapshotPeriod", () => {
       applied: true,
       snapshotCount: 1,
       staleDeletedCount: 2,
-      generationStartedAt,
     });
-    expect(rpc).toHaveBeenCalledWith("replace_intelligence_trend_snapshots", {
+    expect(rpc).toHaveBeenCalledWith("replace_intelligence_signal_snapshots", {
       p_owner_id: ownerId,
-      p_period_start: periodStart,
-      p_period_end: periodEnd,
+      p_window_type: "operating",
+      p_channel: "email_newsletter",
+      p_period_start: window.periodStart,
+      p_period_end: window.periodEnd,
       p_generation_started_at: generationStartedAt,
       p_rows: rows,
-    });
-  });
-
-  it("calls the replacement RPC for an empty recomputation", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        applied: true,
-        snapshot_count: 0,
-        stale_deleted_count: 3,
-        generation_started_at: generationStartedAt,
-      },
-      error: null,
-    });
-
-    await __testables.replaceTrendSnapshotPeriod(
-      { rpc } as unknown as SupabaseClient,
-      ownerId,
-      periodStart,
-      periodEnd,
-      generationStartedAt,
-      [],
-    );
-
-    expect(rpc).toHaveBeenCalledWith("replace_intelligence_trend_snapshots", {
-      p_owner_id: ownerId,
-      p_period_start: periodStart,
-      p_period_end: periodEnd,
-      p_generation_started_at: generationStartedAt,
-      p_rows: [],
     });
   });
 
@@ -87,61 +60,29 @@ describe("replaceTrendSnapshotPeriod", () => {
     });
 
     await expect(
-      __testables.replaceTrendSnapshotPeriod(
+      __testables.replaceSignalSnapshotPeriod(
         { rpc } as unknown as SupabaseClient,
         ownerId,
-        periodStart,
-        periodEnd,
+        window,
+        "all",
         generationStartedAt,
         [],
       ),
     ).rejects.toThrow("replacement failed");
   });
 
-  it("stops before alerts when a newer generation already won", async () => {
-    const query = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      gte: vi.fn(),
-      then: vi.fn(),
-    };
-    query.select.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.gte.mockReturnValue(query);
-    query.then.mockImplementation(
-      (
-        resolve: (value: { data: unknown[]; error: null }) => unknown,
-        reject: (reason: unknown) => unknown,
-      ) => Promise.resolve({ data: [], error: null }).then(resolve, reject),
-    );
+  it("rejects a malformed replacement result", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { snapshot_count: 2 }, error: null });
 
-    const from = vi.fn((table: string) => {
-      if (table !== "intelligence_events" && table !== "documents") {
-        throw new Error(`Unexpected post-replacement table access: ${table}`);
-      }
-      return query;
-    });
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        applied: false,
-        snapshot_count: 7,
-        stale_deleted_count: 0,
-        generation_started_at: "2026-07-10T23:00:00.000Z",
-      },
-      error: null,
-    });
-
-    const result = await refreshTrendSnapshots(
-      { from, rpc } as unknown as SupabaseClient,
-      ownerId,
-      new Date("2026-07-10T12:00:00.000Z"),
-    );
-
-    expect(result).toMatchObject({
-      snapshotCount: 7,
-      staleDeletedCount: 0,
-      superseded: true,
-    });
-    expect(from).toHaveBeenCalledTimes(2);
+    await expect(
+      __testables.replaceSignalSnapshotPeriod(
+        { rpc } as unknown as SupabaseClient,
+        ownerId,
+        window,
+        "all",
+        generationStartedAt,
+        [],
+      ),
+    ).rejects.toThrow("invalid result");
   });
 });

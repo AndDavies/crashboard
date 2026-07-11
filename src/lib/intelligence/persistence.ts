@@ -1,8 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sha256Hex } from "@/lib/ingestion/hash";
 import { normalizeTextForStorage } from "@/lib/ingestion/normalize";
-import { INTELLIGENCE_EMBEDDING_MODEL } from "@/lib/intelligence/enrichment";
+import {
+  INTELLIGENCE_EMBEDDING_MODEL,
+  INTELLIGENCE_EXTRACTION_VERSION,
+} from "@/lib/intelligence/enrichment";
 import { normalizedEntityName } from "@/lib/intelligence/taxonomy";
+import {
+  persistConceptGraph,
+  persistDocumentSegments,
+  persistSourceIdentity,
+} from "@/lib/intelligence/signal-persistence";
+import { sourceFamilyName } from "@/lib/intelligence/sources";
 import type {
   IntelligenceDocumentEnvelope,
   IntelligenceExtraction,
@@ -51,6 +60,8 @@ export type PersistIntelligenceResult = {
   embeddingPersisted: boolean | null;
   eventIds: string[];
   entityIds: string[];
+  segmentIds: string[];
+  conceptIds: string[];
 };
 
 function cleanUrl(value: string | null | undefined) {
@@ -80,6 +91,11 @@ function storedFlagValues(value: unknown) {
 }
 
 function sourceIndependenceKey(document: IntelligenceDocumentEnvelope) {
+  if (document.sourceType === "email_newsletter") {
+    return normalizedEntityName(
+      sourceFamilyName(document.publisherName ?? document.authorName ?? "unknown"),
+    );
+  }
   return (
     hostname(document.canonicalUrl) ??
     hostname(document.originalUrl) ??
@@ -130,6 +146,10 @@ function uniqueEvents(extraction: IntelligenceExtraction) {
 
 function canModelUpdateEvent(reviewStatus: string) {
   return reviewStatus === "unreviewed";
+}
+
+function isManagedExtractionVersion(value: string) {
+  return value === "intelligence-v1" || value === INTELLIGENCE_EXTRACTION_VERSION;
 }
 
 function entityAssociationKey(association: EntityAssociation) {
@@ -367,6 +387,9 @@ async function persistEntities(
       confidence: entity.confidence,
       evidence_text: entity.evidenceText || null,
       source: "model",
+      mention_count: 1,
+      extraction_version: INTELLIGENCE_EXTRACTION_VERSION,
+      metadata: { aliases: entity.aliases },
     };
   });
 
@@ -528,7 +551,7 @@ export async function synchronizeDocumentModelEvents(
   const staleEvents = [...candidateEvents.values()].filter(
     (row) =>
       !currentIds.has(row.id) &&
-      row.extractionVersion === "intelligence-v1" &&
+      isManagedExtractionVersion(row.extractionVersion) &&
       row.reviewStatus === "unreviewed",
   );
   const staleEventIds = staleEvents.map((row) => row.id);
@@ -537,7 +560,7 @@ export async function synchronizeDocumentModelEvents(
       .filter(
         (row) =>
           currentIds.has(row.id) ||
-          row.extractionVersion !== "intelligence-v1" ||
+          !isManagedExtractionVersion(row.extractionVersion) ||
           row.reviewStatus !== "unreviewed",
       )
       .map((row) => row.clusterId)
@@ -699,7 +722,7 @@ function eventRow(
     confidence: event.confidence,
     evidence_quality: event.evidenceQuality,
     extraction_model: extractionModel ?? null,
-    extraction_version: "intelligence-v1",
+    extraction_version: INTELLIGENCE_EXTRACTION_VERSION,
     metadata: { themes: event.themes },
     updated_at: now,
   };
@@ -874,6 +897,10 @@ async function persistEvents(
       entity_id: string;
       role: string;
       source: string;
+      confidence: number;
+      evidence_text: string | null;
+      extraction_version: string;
+      metadata: Record<string, unknown>;
     }
   >();
   for (const plan of plans) {
@@ -896,6 +923,10 @@ async function persistEvents(
         entity_id: entityId,
         role,
         source: "model",
+        confidence: entity.confidence,
+        evidence_text: entity.evidenceText || null,
+        extraction_version: INTELLIGENCE_EXTRACTION_VERSION,
+        metadata: { aliases: entity.aliases },
       });
     }
   }
@@ -972,15 +1003,18 @@ export async function persistIntelligenceDocument(
   const originalUrl = document.originalUrl.trim();
   const contentHash = sha256Hex(normalizedContent);
   const canonicalKey = `${document.sourceType}:${document.externalId}`;
-  const existing = await admin
-    .from("documents")
-    .select(
-      "id,summary_short,extraction_method,extraction_version,metadata,quality_flags",
-    )
-    .eq("owner_id", document.ownerId)
-    .eq("source_type", document.sourceType)
-    .eq("external_id", document.externalId)
-    .maybeSingle();
+  const [existing, sourceIdentityId] = await Promise.all([
+    admin
+      .from("documents")
+      .select(
+        "id,summary_short,extraction_method,extraction_version,metadata,quality_flags,keywords",
+      )
+      .eq("owner_id", document.ownerId)
+      .eq("source_type", document.sourceType)
+      .eq("external_id", document.externalId)
+      .maybeSingle(),
+    persistSourceIdentity(admin, document),
+  ]);
   if (existing.error) throw new Error(existing.error.message);
 
   const preserveExistingEnrichment = Boolean(
@@ -1015,6 +1049,8 @@ export async function persistIntelligenceDocument(
   const row = {
     owner_id: document.ownerId,
     source_type: document.sourceType,
+    source_channel: document.sourceChannel?.trim() || null,
+    source_identity_id: sourceIdentityId,
     original_url: originalUrl,
     canonical_url: canonicalUrl,
     url_host: hostname(canonicalUrl ?? originalUrl),
@@ -1037,12 +1073,13 @@ export async function persistIntelligenceDocument(
         ? existing.data?.extraction_method ?? "deterministic"
         : "deterministic",
     extraction_version: options.extraction
-      ? "intelligence-v1"
+      ? INTELLIGENCE_EXTRACTION_VERSION
       : preserveExistingEnrichment
         ? existing.data?.extraction_version ?? "rules-v1"
         : "rules-v1",
     content_hash: contentHash,
     canonical_key: canonicalKey,
+    segment_count: document.segments?.length ?? 1,
     metadata: {
       ...existingMetadata,
       ...(document.metadata ?? {}),
@@ -1076,6 +1113,12 @@ export async function persistIntelligenceDocument(
     if (inserted.error) throw new Error(inserted.error.message);
     documentId = String(inserted.data.id);
   }
+
+  const segmentsByIndex = await persistDocumentSegments(
+    admin,
+    document,
+    documentId,
+  );
 
   const embeddingPromise: Promise<boolean | null> = options.embedding?.length
     ? persistEmbedding(
@@ -1115,13 +1158,25 @@ export async function persistIntelligenceDocument(
 
   const extraction = options.extraction;
   if (!extraction) {
-    const embeddingPersisted = await embeddingPromise;
+    const [embeddingPersisted, conceptIds] = await Promise.all([
+      embeddingPromise,
+      persistConceptGraph(admin, {
+        document,
+        documentId,
+        segmentsByIndex,
+        extraction: null,
+        existingThemes,
+        existingKeywords: existing.data?.keywords,
+      }),
+    ]);
     return {
       documentId,
       deduped: Boolean(existing.data?.id),
       embeddingPersisted,
       eventIds: [],
       entityIds: [],
+      segmentIds: [...segmentsByIndex.values()].map((segment) => segment.id),
+      conceptIds,
     };
   }
 
@@ -1144,6 +1199,14 @@ export async function persistIntelligenceDocument(
     entityByKeyPromise,
     eventIdsPromise,
   ]);
+  const conceptIds = await persistConceptGraph(admin, {
+    document,
+    documentId,
+    segmentsByIndex,
+    extraction,
+    existingThemes,
+    existingKeywords: existing.data?.keywords,
+  });
 
   if (options.inProgressQualityFlags?.length) {
     const completedQualityFlags = [
@@ -1169,6 +1232,8 @@ export async function persistIntelligenceDocument(
     embeddingPersisted,
     eventIds,
     entityIds: [...entityByKey.values()],
+    segmentIds: [...segmentsByIndex.values()].map((segment) => segment.id),
+    conceptIds,
   };
 }
 

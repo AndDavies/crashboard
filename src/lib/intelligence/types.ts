@@ -43,6 +43,29 @@ export const INTELLIGENCE_ENTITY_TYPES = [
 
 export type IntelligenceEntityType = (typeof INTELLIGENCE_ENTITY_TYPES)[number];
 
+export const INTELLIGENCE_CONCEPT_TYPES = [
+  "keyword",
+  "phrase",
+  "theme",
+  "capability",
+] as const;
+
+export type IntelligenceConceptType = (typeof INTELLIGENCE_CONCEPT_TYPES)[number];
+
+export type IntelligenceDocumentSegmentInput = {
+  segmentIndex: number;
+  segmentType: "editorial" | "sponsored" | "navigation" | "footer" | "unknown";
+  title: string | null;
+  contentText: string;
+  outboundUrl: string | null;
+  urlHost: string | null;
+  contentHash: string;
+  tokenCount: number;
+  parserVersion: string;
+  confidence: number;
+  metadata: Record<string, unknown>;
+};
+
 export type IntelligenceDocumentEnvelope = {
   ownerId: string;
   sourceType: IntelligenceSourceType;
@@ -58,7 +81,18 @@ export type IntelligenceDocumentEnvelope = {
   summaryShort?: string | null;
   sourceChannel?: string | null;
   labels?: string[];
+  segments?: IntelligenceDocumentSegmentInput[];
   metadata?: Record<string, unknown>;
+};
+
+export type IntelligenceExtractedConcept = {
+  conceptType: IntelligenceConceptType;
+  canonicalLabel: string;
+  domain: string;
+  subdomain: string;
+  aliases: string[];
+  confidence: number;
+  evidenceText: string;
 };
 
 export type IntelligenceExtractedEntity = {
@@ -107,6 +141,7 @@ export type IntelligenceExtraction = {
   primaryDomain: string;
   themes: string[];
   noveltySignals: string[];
+  concepts: IntelligenceExtractedConcept[];
   events: IntelligenceExtractedEvent[];
   entities: IntelligenceExtractedEntity[];
   qualityFlags: string[];
@@ -158,6 +193,7 @@ export type IntelligenceDashboardData = {
     sourceCount: number;
     failedCount: number;
     lastSyncedAt: string | null;
+    analyticsComputedAt: string | null;
   };
   trends: Array<{
     key: string;
