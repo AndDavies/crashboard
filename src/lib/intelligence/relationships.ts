@@ -16,7 +16,8 @@ const PROCUREMENT_STAGE_ORDER = [
   "cancelled",
 ] as const;
 type ProcurementStage = (typeof PROCUREMENT_STAGE_ORDER)[number];
-const RELATIONSHIP_QUERY_CHUNK_SIZE = 250;
+const RELATIONSHIP_QUERY_CHUNK_SIZE = 100;
+const RELATIONSHIP_PAGE_SIZE = 500;
 
 function chunks<T>(values: T[], size = RELATIONSHIP_QUERY_CHUNK_SIZE) {
   const result: T[][] = [];
@@ -54,17 +55,24 @@ function procurementSubject(title: string) {
 }
 
 export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: string) {
-  const events = await admin
-    .from("intelligence_events")
-    .select("id,event_type,lifecycle_status,title,announced_at,occurred_at,geography,country_code,amount,currency,confidence")
-    .eq("owner_id", ownerId)
-    .in("event_type", [
-      "rfi_rfp_challenge", "procurement_notice", "award", "development",
-      "trial_pilot", "deployment", "cancellation",
-    ])
-    .order("announced_at", { ascending: true });
-  if (events.error) throw new Error(events.error.message);
-  const eventIds = (events.data ?? []).map((event) => String(event.id));
+  const eventRows: Array<Record<string, unknown>> = [];
+  for (let from = 0; ; from += RELATIONSHIP_PAGE_SIZE) {
+    const events = await admin
+      .from("intelligence_events")
+      .select("id,event_type,lifecycle_status,title,announced_at,occurred_at,geography,country_code,amount,currency,confidence")
+      .eq("owner_id", ownerId)
+      .in("event_type", [
+        "rfi_rfp_challenge", "procurement_notice", "award", "development",
+        "trial_pilot", "deployment", "cancellation",
+      ])
+      .order("announced_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + RELATIONSHIP_PAGE_SIZE - 1);
+    if (events.error) throw new Error(events.error.message);
+    eventRows.push(...(events.data ?? []));
+    if ((events.data ?? []).length < RELATIONSHIP_PAGE_SIZE) break;
+  }
+  const eventIds = eventRows.map((event) => String(event.id));
   const entityLinkRows: Array<{ event_id: string; entity_id: string; role: string }> = [];
   const evidenceRows: Array<{ event_id: string; document_id: string }> = [];
   for (const eventIdChunk of chunks(eventIds)) {
@@ -115,7 +123,7 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
   }
 
   const groups = new Map<string, Array<Record<string, unknown>>>();
-  for (const event of events.data ?? []) {
+  for (const event of eventRows) {
     const stage = stageForEvent(String(event.event_type), String(event.lifecycle_status));
     if (!stage) continue;
     const links = linksByEvent.get(String(event.id)) ?? [];
@@ -243,13 +251,19 @@ export async function rebuildConceptCooccurrence(
   if (!documentIds.length) return { pairCount: 0, qualifiedCount: 0, periodStart, periodEnd };
   const factRows: Array<{ document_id: string; concept_id: string }> = [];
   for (const documentIdChunk of chunks(documentIds)) {
-    const facts = await admin
-      .from("intelligence_document_concepts")
-      .select("document_id,concept_id")
-      .eq("owner_id", ownerId)
-      .in("document_id", documentIdChunk);
-    if (facts.error) throw new Error(facts.error.message);
-    factRows.push(...(facts.data ?? []));
+    for (let from = 0; ; from += RELATIONSHIP_PAGE_SIZE) {
+      const facts = await admin
+        .from("intelligence_document_concepts")
+        .select("document_id,concept_id")
+        .eq("owner_id", ownerId)
+        .in("document_id", documentIdChunk)
+        .order("document_id", { ascending: true })
+        .order("concept_id", { ascending: true })
+        .range(from, from + RELATIONSHIP_PAGE_SIZE - 1);
+      if (facts.error) throw new Error(facts.error.message);
+      factRows.push(...(facts.data ?? []));
+      if ((facts.data ?? []).length < RELATIONSHIP_PAGE_SIZE) break;
+    }
   }
   const conceptsByDocument = new Map<string, Set<string>>();
   for (const fact of factRows) {
