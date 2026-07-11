@@ -24,7 +24,7 @@ export async function runBatchedTrendRefresh(input: {
   while (true) {
     const raw = await input.runBatch({
       cursor,
-      limit: 1,
+      limit: cursor >= 3 ? 2 : 1,
       rebuildRelationships: cursor === 0 && Boolean(input.rebuildRelationships),
     });
     const batch: TrendRefreshBatch = {

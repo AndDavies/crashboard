@@ -53,6 +53,7 @@ describe("batched trend refresh", () => {
     await runBatchedTrendRefresh({ runBatch, startCursor: 4 });
 
     expect(runBatch).toHaveBeenCalledWith(expect.objectContaining({ cursor: 4 }));
+    expect(runBatch).toHaveBeenCalledWith(expect.objectContaining({ limit: 2 }));
   });
 
   it("rejects a batch that cannot advance", async () => {
