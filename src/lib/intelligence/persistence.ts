@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sha256Hex } from "@/lib/ingestion/hash";
-import { normalizeTextForStorage } from "@/lib/ingestion/normalize";
+import {
+  normalizeTextForStorage,
+  stripControlCharacters,
+} from "@/lib/ingestion/normalize";
 import {
   INTELLIGENCE_EMBEDDING_MODEL,
   INTELLIGENCE_EXTRACTION_VERSION,
@@ -81,6 +84,14 @@ function jsonObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function jsonSafe<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value, (_key, candidate) =>
+      typeof candidate === "string" ? stripControlCharacters(candidate) : candidate,
+    ),
+  ) as T;
 }
 
 function storedFlagValues(value: unknown) {
@@ -996,7 +1007,9 @@ export async function persistIntelligenceDocument(
   options: PersistOptions = {},
 ): Promise<PersistIntelligenceResult> {
   const now = new Date().toISOString();
-  const normalizedContent = normalizeTextForStorage(document.contentText);
+  const normalizedContent = normalizeTextForStorage(
+    stripControlCharacters(document.contentText),
+  );
   if (!normalizedContent) throw new Error("Cannot persist an empty intelligence document.");
 
   const canonicalUrl = cleanUrl(document.canonicalUrl);
@@ -1082,7 +1095,7 @@ export async function persistIntelligenceDocument(
     segment_count: document.segments?.length ?? 1,
     metadata: {
       ...existingMetadata,
-      ...(document.metadata ?? {}),
+      ...jsonSafe(document.metadata ?? {}),
       labels: document.labels ?? existingMetadata.labels ?? [],
       source_channel:
         document.sourceChannel ?? existingMetadata.source_channel ?? null,

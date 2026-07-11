@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { load } from "cheerio";
 import sanitizeHtml from "sanitize-html";
+import { stripControlCharacters } from "@/lib/ingestion/normalize";
 import {
   chooseCanonicalSourceUrl,
   normalizeSourceUrl,
@@ -18,7 +19,10 @@ const NAVIGATION_PATTERN =
   /\b(read online|view in browser|follow us|share this|forward to a friend|sign in|subscribe now)\b/iu;
 
 function compact(value: string) {
-  return value.replace(/\u00a0/gu, " ").replace(/\s+/gu, " ").trim();
+  return stripControlCharacters(value)
+    .replace(/\u00a0/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 function cleanHtmlText(value: string) {

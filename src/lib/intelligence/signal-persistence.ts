@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { stripControlCharacters } from "@/lib/ingestion/normalize";
 import {
   canonicalizeExtractedConcept,
   extractCuratedConceptMentions,
@@ -93,7 +94,10 @@ function descriptorKey(descriptor: Pick<ConceptDescriptor, "conceptType" | "norm
 
 function stringValues(value: unknown) {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => stripControlCharacters(item).trim())
+        .filter(Boolean)
     : [];
 }
 
