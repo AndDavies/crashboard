@@ -89,6 +89,7 @@ const ACTION_FEEDBACK_KEY = "crashboard:intelligence-action-feedback";
 const TREND_REFRESH_CURSOR_KEY = "crashboard:intelligence-trend-refresh-cursor";
 const ACTION_FEEDBACK_MAX_AGE_MS = 15 * 60 * 1000;
 const FULL_BACKFILL_BATCH_PAUSE_MS = 750;
+const TREND_REFRESH_BATCH_PAUSE_MS = 3_000;
 
 async function postAction(
   endpoint: string,
@@ -118,6 +119,8 @@ async function refreshAllTrendWindows(rebuildRelationships = false) {
     onProgress: (progress) => {
       window.sessionStorage.setItem(TREND_REFRESH_CURSOR_KEY, String(progress.complete));
     },
+    waitBetweenBatches: () =>
+      new Promise((resolve) => window.setTimeout(resolve, TREND_REFRESH_BATCH_PAUSE_MS)),
   });
   window.sessionStorage.removeItem(TREND_REFRESH_CURSOR_KEY);
   return result;

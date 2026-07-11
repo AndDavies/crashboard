@@ -16,6 +16,7 @@ export async function runBatchedTrendRefresh(input: {
   onProgress?: (progress: TrendRefreshProgress) => void;
   rebuildRelationships?: boolean;
   startCursor?: number;
+  waitBetweenBatches?: () => Promise<void>;
 }) {
   let cursor = Math.max(0, Math.floor(input.startCursor ?? 0));
   let snapshotCount = 0;
@@ -40,6 +41,7 @@ export async function runBatchedTrendRefresh(input: {
     snapshotCount += batch.snapshotCount;
     input.onProgress?.({ complete: cursor, total, snapshotCount });
     if (!batch.hasMore) break;
+    await input.waitBetweenBatches?.();
   }
   return { complete: cursor, total, snapshotCount };
 }

@@ -54,6 +54,8 @@ export function ArchiveReprocessControl() {
           onProgress: (trendProgress) => {
             window.sessionStorage.setItem(TREND_REFRESH_CURSOR_KEY, String(trendProgress.complete));
           },
+          waitBetweenBatches: () =>
+            new Promise((resolve) => window.setTimeout(resolve, 3_000)),
         });
         window.sessionStorage.removeItem(TREND_REFRESH_CURSOR_KEY);
         setResult(
