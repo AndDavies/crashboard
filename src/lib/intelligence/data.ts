@@ -137,6 +137,7 @@ export async function getIntelligenceDashboardData(): Promise<IntelligenceDashbo
       .from("intelligence_events")
       .select("id,title,event_type,lifecycle_status,summary,announced_at,amount,currency,geography,defence_relevance,canada_allied_relevance,confidence", { count: "exact" })
       .eq("owner_id", ownerId)
+      .lte("announced_at", new Date().toISOString())
       .order("announced_at", { ascending: false })
       .limit(30),
     fetchAllPages((from, to) =>

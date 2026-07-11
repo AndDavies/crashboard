@@ -31,6 +31,7 @@ export async function getTrendExplorerData(filters: TrendExplorerFilters) {
     ? filters.window!
     : "operating";
   const channel = filters.channel?.trim() || "all";
+  const status = filters.status?.trim() || "qualified";
   const completeThrough = latestCompleteDateKey();
   const latest = await admin
     .from("intelligence_trend_snapshots")
@@ -56,8 +57,8 @@ export async function getTrendExplorerData(filters: TrendExplorerFilters) {
     .limit(500);
   if (periodEnd) query = query.eq("period_end", periodEnd);
   if (filters.domain && filters.domain !== "all") query = query.eq("domain", filters.domain);
-  if (filters.status && filters.status !== "all") {
-    query = query.eq("qualification_status", filters.status);
+  if (status !== "all") {
+    query = query.eq("qualification_status", status);
   }
   if (filters.q?.trim()) query = query.ilike("trend_label", `%${filters.q.trim().slice(0, 80)}%`);
   const rows = await query;
@@ -89,6 +90,7 @@ export async function getTrendExplorerData(filters: TrendExplorerFilters) {
   return {
     windowType,
     channel,
+    status,
     periodEnd,
     completeThrough,
     rows: (rows.data ?? []).map((row) => ({ ...row, metadata: rowMetadata(row) })),

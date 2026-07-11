@@ -64,6 +64,33 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
         .in("event_id", eventIds)
     : { data: [], error: null };
   if (entityLinks.error) throw new Error(entityLinks.error.message);
+  const evidence = eventIds.length
+    ? await admin
+        .from("intelligence_event_evidence")
+        .select("event_id,document_id")
+        .eq("owner_id", ownerId)
+        .in("event_id", eventIds)
+    : { data: [], error: null };
+  if (evidence.error) throw new Error(evidence.error.message);
+  const evidenceDocumentIds = [...new Set((evidence.data ?? []).map((row) => String(row.document_id)))];
+  const evidenceDocuments = evidenceDocumentIds.length
+    ? await admin
+        .from("documents")
+        .select("id,source_identity_id")
+        .eq("owner_id", ownerId)
+        .in("id", evidenceDocumentIds)
+    : { data: [], error: null };
+  if (evidenceDocuments.error) throw new Error(evidenceDocuments.error.message);
+  const sourceByDocument = new Map(
+    (evidenceDocuments.data ?? []).map((row) => [String(row.id), String(row.source_identity_id ?? row.id)]),
+  );
+  const sourcesByEvent = new Map<string, Set<string>>();
+  for (const row of evidence.data ?? []) {
+    const eventId = String(row.event_id);
+    const sources = sourcesByEvent.get(eventId) ?? new Set<string>();
+    sources.add(sourceByDocument.get(String(row.document_id)) ?? String(row.document_id));
+    sourcesByEvent.set(eventId, sources);
+  }
   const linksByEvent = new Map<string, Array<{ entity_id: string; role: string }>>();
   for (const link of entityLinks.data ?? []) {
     const eventId = String(link.event_id);
@@ -100,6 +127,9 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
       .map((row) => row.stage as ProcurementStage)
       .sort((a, b) => PROCUREMENT_STAGE_ORDER.indexOf(a) - PROCUREMENT_STAGE_ORDER.indexOf(b))
       .at(-1)!;
+    const caseSources = new Set(
+      ordered.flatMap((row) => [...(sourcesByEvent.get(String(row.id)) ?? [])]),
+    );
     const caseWrite = await admin
       .from("intelligence_procurement_cases")
       .upsert(
@@ -118,7 +148,7 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
           last_transition_at: latest.announced_at ?? latest.occurred_at ?? null,
           amount: latest.amount ?? null,
           currency: latest.currency ?? null,
-          source_count: 0,
+          source_count: caseSources.size,
           confidence: Math.max(...ordered.map((row) => Number(row.confidence ?? 0.5))),
           metadata: { grouping_version: "procurement-cases-v1", event_count: ordered.length },
           updated_at: new Date().toISOString(),
