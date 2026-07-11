@@ -130,7 +130,14 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
     groups.set(caseKey, list);
   }
 
-  let linkCount = 0;
+  const caseRows: Array<Record<string, unknown>> = [];
+  const linkSpecs: Array<{
+    caseKey: string;
+    eventId: string;
+    stage: ProcurementStage;
+    transitionAt: unknown;
+    confidence: number;
+  }> = [];
   for (const [caseKey, rows] of groups) {
     const ordered = [...rows].sort((a, b) =>
       String(a.announced_at ?? a.occurred_at ?? "").localeCompare(
@@ -145,51 +152,63 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
     const caseSources = new Set(
       ordered.flatMap((row) => [...(sourcesByEvent.get(String(row.id)) ?? [])]),
     );
+    caseRows.push({
+      owner_id: ownerId,
+      case_key: caseKey,
+      title: String(latest.title),
+      buyer_entity_id: latest.buyer ?? null,
+      program_entity_id: latest.program ?? null,
+      system_entity_id: latest.system ?? null,
+      geography: latest.geography ?? null,
+      country_code: latest.country_code ?? null,
+      current_stage: latestStage,
+      status: latestStage === "cancelled" ? "cancelled" : latestStage === "complete" ? "complete" : "active",
+      opened_at: ordered[0]?.announced_at ?? ordered[0]?.occurred_at ?? null,
+      last_transition_at: latest.announced_at ?? latest.occurred_at ?? null,
+      amount: latest.amount ?? null,
+      currency: latest.currency ?? null,
+      source_count: caseSources.size,
+      confidence: Math.max(...ordered.map((row) => Number(row.confidence ?? 0.5))),
+      metadata: { grouping_version: "procurement-cases-v1", event_count: ordered.length },
+      updated_at: new Date().toISOString(),
+    });
+    linkSpecs.push(...ordered.map((row) => ({
+      caseKey,
+      eventId: String(row.id),
+      stage: row.stage as ProcurementStage,
+      transitionAt: row.announced_at ?? row.occurred_at ?? null,
+      confidence: Number(row.confidence ?? 0.5),
+    })));
+  }
+
+  const caseIdByKey = new Map<string, string>();
+  for (const caseChunk of chunks(caseRows)) {
     const caseWrite = await admin
       .from("intelligence_procurement_cases")
-      .upsert(
-        {
-          owner_id: ownerId,
-          case_key: caseKey,
-          title: String(latest.title),
-          buyer_entity_id: latest.buyer ?? null,
-          program_entity_id: latest.program ?? null,
-          system_entity_id: latest.system ?? null,
-          geography: latest.geography ?? null,
-          country_code: latest.country_code ?? null,
-          current_stage: latestStage,
-          status: latestStage === "cancelled" ? "cancelled" : latestStage === "complete" ? "complete" : "active",
-          opened_at: ordered[0]?.announced_at ?? ordered[0]?.occurred_at ?? null,
-          last_transition_at: latest.announced_at ?? latest.occurred_at ?? null,
-          amount: latest.amount ?? null,
-          currency: latest.currency ?? null,
-          source_count: caseSources.size,
-          confidence: Math.max(...ordered.map((row) => Number(row.confidence ?? 0.5))),
-          metadata: { grouping_version: "procurement-cases-v1", event_count: ordered.length },
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "owner_id,case_key" },
-      )
-      .select("id")
-      .single();
+      .upsert(caseChunk, { onConflict: "owner_id,case_key" })
+      .select("id,case_key");
     if (caseWrite.error) throw new Error(caseWrite.error.message);
-    const links = ordered.map((row) => ({
-      owner_id: ownerId,
-      case_id: caseWrite.data.id,
-      event_id: row.id,
-      stage: row.stage,
-      transition_at: row.announced_at ?? row.occurred_at ?? null,
-      confidence: Number(row.confidence ?? 0.5),
-      source: "rule",
-      metadata: { grouping_version: "procurement-cases-v1" },
-    }));
+    for (const row of caseWrite.data ?? []) {
+      caseIdByKey.set(String(row.case_key), String(row.id));
+    }
+  }
+  const links = linkSpecs.map((link) => ({
+    owner_id: ownerId,
+    case_id: caseIdByKey.get(link.caseKey)!,
+    event_id: link.eventId,
+    stage: link.stage,
+    transition_at: link.transitionAt,
+    confidence: link.confidence,
+    source: "rule",
+    metadata: { grouping_version: "procurement-cases-v1" },
+  }));
+  for (const linkChunk of chunks(links, 500)) {
     const linkWrite = await admin
       .from("intelligence_procurement_case_events")
-      .upsert(links, { onConflict: "case_id,event_id" });
+      .upsert(linkChunk, { onConflict: "case_id,event_id" });
     if (linkWrite.error) throw new Error(linkWrite.error.message);
-    linkCount += links.length;
   }
-  return { caseCount: groups.size, linkCount };
+  return { caseCount: groups.size, linkCount: links.length };
 }
 
 function normalCdf(value: number) {
