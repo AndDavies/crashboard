@@ -26,12 +26,36 @@ export async function POST(request: Request) {
     if (run.error) throw new Error(run.error.message);
     let processed = 0; let failed = 0; let segments = 0; let concepts = 0;
     const errors: string[] = [];
-    for (const document of documents.data ?? []) {
-      try {
-        const message = await getGmailMessage(accessToken, String(document.external_id), "full");
-        const result = await persistIntelligenceDocument(admin, gmailMessageToEnvelope(message, ownerId), { extraction: null, embedding: null, preserveExistingEnrichment: true });
-        processed += 1; segments += result.segmentIds.length; concepts += result.conceptIds.length;
-      } catch (error) { failed += 1; errors.push(`${String(document.external_id)}: ${error instanceof Error ? error.message : String(error)}`); }
+    const batch = documents.data ?? [];
+    for (let from = 0; from < batch.length; from += 5) {
+      await Promise.all(
+        batch.slice(from, from + 5).map(async (document) => {
+          try {
+            const message = await getGmailMessage(
+              accessToken,
+              String(document.external_id),
+              "full",
+            );
+            const result = await persistIntelligenceDocument(
+              admin,
+              gmailMessageToEnvelope(message, ownerId),
+              {
+                extraction: null,
+                embedding: null,
+                preserveExistingEnrichment: true,
+              },
+            );
+            processed += 1;
+            segments += result.segmentIds.length;
+            concepts += result.conceptIds.length;
+          } catch (error) {
+            failed += 1;
+            errors.push(
+              `${String(document.external_id)}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }),
+      );
     }
     const nextOffset = offset + (documents.data ?? []).length;
     const hasMore = nextOffset < Number(documents.count ?? nextOffset);
