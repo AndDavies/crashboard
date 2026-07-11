@@ -5,6 +5,7 @@ import {
   calculateSignalMetric,
   dateKeyInTimeZone,
   INTELLIGENCE_METRIC_VERSION,
+  shiftDateKey,
   withinDateWindow,
   type ActionSupport,
   type AttentionSupport,
@@ -16,6 +17,7 @@ import { EVENT_TYPE_LABELS } from "@/lib/intelligence/taxonomy";
 import type { IntelligenceEventType } from "@/lib/intelligence/types";
 
 const PAGE_SIZE = 1_000;
+const ID_QUERY_CHUNK_SIZE = 100;
 const ENTITY_TREND_TYPES = new Set([
   "organization",
   "government_agency",
@@ -150,6 +152,18 @@ async function fetchAllRows<T>(
   }
 }
 
+async function fetchAllRowsForIds<T>(
+  ids: string[],
+  queryPage: (ids: string[], from: number, to: number) => PromiseLike<QueryResult<T>>,
+) {
+  const rows: T[] = [];
+  for (let idOffset = 0; idOffset < ids.length; idOffset += ID_QUERY_CHUNK_SIZE) {
+    const idChunk = ids.slice(idOffset, idOffset + ID_QUERY_CHUNK_SIZE);
+    rows.push(...(await fetchAllRows((from, to) => queryPage(idChunk, from, to))));
+  }
+  return rows;
+}
+
 function addAttention(subject: Subject, support: AttentionSupport) {
   const current = subject.attention.get(support.id);
   if (!current) {
@@ -255,32 +269,11 @@ export async function refreshSignalSnapshots(
   options: SignalRefreshOptions = {},
 ) {
   const generationStartedAt = new Date().toISOString();
-  const [
-    documents,
-    segments,
-    sourceIdentities,
-    concepts,
-    documentConcepts,
-    entities,
-    documentEntities,
-    events,
-    evidence,
-    eventConcepts,
-    eventEntities,
-    cases,
-    caseEvents,
-  ] = await Promise.all([
+  const [documents, sourceIdentities, concepts, entities] = await Promise.all([
     fetchAllRows<DocumentRow>((from, to) =>
       admin
         .from("documents")
         .select("id,source_type,source_identity_id,publisher_name,published_at,ingestion_status,extraction_method,quality_flags")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<SegmentRow>((from, to) =>
-      admin
-        .from("intelligence_document_segments")
-        .select("id,document_id,segment_type")
         .eq("owner_id", ownerId)
         .range(from, to),
     ),
@@ -298,66 +291,10 @@ export async function refreshSignalSnapshots(
         .eq("owner_id", ownerId)
         .range(from, to),
     ),
-    fetchAllRows<DocumentConceptRow>((from, to) =>
-      admin
-        .from("intelligence_document_concepts")
-        .select("document_id,segment_id,concept_id,mention_count,confidence,source")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
     fetchAllRows<EntityRow>((from, to) =>
       admin
         .from("intelligence_entities")
         .select("id,canonical_name,entity_type,status")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<DocumentEntityRow>((from, to) =>
-      admin
-        .from("intelligence_document_entities")
-        .select("document_id,entity_id,confidence")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<EventRow>((from, to) =>
-      admin
-        .from("intelligence_events")
-        .select("id,cluster_id,event_type,announced_at,confidence,evidence_quality,review_status")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<EvidenceRow>((from, to) =>
-      admin
-        .from("intelligence_event_evidence")
-        .select("event_id,document_id,evidence_role")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<EventConceptRow>((from, to) =>
-      admin
-        .from("intelligence_event_concepts")
-        .select("event_id,concept_id,confidence")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<EventEntityRow>((from, to) =>
-      admin
-        .from("intelligence_event_entities")
-        .select("event_id,entity_id,confidence")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<CaseRow>((from, to) =>
-      admin
-        .from("intelligence_procurement_cases")
-        .select("id,current_stage,title,confidence")
-        .eq("owner_id", ownerId)
-        .range(from, to),
-    ),
-    fetchAllRows<CaseEventRow>((from, to) =>
-      admin
-        .from("intelligence_procurement_case_events")
-        .select("case_id,event_id,stage,confidence")
         .eq("owner_id", ownerId)
         .range(from, to),
     ),
@@ -393,6 +330,110 @@ export async function refreshSignalSnapshots(
   if (!documentById.size) {
     throw new Error("No analytics-eligible intelligence documents are available.");
   }
+
+  const earliestDateKey = [...documentById.values()]
+    .map((document) => document.dateKey)
+    .sort()[0]!;
+  const allWindows = buildSignalWindows({ earliestDateKey, anchor });
+  const selectableWindows = options.currentWindowsOnly
+    ? [
+        ...allWindows.filter((window) => window.windowType !== "weekly"),
+        ...allWindows.filter((window) => window.windowType === "weekly").slice(-1),
+      ]
+    : allWindows;
+  const windowOffset = Math.max(0, Math.floor(options.windowOffset ?? 0));
+  const windowLimit = Math.max(1, Math.floor(options.windowLimit ?? selectableWindows.length));
+  const windows = selectableWindows.slice(windowOffset, windowOffset + windowLimit);
+  if (!windows.length) {
+    throw new Error("No signal windows remain at the requested checkpoint.");
+  }
+  const dataStart = windows.map((window) => window.baselineStart).sort()[0]!;
+  const dataEnd = windows.map((window) => window.periodEnd).sort().at(-1)!;
+  for (const [documentId, document] of documentById) {
+    if (!withinDateWindow(document.dateKey, dataStart, dataEnd)) {
+      documentById.delete(documentId);
+    }
+  }
+  const documentIds = [...documentById.keys()];
+  const [segments, documentConcepts, documentEntities, events] = await Promise.all([
+    fetchAllRowsForIds<SegmentRow>(documentIds, (ids, from, to) =>
+      admin
+        .from("intelligence_document_segments")
+        .select("id,document_id,segment_type")
+        .eq("owner_id", ownerId)
+        .in("document_id", ids)
+        .range(from, to),
+    ),
+    fetchAllRowsForIds<DocumentConceptRow>(documentIds, (ids, from, to) =>
+      admin
+        .from("intelligence_document_concepts")
+        .select("document_id,segment_id,concept_id,mention_count,confidence,source")
+        .eq("owner_id", ownerId)
+        .in("document_id", ids)
+        .range(from, to),
+    ),
+    fetchAllRowsForIds<DocumentEntityRow>(documentIds, (ids, from, to) =>
+      admin
+        .from("intelligence_document_entities")
+        .select("document_id,entity_id,confidence")
+        .eq("owner_id", ownerId)
+        .in("document_id", ids)
+        .range(from, to),
+    ),
+    fetchAllRows<EventRow>((from, to) =>
+      admin
+        .from("intelligence_events")
+        .select("id,cluster_id,event_type,announced_at,confidence,evidence_quality,review_status")
+        .eq("owner_id", ownerId)
+        .gte("announced_at", `${dataStart}T00:00:00.000Z`)
+        .lt("announced_at", `${shiftDateKey(dataEnd, 1)}T00:00:00.000Z`)
+        .range(from, to),
+    ),
+  ]);
+  const eventIds = events.map((event) => event.id);
+  const [evidence, eventConcepts, eventEntities, caseEvents] = await Promise.all([
+    fetchAllRowsForIds<EvidenceRow>(eventIds, (ids, from, to) =>
+      admin
+        .from("intelligence_event_evidence")
+        .select("event_id,document_id,evidence_role")
+        .eq("owner_id", ownerId)
+        .in("event_id", ids)
+        .range(from, to),
+    ),
+    fetchAllRowsForIds<EventConceptRow>(eventIds, (ids, from, to) =>
+      admin
+        .from("intelligence_event_concepts")
+        .select("event_id,concept_id,confidence")
+        .eq("owner_id", ownerId)
+        .in("event_id", ids)
+        .range(from, to),
+    ),
+    fetchAllRowsForIds<EventEntityRow>(eventIds, (ids, from, to) =>
+      admin
+        .from("intelligence_event_entities")
+        .select("event_id,entity_id,confidence")
+        .eq("owner_id", ownerId)
+        .in("event_id", ids)
+        .range(from, to),
+    ),
+    fetchAllRowsForIds<CaseEventRow>(eventIds, (ids, from, to) =>
+      admin
+        .from("intelligence_procurement_case_events")
+        .select("case_id,event_id,stage,confidence")
+        .eq("owner_id", ownerId)
+        .in("event_id", ids)
+        .range(from, to),
+    ),
+  ]);
+  const caseIds = [...new Set(caseEvents.map((row) => row.case_id))];
+  const cases = await fetchAllRowsForIds<CaseRow>(caseIds, (ids, from, to) =>
+    admin
+      .from("intelligence_procurement_cases")
+      .select("id,current_stage,title,confidence")
+      .eq("owner_id", ownerId)
+      .in("id", ids)
+      .range(from, to),
+  );
 
   const segmentById = new Map<string, EligibleUnit>();
   const segmentsByDocument = new Map<string, EligibleUnit[]>();
@@ -616,19 +657,6 @@ export async function refreshSignalSnapshots(
     else if (sources.size < 2 && subject.actions.size === 0) subjects.delete(key);
   }
 
-  const earliestDateKey = [...documentById.values()]
-    .map((document) => document.dateKey)
-    .sort()[0]!;
-  const allWindows = buildSignalWindows({ earliestDateKey, anchor });
-  const selectableWindows = options.currentWindowsOnly
-    ? [
-        ...allWindows.filter((window) => window.windowType !== "weekly"),
-        ...allWindows.filter((window) => window.windowType === "weekly").slice(-1),
-      ]
-    : allWindows;
-  const windowOffset = Math.max(0, Math.floor(options.windowOffset ?? 0));
-  const windowLimit = Math.max(1, Math.floor(options.windowLimit ?? selectableWindows.length));
-  const windows = selectableWindows.slice(windowOffset, windowOffset + windowLimit);
   const channels = ["all", ...new Set([...documentById.values()].map((row) => row.channel))];
   const generated: GeneratedSignal[] = [];
   let snapshotCount = 0;
@@ -878,6 +906,7 @@ export const __testables = {
   addAttention,
   eventIsUsable,
   fetchAllRows,
+  fetchAllRowsForIds,
   filterActions,
   replaceSignalSnapshotPeriod,
 };

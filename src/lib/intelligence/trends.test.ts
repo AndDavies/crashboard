@@ -86,3 +86,18 @@ describe("replaceSignalSnapshotPeriod", () => {
     ).rejects.toThrow("invalid result");
   });
 });
+
+describe("window-scoped signal reads", () => {
+  it("chunks relationship IDs before paginating their rows", async () => {
+    const ids = Array.from({ length: 205 }, (_, index) => `id-${index}`);
+    const queryPage = vi.fn(async (idChunk: string[]) => ({
+      data: idChunk.map((id) => ({ id })),
+      error: null,
+    }));
+
+    const rows = await __testables.fetchAllRowsForIds(ids, queryPage);
+
+    expect(rows).toHaveLength(205);
+    expect(queryPage.mock.calls.map((call) => call[0].length)).toEqual([100, 100, 5]);
+  });
+});
