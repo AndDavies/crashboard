@@ -19,6 +19,7 @@ describe("intelligence source URLs", () => {
     expect(isTrustworthyContentUrl("https://fonts.gstatic.com/font.woff2")).toBe(false);
     expect(isTrustworthyContentUrl("https://linkedin.com/company/example")).toBe(false);
     expect(isTrustworthyContentUrl("https://brief.test/manage-subscription/abc")).toBe(false);
+    expect(isTrustworthyContentUrl("https://account.unsubscribe.mailer.test/abc")).toBe(false);
     expect(isTrustworthyContentUrl("https://brief.test/news/contract-award")).toBe(true);
   });
 

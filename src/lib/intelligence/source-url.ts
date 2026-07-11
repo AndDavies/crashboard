@@ -6,6 +6,7 @@ const BLOCKED_HOSTS = new Set([
   "instagram.com",
   "linkedin.com",
   "mail.google.com",
+  "public-api.wordpress.com",
   "twitter.com",
   "x.com",
 ]);
@@ -18,6 +19,7 @@ const BLOCKED_HOST_FRAGMENTS = [
   "mandrillapp.com",
   "sendgrid.net",
   "tracking",
+  "unsubscribe",
 ] as const;
 
 const BLOCKED_PATH_PATTERN =
@@ -33,7 +35,7 @@ function unwrapTrackedUrl(value: string) {
   for (let depth = 0; depth < 2; depth += 1) {
     try {
       const parsed = new URL(current);
-      const candidate = ["url", "u", "target", "redirect", "redirect_url", "destination"]
+      const candidate = ["url", "u", "target", "redirect", "redirect_url", "redirect_to", "destination"]
         .map((key) => parsed.searchParams.get(key))
         .find((entry) => entry?.startsWith("http://") || entry?.startsWith("https://"));
       if (!candidate) return parsed.toString();
