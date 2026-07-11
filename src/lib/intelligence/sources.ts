@@ -30,13 +30,18 @@ export function sourceIdentityDescriptor(document: IntelligenceDocumentEnvelope)
     typeof document.metadata?.sender_email === "string"
       ? document.metadata.sender_email.trim().toLowerCase()
       : null;
+  const normalizedName =
+    normalizeConceptKey(canonicalName) ||
+    normalizeConceptKey(senderEmail ?? "") ||
+    "unknown source";
+  const normalizedFamily = normalizeConceptKey(family) || normalizedName;
 
   return {
     channel: document.sourceType,
     canonicalName,
-    normalizedName: normalizeConceptKey(canonicalName),
+    normalizedName,
     sourceFamily: family,
-    normalizedFamily: normalizeConceptKey(family),
+    normalizedFamily,
     externalKey: senderEmail || document.sourceChannel?.trim() || null,
     authorityTier,
   };

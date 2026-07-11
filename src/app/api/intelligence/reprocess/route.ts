@@ -26,7 +26,9 @@ export async function POST(request: Request) {
     if (run.error) throw new Error(run.error.message);
     let processed = 0; let failed = 0; let segments = 0; let concepts = 0;
     const errors: string[] = [];
-    const batch = documents.data ?? [];
+    const processDocuments = async (
+      batch: Array<{ id: string; external_id: string | null }>,
+    ) => {
     for (let from = 0; from < batch.length; from += 5) {
       await Promise.all(
         batch.slice(from, from + 5).map(async (document) => {
@@ -57,13 +59,28 @@ export async function POST(request: Request) {
         }),
       );
     }
+    };
+    await processDocuments(documents.data ?? []);
     const nextOffset = offset + (documents.data ?? []).length;
     const hasMore = nextOffset < Number(documents.count ?? nextOffset);
+    let retryCount = 0;
+    if (!hasMore) {
+      const missing = await admin
+        .from("documents")
+        .select("id,external_id")
+        .eq("owner_id", ownerId)
+        .eq("source_type", "email_newsletter")
+        .is("analytics_ready_at", null)
+        .limit(100);
+      if (missing.error) throw new Error(missing.error.message);
+      retryCount = (missing.data ?? []).length;
+      await processDocuments(missing.data ?? []);
+    }
     const longTail = hasMore ? null : await bootstrapLongTailConcepts(admin, ownerId);
     const completedAt = new Date().toISOString();
     const finish = await admin.from("intelligence_runs").update({ status: failed ? "partial" : "completed", processed_count: processed, failed_count: failed, error_summary: errors.slice(0, 5).join("\n") || null, checkpoint_after: { next_offset: nextOffset, has_more: hasMore, long_tail: longTail }, heartbeat_at: completedAt, completed_at: completedAt }).eq("id", run.data.id);
     if (finish.error) throw new Error(finish.error.message);
-    return NextResponse.json({ result: { offset, nextOffset, total: documents.count ?? nextOffset, hasMore, processed, failed, segments, concepts, errors: errors.slice(0, 5), longTail } });
+    return NextResponse.json({ result: { offset, nextOffset, total: documents.count ?? nextOffset, hasMore, processed, failed, segments, concepts, retryCount, errors: errors.slice(0, 5), longTail } });
   } catch (error) {
     console.error("[intelligence] Archive reprocessing failed.", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Archive reprocessing failed." }, { status: 500 });
