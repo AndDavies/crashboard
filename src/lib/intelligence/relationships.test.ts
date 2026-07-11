@@ -21,4 +21,12 @@ describe("intelligence relationships", () => {
       __testables.associationPValue(30, 35, 11, 100),
     );
   });
+
+  it("bounds relationship lookups into PostgREST-safe chunks", () => {
+    const values = Array.from({ length: 521 }, (_, index) => index);
+    const result = __testables.chunks(values, 250);
+
+    expect(result.map((chunk) => chunk.length)).toEqual([250, 250, 21]);
+    expect(result.flat()).toEqual(values);
+  });
 });

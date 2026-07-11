@@ -16,6 +16,15 @@ const PROCUREMENT_STAGE_ORDER = [
   "cancelled",
 ] as const;
 type ProcurementStage = (typeof PROCUREMENT_STAGE_ORDER)[number];
+const RELATIONSHIP_QUERY_CHUNK_SIZE = 250;
+
+function chunks<T>(values: T[], size = RELATIONSHIP_QUERY_CHUNK_SIZE) {
+  const result: T[][] = [];
+  for (let from = 0; from < values.length; from += size) {
+    result.push(values.slice(from, from + size));
+  }
+  return result;
+}
 
 function stageForEvent(eventType: string, lifecycle: string): ProcurementStage | null {
   if (eventType === "rfi_rfp_challenge") return lifecycle === "open" ? "rfi_eoi" : "tender_open";
@@ -56,43 +65,49 @@ export async function rebuildProcurementCases(admin: SupabaseClient, ownerId: st
     .order("announced_at", { ascending: true });
   if (events.error) throw new Error(events.error.message);
   const eventIds = (events.data ?? []).map((event) => String(event.id));
-  const entityLinks = eventIds.length
-    ? await admin
+  const entityLinkRows: Array<{ event_id: string; entity_id: string; role: string }> = [];
+  const evidenceRows: Array<{ event_id: string; document_id: string }> = [];
+  for (const eventIdChunk of chunks(eventIds)) {
+    const [entityLinks, evidence] = await Promise.all([
+      admin
         .from("intelligence_event_entities")
         .select("event_id,entity_id,role")
         .eq("owner_id", ownerId)
-        .in("event_id", eventIds)
-    : { data: [], error: null };
-  if (entityLinks.error) throw new Error(entityLinks.error.message);
-  const evidence = eventIds.length
-    ? await admin
+        .in("event_id", eventIdChunk),
+      admin
         .from("intelligence_event_evidence")
         .select("event_id,document_id")
         .eq("owner_id", ownerId)
-        .in("event_id", eventIds)
-    : { data: [], error: null };
-  if (evidence.error) throw new Error(evidence.error.message);
-  const evidenceDocumentIds = [...new Set((evidence.data ?? []).map((row) => String(row.document_id)))];
-  const evidenceDocuments = evidenceDocumentIds.length
-    ? await admin
-        .from("documents")
-        .select("id,source_identity_id")
-        .eq("owner_id", ownerId)
-        .in("id", evidenceDocumentIds)
-    : { data: [], error: null };
-  if (evidenceDocuments.error) throw new Error(evidenceDocuments.error.message);
+        .in("event_id", eventIdChunk),
+    ]);
+    if (entityLinks.error) throw new Error(entityLinks.error.message);
+    if (evidence.error) throw new Error(evidence.error.message);
+    entityLinkRows.push(...(entityLinks.data ?? []));
+    evidenceRows.push(...(evidence.data ?? []));
+  }
+  const evidenceDocumentIds = [...new Set(evidenceRows.map((row) => String(row.document_id)))];
+  const evidenceDocumentRows: Array<{ id: string; source_identity_id: string | null }> = [];
+  for (const documentIdChunk of chunks(evidenceDocumentIds)) {
+    const evidenceDocuments = await admin
+      .from("documents")
+      .select("id,source_identity_id")
+      .eq("owner_id", ownerId)
+      .in("id", documentIdChunk);
+    if (evidenceDocuments.error) throw new Error(evidenceDocuments.error.message);
+    evidenceDocumentRows.push(...(evidenceDocuments.data ?? []));
+  }
   const sourceByDocument = new Map(
-    (evidenceDocuments.data ?? []).map((row) => [String(row.id), String(row.source_identity_id ?? row.id)]),
+    evidenceDocumentRows.map((row) => [String(row.id), String(row.source_identity_id ?? row.id)]),
   );
   const sourcesByEvent = new Map<string, Set<string>>();
-  for (const row of evidence.data ?? []) {
+  for (const row of evidenceRows) {
     const eventId = String(row.event_id);
     const sources = sourcesByEvent.get(eventId) ?? new Set<string>();
     sources.add(sourceByDocument.get(String(row.document_id)) ?? String(row.document_id));
     sourcesByEvent.set(eventId, sources);
   }
   const linksByEvent = new Map<string, Array<{ entity_id: string; role: string }>>();
-  for (const link of entityLinks.data ?? []) {
+  for (const link of entityLinkRows) {
     const eventId = String(link.event_id);
     const list = linksByEvent.get(eventId) ?? [];
     list.push({ entity_id: String(link.entity_id), role: String(link.role) });
@@ -207,14 +222,18 @@ export async function rebuildConceptCooccurrence(
   if (documents.error) throw new Error(documents.error.message);
   const documentIds = (documents.data ?? []).map((row) => String(row.id));
   if (!documentIds.length) return { pairCount: 0, qualifiedCount: 0, periodStart, periodEnd };
-  const facts = await admin
-    .from("intelligence_document_concepts")
-    .select("document_id,concept_id")
-    .eq("owner_id", ownerId)
-    .in("document_id", documentIds);
-  if (facts.error) throw new Error(facts.error.message);
+  const factRows: Array<{ document_id: string; concept_id: string }> = [];
+  for (const documentIdChunk of chunks(documentIds)) {
+    const facts = await admin
+      .from("intelligence_document_concepts")
+      .select("document_id,concept_id")
+      .eq("owner_id", ownerId)
+      .in("document_id", documentIdChunk);
+    if (facts.error) throw new Error(facts.error.message);
+    factRows.push(...(facts.data ?? []));
+  }
   const conceptsByDocument = new Map<string, Set<string>>();
-  for (const fact of facts.data ?? []) {
+  for (const fact of factRows) {
     const id = String(fact.document_id);
     const concepts = conceptsByDocument.get(id) ?? new Set<string>();
     concepts.add(String(fact.concept_id));
@@ -301,6 +320,7 @@ export async function rebuildConceptCooccurrence(
 
 export const __testables = {
   associationPValue,
+  chunks,
   procurementSubject,
   stageForEvent,
 };
