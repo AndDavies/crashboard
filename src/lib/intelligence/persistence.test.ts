@@ -306,11 +306,13 @@ describe("intelligence persistence safeguards", () => {
         sourceType: "email_newsletter",
         externalId: "message-1",
         originalUrl: "https://mail.google.com/message-1",
-        title: "Updated raw title",
+        title: "Updated\u0000 raw title",
+        authorName: "Author\u0007 Name",
+        publisherName: "Publisher\u0001 Name",
         contentText: "  Updated   raw content.  ",
         summaryShort: "Raw Gmail snippet",
         labels: ["Newsletters/Defence"],
-        sourceChannel: "gmail_oauth",
+        sourceChannel: "gmail\u0002_oauth",
         metadata: { gmail_thread_id: "thread-1" },
       },
       {
@@ -323,6 +325,9 @@ describe("intelligence persistence safeguards", () => {
     expect(getUpdatePayload()).toEqual(
       expect.objectContaining({
         content_text: "Updated raw content.",
+        title: "Updated raw title",
+        author_name: "Author Name",
+        publisher_name: "Publisher Name",
         summary_short: "Prior enriched summary",
         extraction_method: "openai_structured",
         extraction_version: "intelligence-v1",

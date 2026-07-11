@@ -1098,18 +1098,18 @@ export async function persistIntelligenceDocument(
     content_hash: contentHash,
     canonical_key: canonicalKey,
     segment_count: document.segments?.length ?? 1,
-    metadata: {
+    metadata: jsonSafe({
       ...existingMetadata,
       ...jsonSafe(document.metadata ?? {}),
       labels: document.labels ?? existingMetadata.labels ?? [],
       source_channel:
-        document.sourceChannel ?? existingMetadata.source_channel ?? null,
+        cleanString(document.sourceChannel) ?? existingMetadata.source_channel ?? null,
       themes: options.extraction?.themes ?? existingThemes,
       primary_domain: options.extraction?.primaryDomain ?? existingPrimaryDomain,
       novelty_signals:
         options.extraction?.noveltySignals ?? existingNoveltySignals,
-    },
-    quality_flags: { flags: storedQualityFlags },
+    }),
+    quality_flags: jsonSafe({ flags: storedQualityFlags }),
     updated_at: now,
   };
 
