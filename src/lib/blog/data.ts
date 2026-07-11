@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isTransientPublicContentError } from "@/lib/blog/errors";
 
 export const BLOG_MEDIA_BUCKET = "blog-media";
 
@@ -266,44 +267,54 @@ export async function requireDashboardUser() {
 
 export const getPublishedBlogPosts = unstable_cache(
   async (): Promise<BlogPostSummary[]> => {
-    const supabase = createPublicBlogClient();
-    const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("blog_posts")
-      .select(BLOG_SUMMARY_COLUMNS)
-      .is("deleted_at", null)
-      .or(
-        `and(status.eq.published,published_at.lte.${now}),and(status.eq.scheduled,scheduled_at.lte.${now})`,
-      )
-      .order("published_at", { ascending: false });
+    try {
+      const supabase = createPublicBlogClient();
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select(BLOG_SUMMARY_COLUMNS)
+        .is("deleted_at", null)
+        .or(
+          `and(status.eq.published,published_at.lte.${now}),and(status.eq.scheduled,scheduled_at.lte.${now})`,
+        )
+        .order("published_at", { ascending: false });
 
-    if (isMissingRelation(error)) return [];
-    if (error) throw new Error(error.message);
+      if (isMissingRelation(error) || isTransientPublicContentError(error)) return [];
+      if (error) throw new Error(error.message);
 
-    return ((data ?? []) as unknown as Array<Record<string, unknown>>).map(
-      coerceSummary,
-    );
+      return ((data ?? []) as unknown as Array<Record<string, unknown>>).map(
+        coerceSummary,
+      );
+    } catch (error) {
+      if (isTransientPublicContentError(error)) return [];
+      throw error;
+    }
   },
   ["published-blog-posts"],
   { revalidate: 60 },
 );
 
 export const getPublishedBlogPostBySlug = cache(async (slug: string) => {
-  const supabase = createPublicBlogClient();
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("blog_posts")
-    .select("*")
-    .eq("slug", slug)
-    .is("deleted_at", null)
-    .or(
-      `and(status.eq.published,published_at.lte.${now}),and(status.eq.scheduled,scheduled_at.lte.${now})`,
-    )
-    .maybeSingle();
+  try {
+    const supabase = createPublicBlogClient();
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("blog_posts")
+      .select("*")
+      .eq("slug", slug)
+      .is("deleted_at", null)
+      .or(
+        `and(status.eq.published,published_at.lte.${now}),and(status.eq.scheduled,scheduled_at.lte.${now})`,
+      )
+      .maybeSingle();
 
-  if (isMissingRelation(error)) return null;
-  if (error) throw new Error(error.message);
-  return data ? coerceDetail(data as Record<string, unknown>) : null;
+    if (isMissingRelation(error) || isTransientPublicContentError(error)) return null;
+    if (error) throw new Error(error.message);
+    return data ? coerceDetail(data as Record<string, unknown>) : null;
+  } catch (error) {
+    if (isTransientPublicContentError(error)) return null;
+    throw error;
+  }
 });
 
 export async function getDashboardBlogPosts(filters: BlogPostFilters) {
