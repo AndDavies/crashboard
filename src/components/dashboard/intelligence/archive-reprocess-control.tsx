@@ -33,22 +33,24 @@ export function ArchiveReprocessControl() {
     setResult(null);
     let offset = 0;
     let failed = 0;
+    let remainingMissing = 0;
     try {
       while (true) {
         const batch = await post("/api/intelligence/reprocess", { offset, limit: 25 });
         offset = Number(batch.nextOffset ?? offset);
         failed += Number(batch.failed ?? 0);
+        remainingMissing = Number(batch.remainingMissing ?? 0);
         setProgress({ complete: offset, total: Number(batch.total ?? offset), failed });
         if (!batch.hasMore) break;
       }
       try {
         await post("/api/intelligence/trends", {});
         setResult(
-          `Archive materialization complete: ${offset} documents visited, ${failed} batch failures. Relationships and trend snapshots refreshed.`,
+          `Archive materialization complete: ${offset} documents visited, ${failed} batch failures, ${remainingMissing} records still missing analytics. Relationships and trend snapshots refreshed.`,
         );
       } catch (error) {
         setResult(
-          `Archive materialization complete: ${offset} documents visited, ${failed} batch failures. Trend refresh failed: ${error instanceof Error ? error.message : "Request failed."}`,
+          `Archive materialization complete: ${offset} documents visited, ${failed} batch failures, ${remainingMissing} records still missing analytics. Trend refresh failed: ${error instanceof Error ? error.message : "Request failed."}`,
         );
       }
     } catch (error) {

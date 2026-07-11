@@ -84,6 +84,7 @@ export async function POST(request: Request) {
     const nextOffset = offset + (documents.data ?? []).length;
     const hasMore = nextOffset < Number(documents.count ?? nextOffset);
     let retryCount = 0;
+    let remainingMissing = 0;
     if (!hasMore) {
       const missing = await admin
         .from("documents")
@@ -95,12 +96,22 @@ export async function POST(request: Request) {
       if (missing.error) throw new Error(missing.error.message);
       retryCount = (missing.data ?? []).length;
       await processDocuments(missing.data ?? []);
+      const remaining = await admin
+        .from("documents")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", ownerId)
+        .eq("source_type", "email_newsletter")
+        .is("analytics_ready_at", null);
+      if (remaining.error) throw new Error(remaining.error.message);
+      remainingMissing = Number(remaining.count ?? 0);
     }
-    const longTail = hasMore ? null : await bootstrapLongTailConcepts(admin, ownerId);
+    const retryMadeProgress = retryCount > 0 && processed > 0;
+    const finalHasMore = hasMore || (remainingMissing > 0 && retryMadeProgress);
+    const longTail = finalHasMore ? null : await bootstrapLongTailConcepts(admin, ownerId);
     const completedAt = new Date().toISOString();
-    const finish = await admin.from("intelligence_runs").update({ status: failed ? "partial" : "completed", processed_count: processed, failed_count: failed, error_summary: errors.slice(0, 5).join("\n") || null, checkpoint_after: { next_offset: nextOffset, has_more: hasMore, long_tail: longTail }, heartbeat_at: completedAt, completed_at: completedAt }).eq("id", run.data.id);
+    const finish = await admin.from("intelligence_runs").update({ status: failed ? "partial" : "completed", processed_count: processed, failed_count: failed, error_summary: errors.slice(0, 5).join("\n") || null, checkpoint_after: { next_offset: nextOffset, has_more: finalHasMore, remaining_missing: remainingMissing, long_tail: longTail }, heartbeat_at: completedAt, completed_at: completedAt }).eq("id", run.data.id);
     if (finish.error) throw new Error(finish.error.message);
-    return NextResponse.json({ result: { offset, nextOffset, total: documents.count ?? nextOffset, hasMore, processed, failed, segments, concepts, retryCount, errors: errors.slice(0, 5), longTail } });
+    return NextResponse.json({ result: { offset, nextOffset, total: documents.count ?? nextOffset, hasMore: finalHasMore, processed, failed, segments, concepts, retryCount, remainingMissing, errors: errors.slice(0, 5), longTail } });
   } catch (error) {
     console.error("[intelligence] Archive reprocessing failed.", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Archive reprocessing failed." }, { status: 500 });
