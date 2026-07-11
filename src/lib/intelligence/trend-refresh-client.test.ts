@@ -42,6 +42,19 @@ describe("batched trend refresh", () => {
     expect(runBatch).toHaveBeenCalledWith(expect.objectContaining({ rebuildRelationships: false }));
   });
 
+  it("resumes from a saved window cursor", async () => {
+    const runBatch = vi.fn(async (body: Record<string, unknown>) => ({
+      snapshotCount: 5,
+      nextWindowOffset: Number(body.cursor) + 1,
+      totalWindowCount: 5,
+      hasMore: false,
+    }));
+
+    await runBatchedTrendRefresh({ runBatch, startCursor: 4 });
+
+    expect(runBatch).toHaveBeenCalledWith(expect.objectContaining({ cursor: 4 }));
+  });
+
   it("rejects a batch that cannot advance", async () => {
     await expect(
       runBatchedTrendRefresh({

@@ -15,8 +15,9 @@ export async function runBatchedTrendRefresh(input: {
   runBatch: (body: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onProgress?: (progress: TrendRefreshProgress) => void;
   rebuildRelationships?: boolean;
+  startCursor?: number;
 }) {
-  let cursor = 0;
+  let cursor = Math.max(0, Math.floor(input.startCursor ?? 0));
   let snapshotCount = 0;
   let total = 0;
   while (true) {

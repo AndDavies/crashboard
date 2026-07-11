@@ -86,6 +86,7 @@ type ActionFeedback = {
 };
 
 const ACTION_FEEDBACK_KEY = "crashboard:intelligence-action-feedback";
+const TREND_REFRESH_CURSOR_KEY = "crashboard:intelligence-trend-refresh-cursor";
 const ACTION_FEEDBACK_MAX_AGE_MS = 15 * 60 * 1000;
 const FULL_BACKFILL_BATCH_PAUSE_MS = 750;
 
@@ -109,10 +110,17 @@ async function postAction(
 }
 
 async function refreshAllTrendWindows(rebuildRelationships = false) {
-  return runBatchedTrendRefresh({
+  const savedCursor = Number(window.sessionStorage.getItem(TREND_REFRESH_CURSOR_KEY) ?? 0);
+  const result = await runBatchedTrendRefresh({
     runBatch: async (body) => (await postAction("/api/intelligence/trends", body)).result ?? {},
-    rebuildRelationships,
+    rebuildRelationships: rebuildRelationships && savedCursor === 0,
+    startCursor: savedCursor,
+    onProgress: (progress) => {
+      window.sessionStorage.setItem(TREND_REFRESH_CURSOR_KEY, String(progress.complete));
+    },
   });
+  window.sessionStorage.removeItem(TREND_REFRESH_CURSOR_KEY);
+  return result;
 }
 
 function TrendLineChart({ data }: { data: IntelligenceDashboardData["trendSeries"] }) {

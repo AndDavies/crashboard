@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { runBatchedTrendRefresh } from "@/lib/intelligence/trend-refresh-client";
 
 type Progress = { complete: number; total: number; failed: number };
+const TREND_REFRESH_CURSOR_KEY = "crashboard:archive-trend-refresh-cursor";
 
 async function post(endpoint: string, body: Record<string, unknown>) {
   const response = await fetch(endpoint, {
@@ -47,8 +48,14 @@ export function ArchiveReprocessControl() {
       try {
         await runBatchedTrendRefresh({
           runBatch: (body) => post("/api/intelligence/trends", body),
-          rebuildRelationships: true,
+          rebuildRelationships:
+            Number(window.sessionStorage.getItem(TREND_REFRESH_CURSOR_KEY) ?? 0) === 0,
+          startCursor: Number(window.sessionStorage.getItem(TREND_REFRESH_CURSOR_KEY) ?? 0),
+          onProgress: (trendProgress) => {
+            window.sessionStorage.setItem(TREND_REFRESH_CURSOR_KEY, String(trendProgress.complete));
+          },
         });
+        window.sessionStorage.removeItem(TREND_REFRESH_CURSOR_KEY);
         setResult(
           `Archive materialization complete: ${offset} documents visited, ${failed} batch failures, ${remainingMissing} records still missing analytics. Relationships and trend snapshots refreshed.`,
         );
