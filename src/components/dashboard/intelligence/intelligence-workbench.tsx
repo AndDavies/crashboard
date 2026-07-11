@@ -31,6 +31,7 @@ import {
   runFullBackfillBatches,
   type FullBackfillProgress,
 } from "@/lib/intelligence/full-backfill";
+import { runBatchedTrendRefresh } from "@/lib/intelligence/trend-refresh-client";
 import type { IntelligenceDashboardData } from "@/lib/intelligence/types";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +106,12 @@ async function postAction(
     throw new Error(payload.error ?? `Action failed (HTTP ${response.status}).`);
   }
   return payload;
+}
+
+async function refreshAllTrendWindows() {
+  return runBatchedTrendRefresh({
+    runBatch: async (body) => (await postAction("/api/intelligence/trends", body)).result ?? {},
+  });
 }
 
 function TrendLineChart({ data }: { data: IntelligenceDashboardData["trendSeries"] }) {
@@ -411,6 +418,29 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
     }
   }
 
+  async function runTrendRefresh() {
+    if (actionRunningRef.current) return;
+    actionRunningRef.current = true;
+    setReprocessConfirmationPending(false);
+    setAction("trends");
+    setFeedback(null);
+    window.sessionStorage.removeItem(ACTION_FEEDBACK_KEY);
+    try {
+      const result = await refreshAllTrendWindows();
+      saveFeedback(
+        "success",
+        `${result.snapshotCount} trend snapshots refreshed across ${result.complete} checkpointed windows.`,
+      );
+      router.refresh();
+    } catch (error) {
+      saveFeedback("error", error instanceof Error ? error.message : "Trend refresh failed.");
+      router.refresh();
+    } finally {
+      actionRunningRef.current = false;
+      setAction(null);
+    }
+  }
+
   function requestFullBackfillStop() {
     fullBackfillStopRef.current = true;
     setFullBackfillStopRequested(true);
@@ -469,7 +499,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
           `Full backfill stopped safely after ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · checkpoint saved. Run Full Backfill again to resume.`,
         );
       } else {
-        await postAction("/api/intelligence/trends");
+        await refreshAllTrendWindows();
         saveFeedback(
           "success",
           `Full backfill complete · ${batchCountLabel(result.batches)} · ${result.processed} processed · ${result.failedAttempts} failed attempts · ${result.excluded} excluded · ${result.deadLettered} dead-lettered · checkpoint complete · trend analytics refreshed.`,
@@ -511,7 +541,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
         setReprocessProgress({ complete: offset, total, failed });
         if (!result.hasMore) break;
       }
-      await postAction("/api/intelligence/trends");
+      await refreshAllTrendWindows();
       saveFeedback(
         failed ? "error" : "success",
         `Archive analytics rebuilt · ${offset} documents visited · ${failed} failed · source identities, article segments, concepts, relationships, and trend snapshots refreshed.`,
@@ -791,7 +821,7 @@ export function IntelligenceWorkbench({ data }: { data: IntelligenceDashboardDat
               <Button
                 variant="outline"
                 disabled={data.status !== "ready" || Boolean(action)}
-                onClick={() => runAction("trends", "/api/intelligence/trends")}
+                onClick={() => void runTrendRefresh()}
               >
                 <Activity className={cn("size-4", action === "trends" && "animate-pulse")} /> Refresh trends
               </Button>

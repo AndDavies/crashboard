@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { runBatchedTrendRefresh } from "@/lib/intelligence/trend-refresh-client";
 
 type Progress = { complete: number; total: number; failed: number };
 
@@ -44,7 +45,9 @@ export function ArchiveReprocessControl() {
         if (!batch.hasMore) break;
       }
       try {
-        await post("/api/intelligence/trends", {});
+        await runBatchedTrendRefresh({
+          runBatch: (body) => post("/api/intelligence/trends", body),
+        });
         setResult(
           `Archive materialization complete: ${offset} documents visited, ${failed} batch failures, ${remainingMissing} records still missing analytics. Relationships and trend snapshots refreshed.`,
         );

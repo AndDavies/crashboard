@@ -335,10 +335,10 @@ export async function rebuildConceptCooccurrence(
       computed_at: new Date().toISOString(),
     };
   });
-  for (let from = 0; from < rows.length; from += 500) {
+  for (let from = 0; from < rows.length; from += 200) {
     const write = await admin
       .from("intelligence_cooccurrence_snapshots")
-      .upsert(rows.slice(from, from + 500), {
+      .upsert(rows.slice(from, from + 200), {
         onConflict: "owner_id,pair_key,grain,channel,period_start,period_end",
       });
     if (write.error) throw new Error(write.error.message);

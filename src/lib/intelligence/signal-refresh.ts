@@ -131,6 +131,12 @@ type GeneratedSignal = {
   increaseProbability: number;
 };
 
+type SignalRefreshOptions = {
+  windowOffset?: number;
+  windowLimit?: number;
+  currentWindowsOnly?: boolean;
+};
+
 async function fetchAllRows<T>(
   queryPage: (from: number, to: number) => PromiseLike<QueryResult<T>>,
 ) {
@@ -246,6 +252,7 @@ export async function refreshSignalSnapshots(
   admin: SupabaseClient,
   ownerId: string,
   anchor = new Date(),
+  options: SignalRefreshOptions = {},
 ) {
   const generationStartedAt = new Date().toISOString();
   const [
@@ -612,7 +619,16 @@ export async function refreshSignalSnapshots(
   const earliestDateKey = [...documentById.values()]
     .map((document) => document.dateKey)
     .sort()[0]!;
-  const windows = buildSignalWindows({ earliestDateKey, anchor });
+  const allWindows = buildSignalWindows({ earliestDateKey, anchor });
+  const selectableWindows = options.currentWindowsOnly
+    ? [
+        ...allWindows.filter((window) => window.windowType !== "weekly"),
+        ...allWindows.filter((window) => window.windowType === "weekly").slice(-1),
+      ]
+    : allWindows;
+  const windowOffset = Math.max(0, Math.floor(options.windowOffset ?? 0));
+  const windowLimit = Math.max(1, Math.floor(options.windowLimit ?? selectableWindows.length));
+  const windows = selectableWindows.slice(windowOffset, windowOffset + windowLimit);
   const channels = ["all", ...new Set([...documentById.values()].map((row) => row.channel))];
   const generated: GeneratedSignal[] = [];
   let snapshotCount = 0;
@@ -756,70 +772,73 @@ export async function refreshSignalSnapshots(
     }
   }
 
-  const dismissOldAlerts = await admin
-    .from("intelligence_alerts")
-    .update({ status: "dismissed" })
-    .eq("owner_id", ownerId)
-    .eq("status", "unread")
-    .is("watchlist_id", null)
-    .is("event_id", null);
-  if (dismissOldAlerts.error) throw new Error(dismissOldAlerts.error.message);
-
   const operatingSignals = generated.filter(
     (signal) => signal.window.windowType === "operating" && signal.channel === "all",
   );
-  for (const signal of operatingSignals.filter((candidate) => candidate.alertQualified)) {
-    const row = signal.row;
-    const alert = await admin.from("intelligence_alerts").upsert(
-      {
-        owner_id: ownerId,
-        severity: Number(row.trend_strength) >= 85 ? "urgent" : "notable",
-        title: `${String(row.trend_label)} is accelerating`,
-        summary: `${Number(row.supporting_document_count)} supporting documents across ${Number(row.independent_source_count)} source families; ${round(signal.increaseProbability * 100, 1)}% probability of increase.`,
-        dedupe_key: `signal:${String(row.trend_key)}:${signal.window.periodEnd}:${INTELLIGENCE_METRIC_VERSION}`,
-      },
-      { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true },
-    );
-    if (alert.error) throw new Error(alert.error.message);
-  }
+  if (operatingSignals.length) {
+    const dismissOldAlerts = await admin
+      .from("intelligence_alerts")
+      .update({ status: "dismissed" })
+      .eq("owner_id", ownerId)
+      .eq("status", "unread")
+      .is("watchlist_id", null)
+      .is("event_id", null);
+    if (dismissOldAlerts.error) throw new Error(dismissOldAlerts.error.message);
 
-  const watchlists = await admin
-    .from("intelligence_watchlists")
-    .select("id,name,rules")
-    .eq("owner_id", ownerId)
-    .eq("enabled", true);
-  if (watchlists.error) throw new Error(watchlists.error.message);
-  for (const watchlist of watchlists.data ?? []) {
-    const rules = (watchlist.rules ?? {}) as {
-      terms?: string[];
-      minimumStrength?: number;
-    };
-    const terms = (rules.terms ?? []).map((term) => normalizeConceptKey(term));
-    for (const signal of operatingSignals) {
+    for (const signal of operatingSignals.filter((candidate) => candidate.alertQualified)) {
       const row = signal.row;
-      if (String(row.qualification_status) !== "qualified") continue;
-      if (Number(row.trend_strength) < Number(rules.minimumStrength ?? 65)) continue;
-      if (
-        terms.length &&
-        !terms.some((term) => normalizeConceptKey(String(row.trend_label)).includes(term))
-      ) {
-        continue;
-      }
       const alert = await admin.from("intelligence_alerts").upsert(
         {
           owner_id: ownerId,
-          watchlist_id: watchlist.id,
           severity: Number(row.trend_strength) >= 85 ? "urgent" : "notable",
-          title: `${watchlist.name}: ${String(row.trend_label)}`,
-          summary: `${Number(row.supporting_document_count)} supporting documents across ${Number(row.independent_source_count)} source families.`,
-          dedupe_key: `watchlist:${watchlist.id}:signal:${String(row.trend_key)}:${signal.window.periodEnd}`,
+          title: `${String(row.trend_label)} is accelerating`,
+          summary: `${Number(row.supporting_document_count)} supporting documents across ${Number(row.independent_source_count)} source families; ${round(signal.increaseProbability * 100, 1)}% probability of increase.`,
+          dedupe_key: `signal:${String(row.trend_key)}:${signal.window.periodEnd}:${INTELLIGENCE_METRIC_VERSION}`,
         },
         { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true },
       );
       if (alert.error) throw new Error(alert.error.message);
     }
+
+    const watchlists = await admin
+      .from("intelligence_watchlists")
+      .select("id,name,rules")
+      .eq("owner_id", ownerId)
+      .eq("enabled", true);
+    if (watchlists.error) throw new Error(watchlists.error.message);
+    for (const watchlist of watchlists.data ?? []) {
+      const rules = (watchlist.rules ?? {}) as {
+        terms?: string[];
+        minimumStrength?: number;
+      };
+      const terms = (rules.terms ?? []).map((term) => normalizeConceptKey(term));
+      for (const signal of operatingSignals) {
+        const row = signal.row;
+        if (String(row.qualification_status) !== "qualified") continue;
+        if (Number(row.trend_strength) < Number(rules.minimumStrength ?? 65)) continue;
+        if (
+          terms.length &&
+          !terms.some((term) => normalizeConceptKey(String(row.trend_label)).includes(term))
+        ) {
+          continue;
+        }
+        const alert = await admin.from("intelligence_alerts").upsert(
+          {
+            owner_id: ownerId,
+            watchlist_id: watchlist.id,
+            severity: Number(row.trend_strength) >= 85 ? "urgent" : "notable",
+            title: `${watchlist.name}: ${String(row.trend_label)}`,
+            summary: `${Number(row.supporting_document_count)} supporting documents across ${Number(row.independent_source_count)} source families.`,
+            dedupe_key: `watchlist:${watchlist.id}:signal:${String(row.trend_key)}:${signal.window.periodEnd}`,
+          },
+          { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true },
+        );
+        if (alert.error) throw new Error(alert.error.message);
+      }
+    }
   }
 
+  const nextWindowOffset = Math.min(selectableWindows.length, windowOffset + windows.length);
   return {
     snapshotCount,
     staleDeletedCount,
@@ -828,6 +847,9 @@ export async function refreshSignalSnapshots(
     periodStart: windows.map((window) => window.periodStart).sort()[0] ?? null,
     periodEnd: windows.map((window) => window.periodEnd).sort().at(-1) ?? null,
     windowCount: windows.length,
+    totalWindowCount: selectableWindows.length,
+    nextWindowOffset,
+    hasMore: nextWindowOffset < selectableWindows.length,
     channelCount: channels.length,
     subjectCount: subjects.size,
   };

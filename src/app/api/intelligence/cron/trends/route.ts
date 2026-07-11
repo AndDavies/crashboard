@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await refreshTrendSnapshots(createAdminClient(), cronOwnerId());
+    const result = await refreshTrendSnapshots(createAdminClient(), cronOwnerId(), new Date(), {
+      currentWindowsOnly: true,
+    });
     return NextResponse.json({ result });
   } catch (error) {
     console.error("[intelligence] Scheduled trend refresh failed.", error);
