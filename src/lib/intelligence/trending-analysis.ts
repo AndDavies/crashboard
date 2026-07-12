@@ -89,6 +89,20 @@ function round(value: number) {
   return Math.round(value * 10) / 10;
 }
 
+function evidenceRelevance(
+  document: Pick<TrendingDocumentRow, "title" | "summary_short" | "published_at">,
+  label: string,
+) {
+  const title = (document.title ?? "").toLocaleLowerCase("en-CA");
+  const summary = (document.summary_short ?? "").toLocaleLowerCase("en-CA");
+  const normalized = label.toLocaleLowerCase("en-CA");
+  const words = normalized.split(/\s+/).filter((word) => word.length >= 4 && !["with", "from", "that", "this", "into", "and"].includes(word));
+  const titleMatches = words.filter((word) => title.includes(word)).length;
+  const summaryMatches = words.filter((word) => summary.includes(word)).length;
+  const recency = Date.parse(document.published_at ?? "") / 1e15 || 0;
+  return (title.includes(normalized) ? 8 : 0) + titleMatches * 3 + (summary.includes(normalized) ? 4 : 0) + summaryMatches + recency;
+}
+
 function eventLabel(value: IntelligenceEventType) {
   const labels: Record<IntelligenceEventType, string> = {
     procurement_notice: "procurement notices",
@@ -144,7 +158,7 @@ function buildSoWhat(
   if (eventType === "award" || eventType === "procurement_notice" || eventType === "deployment") {
     return `The conversation is moving into spending and execution. Watch who is buying, contract values, and delivery timing.`;
   }
-  if (eventType === "trial_pilot" || eventType === "development") {
+  if (conceptType === "capability" && (eventType === "trial_pilot" || eventType === "development")) {
     return `The capability appears to be maturing. The next useful signals are successful trials, named buyers, and operational deployment.`;
   }
   if (eventType === "funding_investment" || eventType === "capacity_expansion") {
@@ -156,7 +170,7 @@ function buildSoWhat(
   if (conceptType === "capability") {
     return `${label} is gaining agenda share across the market. Watch for trials, procurement, and named operational users to confirm adoption.`;
   }
-  return `${label} is taking a larger share of industry attention. Watch for concrete funding, procurement, or deployment evidence that confirms lasting momentum.`;
+  return `Attention to ${label} is taking a larger share of industry coverage. Watch for concrete funding, procurement, or deployment evidence that confirms lasting momentum.`;
 }
 
 export function analyzeTrendingTopics(input: {
@@ -278,7 +292,7 @@ export function analyzeTrendingTopics(input: {
     });
     const evidence = currentDocuments
       .filter((row) => documentIds.has(row.id) && row.published_at && row.title)
-      .sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)))
+      .sort((a, b) => evidenceRelevance(b, group.label) - evidenceRelevance(a, group.label))
       .slice(0, 3)
       .map((row) => ({
         id: row.id,
