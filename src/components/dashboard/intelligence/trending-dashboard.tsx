@@ -10,7 +10,7 @@ import {
   Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { TrendingAnalysis, TrendingTopic } from "@/lib/intelligence/trending-analysis";
 
@@ -257,7 +257,12 @@ export function TrendingDashboard({
               <h2 className="mt-1 font-heading text-3xl font-semibold">The fastest-rising topics</h2>
               <p className="mt-2 text-sm text-muted-foreground">Each line is the percentage of that week’s articles mentioning the topic.</p>
             </div>
-            <Link href="/dashboard/intelligence/trends" className={buttonVariants({ variant: "outline" })}>View all trends <ArrowRight className="size-4" /></Link>
+            <Link
+              href="/dashboard/intelligence/trends"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[2px] border border-border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              View all trends <ArrowRight className="size-4" />
+            </Link>
           </div>
           <TrendChart topics={chartTopics} />
         </section>
