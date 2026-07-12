@@ -269,6 +269,10 @@ function articleRecords(data: JsonRecord) {
   return asArray(data.articles).map(asRecord).filter((article) => asString(article.title));
 }
 
+function radarRecords(data: JsonRecord) {
+  return asArray(data.radar_items).map(asRecord).filter((article) => asString(article.title));
+}
+
 function fullSearchText(data: JsonRecord, topic: string) {
   const parts = [topic, asString(data.bottom_line)];
   for (const signal of asArray(data.executive_signals).map(asRecord)) {
@@ -285,6 +289,18 @@ function fullSearchText(data: JsonRecord, topic: string) {
       ...asStringArray(article.summary),
     );
   }
+  for (const item of radarRecords(data)) {
+    parts.push(
+      asString(item.theme),
+      asString(item.title),
+      asString(item.source),
+      asString(item.publisher),
+      asString(item.sector),
+      asString(item.geography),
+      asString(item.so_what),
+      asString(item.summary),
+    );
+  }
   return parts.join(" ").toLowerCase();
 }
 
@@ -294,6 +310,11 @@ function inferTags(data: JsonRecord, searchText: string) {
 
   for (const article of articleRecords(data)) {
     const theme = asString(article.theme).toUpperCase();
+    if (!theme) continue;
+    themeCounts.set(theme, (themeCounts.get(theme) ?? 0) + 1);
+  }
+  for (const item of radarRecords(data)) {
+    const theme = asString(item.theme).toUpperCase();
     if (!theme) continue;
     themeCounts.set(theme, (themeCounts.get(theme) ?? 0) + 1);
   }
@@ -495,6 +516,14 @@ function collectSourceLinks(data: JsonRecord, fileName: string) {
     );
   }
 
+  for (const item of radarRecords(data)) {
+    add(
+      asString(item.title),
+      asString(item.url),
+      sourceNote(asString(item.source) || asString(item.publisher), asString(item.theme) || "Radar"),
+    );
+  }
+
   for (const related of asArray(data.related_links).map(asRecord)) {
     add(
       asString(related.title),
@@ -612,12 +641,29 @@ function buildContentBlocks(data: JsonRecord, reportDate: string, topic: string)
       const url = cleanUrl(asString(article.url), `${topic} article ${index + 1}`);
       blocks.push(heading(3, `${String(index + 1).padStart(2, "0")}. ${title}`));
       blocks.push(sourceBlock(asString(article.source) || title, url, asString(article.theme)));
-      pushBlock(blocks, labeledParagraph("Why it matters", asString(article.why_it_stood_out)));
-      pushBlock(blocks, labeledParagraph("Action", asString(article.your_action)));
       pushBlock(blocks, labeledParagraph("So what", asString(article.so_what)));
       for (const summary of asStringArray(article.summary)) {
         pushBlock(blocks, paragraph(summary));
       }
+    });
+  }
+
+  const radar = radarRecords(data);
+  if (radar.length > 0) {
+    blocks.push(heading(2, "Signal Radar"));
+    radar.forEach((item, index) => {
+      const title = asString(item.title);
+      const url = cleanUrl(asString(item.url), `${topic} radar ${index + 1}`);
+      blocks.push(heading(3, `R${String(index + 1).padStart(2, "0")}. ${title}`));
+      blocks.push(
+        sourceBlock(
+          asString(item.publisher) || asString(item.source) || title,
+          url,
+          asString(item.theme) || "Radar",
+        ),
+      );
+      pushBlock(blocks, paragraph(asString(item.summary)));
+      pushBlock(blocks, labeledParagraph("So what", asString(item.so_what)));
     });
   }
 

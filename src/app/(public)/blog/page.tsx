@@ -116,7 +116,9 @@ export default async function BlogPage({ searchParams }: Props) {
   const visibleEnd = Math.min(currentPage * PAGE_SIZE, filteredPosts.length);
   const featuredPost =
     currentPage === 1 && !query && !selectedTag ? visiblePosts[0] ?? null : null;
-  const archivePosts = featuredPost ? visiblePosts.slice(1) : visiblePosts;
+  // Keep the newest post in the archive list as well as the featured position so
+  // freshness checks and readers see one consistent chronological ordering.
+  const archivePosts = visiblePosts;
   const featuredImage = featuredPost
     ? featuredPost.coverImageUrl ??
       getBlogTopicsForPost(featuredPost)[0]?.heroImage ??
