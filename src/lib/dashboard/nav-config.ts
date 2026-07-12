@@ -37,9 +37,9 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
     icon: Activity,
     defaultOpen: true,
     items: [
-      { title: "Overview", href: "/dashboard/intelligence", icon: Activity },
-      { title: "Trends", href: "/dashboard/intelligence/trends", icon: LineChart },
-      { title: "Explorer", href: "/dashboard/intelligence/explorer", icon: Search },
+      { title: "What's changing", href: "/dashboard/intelligence", icon: Activity },
+      { title: "All trends", href: "/dashboard/intelligence/trends", icon: LineChart },
+      { title: "Search evidence", href: "/dashboard/intelligence/explorer", icon: Search },
       { title: "Defence", href: "/dashboard/intelligence/defence", icon: Shield },
       { title: "Operations", href: "/dashboard/intelligence/operations", icon: Database },
     ],

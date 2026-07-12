@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { IntelligenceWorkbench } from "@/components/dashboard/intelligence/intelligence-workbench";
-import { getIntelligenceDashboardData } from "@/lib/intelligence/data";
+import { TrendingDashboard } from "@/components/dashboard/intelligence/trending-dashboard";
+import { getTrendingAnalysis } from "@/lib/intelligence/trending-data";
 
 export const metadata: Metadata = {
   title: "Trend Intelligence · Crashboard",
@@ -10,6 +10,6 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function IntelligencePage() {
-  const data = await getIntelligenceDashboardData();
-  return <IntelligenceWorkbench data={data} />;
+  const data = await getTrendingAnalysis();
+  return <TrendingDashboard data={data} mode="overview" />;
 }
