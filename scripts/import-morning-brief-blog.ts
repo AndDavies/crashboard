@@ -407,6 +407,7 @@ function printSummary(
     console.log(`updated=${result.updated}`);
     console.log(`verified_posts=${result.verifiedPosts}`);
     console.log(`verified_revisions=${result.verifiedRevisions}`);
+    console.log("public_verification_required=true");
   }
 }
 

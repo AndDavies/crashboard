@@ -61,6 +61,19 @@ pdf_local_path: /Users/andrewdavies/Documents/Playground/brief.pdf
           summary: ["Capability and fragility are rising together after web search widened the source set."],
         },
       ],
+      radar_items: [
+        {
+          theme: "INDUSTRY",
+          title: "Canada expands industrial capacity",
+          source: "Independent radar / Government of Canada",
+          publisher: "Government of Canada",
+          url: "https://www.canada.ca/en/news.html",
+          sector: "Industrial capacity",
+          geography: "Canada",
+          summary: "A compact source-backed radar item.",
+          so_what: "The expansion changes supplier capacity and gives procurement leaders a concrete production signal to track across later awards and delivery milestones.",
+        },
+      ],
       sector_map: [
         {
           sector: "Enterprise AI deployment",
@@ -100,7 +113,7 @@ describe("Morning Brief blog import transform", () => {
     );
     expect(draft.slug).toBe("deployment-becomes-the-market-2026-07-02");
     expect(draft.answerSummary).toContain("control shift");
-    expect(draft.sourceLinks).toHaveLength(4);
+    expect(draft.sourceLinks).toHaveLength(5);
     expect(draft.tags).toContain("morning brief");
     expect(draft.relatedWikiSlugs).toContain("agentic-engineering");
     expect(draft.contentHtml).toContain("<h2>Executive Signals</h2>");
@@ -111,7 +124,14 @@ describe("Morning Brief blog import transform", () => {
     expect(draft.contentHtml).toContain(">Center for Cyber Diplomacy</a>");
     expect(draft.contentHtml).not.toContain("Newsletter Lead");
     expect(draft.contentHtml).toContain("Anchor Articles");
+    expect(draft.contentHtml).toContain("Signal Radar");
     expect(draft.contentHtml).toContain("Related Links");
+    expect(draft.contentHtml).not.toContain(
+      "AWS is turning agentic AI deployment support into a scaled commercial motion.",
+    );
+    expect(draft.contentHtml).not.toContain(
+      "Watch whether hyperscalers make embedded implementation capacity default.",
+    );
     expect(draft.contentHtml).not.toContain(draft.answerSummary);
     expect(draft.contentHtml).not.toMatch(/Newsletter Lead|Web Search/);
     expect(JSON.stringify(draft.sourceLinks)).not.toMatch(
@@ -210,7 +230,7 @@ describe("Morning Brief blog import transform", () => {
       }),
     );
 
-    expect(deduped.sourceLinks).toHaveLength(3);
+    expect(deduped.sourceLinks).toHaveLength(4);
 
     expect(() =>
       transformMorningBriefReport(
