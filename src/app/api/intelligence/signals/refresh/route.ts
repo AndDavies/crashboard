@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
     };
     const phase = body.phase ?? "all";
     const cursor = Math.max(0, Math.floor(Number(body.cursor ?? 0)));
+    let effectiveCursor = cursor;
+    const requestedLimit = Math.min(250, Math.max(1, Math.floor(Number(body.limit ?? 100))));
+    // Model-assisted newsletter splitting can consume most of a serverless
+    // request window. Smaller resumable batches keep each checkpoint durable.
+    const limit = phase === "segmentation" ? Math.min(10, requestedLimit) : requestedLimit;
     const resumable = await admin
       .from("intelligence_runs")
       .select("id,status,checkpoint_after")
@@ -34,11 +39,20 @@ export async function POST(request: NextRequest) {
     });
     if (existing?.id) {
       runId = String(existing.id);
+      const checkpoint = existing.checkpoint_after as Record<string, unknown> | null;
+      const savedCursor = Number(checkpoint?.nextCursor);
+      if (
+        checkpoint?.phase === phase &&
+        Number.isFinite(savedCursor) &&
+        savedCursor > effectiveCursor
+      ) {
+        effectiveCursor = savedCursor;
+      }
       const resumed = await admin.from("intelligence_runs").update({
         status: "running",
         heartbeat_at: new Date().toISOString(),
         error_summary: null,
-        checkpoint_before: { job: "intelligence_v2", phase, cursor },
+        checkpoint_before: { job: "intelligence_v2", phase, cursor: effectiveCursor },
       }).eq("owner_id", ownerId).eq("id", runId);
       if (resumed.error) throw new Error(resumed.error.message);
     } else {
@@ -60,8 +74,8 @@ export async function POST(request: NextRequest) {
       ownerId,
       {
         phase,
-        cursor,
-        limit: Math.min(250, Math.max(1, Math.floor(Number(body.limit ?? 100)))),
+        cursor: effectiveCursor,
+        limit,
       },
     );
     const resultRecord = result as unknown as Record<string, unknown>;
@@ -76,7 +90,7 @@ export async function POST(request: NextRequest) {
         job: "intelligence_v2",
         phase: complete ? "complete" : phase,
         completed_phase: complete ? phase : null,
-        cursor,
+        cursor: effectiveCursor,
         nextCursor: resultRecord.nextCursor ?? null,
         hasMore,
         result: resultRecord,

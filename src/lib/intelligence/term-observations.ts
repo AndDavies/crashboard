@@ -98,7 +98,9 @@ function isAcronym(raw: string) {
 }
 
 function isContentToken(token: Token) {
-  return token.normalized.length >= 3 && !STOPWORDS.has(token.normalized);
+  return (
+    token.normalized.length >= 3 || isIdentifier(token.raw) || isAcronym(token.raw)
+  ) && !STOPWORDS.has(token.normalized);
 }
 
 function isTechnicalToken(token: Token) {

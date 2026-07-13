@@ -28,4 +28,15 @@ describe("deterministic intelligence term observations", () => {
     expect(result.some((row) => row.normalizedTerm === "newsletter")).toBe(false);
     expect(result.some((row) => row.normalizedTerm.includes("counter-uas"))).toBe(true);
   });
+
+  it("retains meaningful two-letter acronyms", () => {
+    const result = extractTermObservations({
+      title: "AI procurement",
+      contentText: "AI models are being tested for targeting support. AI assurance requirements followed.",
+    });
+    const ai = result.find((row) => row.normalizedTerm === "ai");
+    expect(ai?.kind).toBe("acronym");
+    expect(ai?.occurrenceCount).toBe(2);
+    expect(ai?.titleCount).toBe(1);
+  });
 });

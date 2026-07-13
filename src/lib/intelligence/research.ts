@@ -3,6 +3,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSourceAdapter, type CollectionSourceRow } from "@/lib/intelligence/collectors";
+import { halifaxDayBounds } from "@/lib/intelligence/immediate-alerts";
 import { processIntelligenceDocument } from "@/lib/intelligence/pipeline";
 import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
 
@@ -33,11 +34,16 @@ const OFFICIAL_RESEARCH_DOMAINS = [
   "ted.europa.eu",
   "europa.eu",
 ] as const;
+const RESEARCH_FETCH_COOLDOWN_MS = 6 * 60 * 60 * 1_000;
 
 const ResearchClaimSchema = z
   .object({
     claim: z.string().min(1).max(1_200),
     support: z.enum(["supported", "partial", "unsupported", "unknown"]),
+    date: z.string().max(40),
+    organization: z.string().max(240),
+    amount: z.string().max(120),
+    milestone: z.string().max(500),
     sourceUrls: z.array(z.string().url()).max(8),
   })
   .strict();
@@ -47,6 +53,8 @@ const ResearchSynthesisSchema = z
     assessment: z.enum(["supported", "mixed", "unsupported", "unknown"]),
     whatChanged: z.string().max(1_600),
     whyNow: z.string().max(1_600),
+    whyNowSupport: z.enum(["supported", "partial", "unsupported", "unknown"]),
+    whyNowSourceUrls: z.array(z.string().url()).max(8),
     whyItMatters: z.string().max(1_600),
     whatToWatch: z.string().max(1_600),
     evidenceEffect: z.enum(["strengthened", "weakened", "unchanged"]),
@@ -140,12 +148,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function startOfUtcDay(anchor: Date) {
-  const start = new Date(anchor);
-  start.setUTCHours(0, 0, 0, 0);
-  return start;
-}
-
 function researchInstructions() {
   return `You are Crashboard's evidence analyst. Use web search; do not answer from memory.
 
@@ -156,6 +158,8 @@ Rules:
 - Extract exact dates, amounts, organizations, programme or system names, buyers, and milestones when present.
 - Never invent a cause. If the evidence does not establish why activity changed, say the cause is unknown.
 - Treat unsupported causal explanations as unknown and unsupported claims as unsupported.
+- For every claim, return the exact date, organization, amount, and milestone when known; use an empty string when unknown.
+- Mark why-now support separately and attach its source URLs. Unsupported causal explanations must be marked unknown.
 - Explain whether the evidence strengthened, weakened, or did not change the trend assessment.
 - Keep the language brief and useful to a decision-maker.`;
 }
@@ -181,6 +185,22 @@ function researchContext(lead: ResearchLeadRow) {
   };
 }
 
+function officialDomainsForLead(lead: ResearchLeadRow) {
+  const context = lead.query_context ?? {};
+  const candidates = Array.isArray(context.official_domains) ? context.official_domains : [];
+  const dynamic = candidates.flatMap((candidate) => {
+    if (typeof candidate !== "string" || !candidate.trim()) return [];
+    try {
+      const parsed = new URL(candidate.includes("://") ? candidate : `https://${candidate}`);
+      const domain = parsed.hostname.toLowerCase().replace(/^www\./u, "");
+      return /^[a-z0-9.-]+\.[a-z]{2,}$/u.test(domain) ? [domain] : [];
+    } catch {
+      return [];
+    }
+  });
+  return [...new Set([...OFFICIAL_RESEARCH_DOMAINS, ...dynamic])].slice(0, 100);
+}
+
 async function officialResearch(client: OpenAI, lead: ResearchLeadRow) {
   return client.responses.parse(
     {
@@ -190,7 +210,7 @@ async function officialResearch(client: OpenAI, lead: ResearchLeadRow) {
         {
           type: "web_search",
           search_context_size: "medium",
-          filters: { allowed_domains: [...OFFICIAL_RESEARCH_DOMAINS] },
+          filters: { allowed_domains: officialDomainsForLead(lead) },
         },
       ],
       tool_choice: "required",
@@ -239,13 +259,18 @@ async function broadResearch(
 
 function responseSources(response: ResponseWithParsed<unknown>) {
   const sources = new Map<string, { url: string; title: string; citation: boolean }>();
+  let searchCalls = 0;
   for (const item of response.output) {
     if (item.type === "web_search_call" && item.action.type === "search") {
-      for (const source of item.action.sources ?? []) {
+      searchCalls += 1;
+      for (const source of (item.action.sources ?? []).slice(0, RESEARCH_LIMITS.retainedUrlsPerSearch)) {
         const url = normalizeSourceUrl(source.url);
         if (url && !sources.has(url)) sources.set(url, { url, title: new URL(url).hostname, citation: false });
       }
     }
+  }
+  const retainedLimit = Math.max(1, searchCalls) * RESEARCH_LIMITS.retainedUrlsPerSearch;
+  for (const item of response.output) {
     if (item.type !== "message") continue;
     for (const content of item.content) {
       if (content.type !== "output_text") continue;
@@ -253,17 +278,84 @@ function responseSources(response: ResponseWithParsed<unknown>) {
         if (annotation.type !== "url_citation") continue;
         const url = normalizeSourceUrl(annotation.url);
         if (!url) continue;
-        sources.set(url, { url, title: annotation.title || new URL(url).hostname, citation: true });
+        if (sources.has(url) || sources.size < retainedLimit) {
+          sources.set(url, { url, title: annotation.title || new URL(url).hostname, citation: true });
+        }
       }
     }
   }
-  return [...sources.values()].slice(0, RESEARCH_LIMITS.retainedUrlsPerSearch);
+  return [...sources.values()].slice(0, retainedLimit);
 }
 
 function isPrimaryDomain(domain: string) {
   return OFFICIAL_RESEARCH_DOMAINS.some(
     (official) => domain === official || domain.endsWith(`.${official}`),
   );
+}
+
+function isPrimaryDomainForLead(lead: ResearchLeadRow, domain: string) {
+  return officialDomainsForLead(lead).some(
+    (official) => domain === official || domain.endsWith(`.${official}`),
+  );
+}
+
+function verifiedWhyNow(
+  input: { text: string; support: "supported" | "partial" | "unsupported" | "unknown"; sourceUrls: string[] },
+  knownUrls: ReadonlySet<string>,
+) {
+  const sourceUrls = input.sourceUrls
+    .map((url) => normalizeSourceUrl(url))
+    .filter((url): url is string => Boolean(url && knownUrls.has(url)));
+  const supported =
+    (input.support === "supported" || input.support === "partial") &&
+    sourceUrls.length > 0 &&
+    input.text.trim().length > 0;
+  return {
+    text: supported
+      ? input.text.trim()
+      : "The available evidence does not establish why this activity changed.",
+    support: supported ? input.support : ("unknown" as const),
+    sourceUrls,
+  };
+}
+
+function completedLeadIsCoolingDown(
+  lead: { created_at: string; completed_at?: string | null; cooldown_until?: string | null },
+  anchor: Date,
+) {
+  const boundary = anchor.getTime() - RESEARCH_LIMITS.signalCooldownDays * 86_400_000;
+  const completedAt = Date.parse(lead.completed_at ?? lead.created_at);
+  const cooldownUntil = Date.parse(lead.cooldown_until ?? "");
+  return (
+    (Number.isFinite(completedAt) && completedAt >= boundary) ||
+    (Number.isFinite(cooldownUntil) && cooldownUntil > anchor.getTime())
+  );
+}
+
+function automaticResearchReason(signal: {
+  direction: string;
+  evidence_strength: string;
+  primary_source_count: number | string | null;
+  unique_action_count: number | string | null;
+  metadata: unknown;
+}) {
+  if (
+    signal.evidence_strength !== "strong" ||
+    (signal.direction !== "new" && signal.direction !== "rising")
+  ) {
+    return null;
+  }
+  const metadata =
+    signal.metadata && typeof signal.metadata === "object" && !Array.isArray(signal.metadata)
+      ? (signal.metadata as Record<string, unknown>)
+      : {};
+  const lacksExplanation = !String(metadata.why_now ?? "").trim();
+  const reasons = [
+    Number(signal.primary_source_count) === 0 ? "No primary source." : "",
+    Number(signal.unique_action_count) === 0 ? "No concrete action evidence." : "",
+    lacksExplanation ? "Explanation needs stronger evidence." : "",
+  ].filter(Boolean);
+  return reasons.length ? { reason: reasons.join(" "), metadata } : null;
 }
 
 function estimatedCost(responses: Array<ResponseWithParsed<unknown>>) {
@@ -286,25 +378,18 @@ function estimatedCost(responses: Array<ResponseWithParsed<unknown>>) {
 }
 
 async function usedResearchCapacity(admin: SupabaseClient, ownerId: string, anchor: Date) {
-  const since = startOfUtcDay(anchor).toISOString();
-  const [runs, results] = await Promise.all([
-    admin
-      .from("intelligence_runs")
-      .select("processed_count")
-      .eq("owner_id", ownerId)
-      .eq("run_type", "research")
-      .gte("created_at", since),
-    admin
-      .from("intelligence_research_results")
-      .select("estimated_cost_usd")
-      .eq("owner_id", ownerId)
-      .gte("created_at", since),
-  ]);
+  const bounds = halifaxDayBounds(anchor);
+  const runs = await admin
+    .from("intelligence_runs")
+    .select("processed_count,estimated_cost_usd")
+    .eq("owner_id", ownerId)
+    .eq("run_type", "research")
+    .gte("created_at", bounds.start)
+    .lt("created_at", bounds.end);
   if (runs.error) throw new Error(runs.error.message);
-  if (results.error) throw new Error(results.error.message);
   return {
     fetched: (runs.data ?? []).reduce((total, row) => total + Number(row.processed_count ?? 0), 0),
-    estimatedCostUsd: (results.data ?? []).reduce(
+    estimatedCostUsd: (runs.data ?? []).reduce(
       (total, row) => total + Number(row.estimated_cost_usd ?? 0),
       0,
     ),
@@ -317,7 +402,7 @@ async function researchSourceForUrl(
   url: string,
 ): Promise<CollectionSourceRow> {
   const domain = new URL(url).hostname.toLowerCase().replace(/^www\./u, "");
-  const externalKey = `research:${domain}`;
+  const baseExternalKey = `research:${domain}`;
   const existing = await admin
     .from("intelligence_sources")
     .select(
@@ -325,7 +410,14 @@ async function researchSourceForUrl(
     )
     .eq("owner_id", lead.owner_id)
     .eq("source_type", "website")
-    .eq("external_key", externalKey)
+    .in("external_key", [
+      baseExternalKey,
+      `${baseExternalKey}:unapproved`,
+      `${baseExternalKey}:lead:${lead.id}`,
+    ])
+    .eq("cohort", "research")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
   if (existing.data) {
@@ -348,14 +440,14 @@ async function researchSourceForUrl(
       owner_id: lead.owner_id,
       source_type: "website",
       name: `${domain} research`,
-      external_key: externalKey,
+      external_key: `${baseExternalKey}:lead:${lead.id}`,
       status: "active",
       cohort: "research",
       measurement_active_from: null,
       discovery_origin: "trend_research",
       triggering_research_lead_id: lead.id,
       robots_status: "unknown",
-      config: { urls: [url], authority: isPrimaryDomain(domain) ? "official" : "research" },
+      config: { urls: [url], authority: isPrimaryDomainForLead(lead, domain) ? "official" : "research" },
     })
     .select(
       "id,owner_id,source_type,name,external_key,status,cohort,measurement_active_from,discovery_origin,triggering_research_lead_id,robots_status,config,checkpoint,last_synced_at,last_successful_fetch_at,fetch_failure_count,fetch_cooldown_until",
@@ -371,19 +463,42 @@ async function ingestResearchSource(
   source: ResearchSource,
 ) {
   const sourceRow = await researchSourceForUrl(admin, lead, source.url);
-  const adapter = createSourceAdapter({ ...sourceRow, config: { ...(sourceRow.config ?? {}), urls: [source.url] } });
-  const fetchedDocument = await adapter.fetch(source.url, lead.owner_id);
-  // The bounded web-search passes already perform the research extraction.
-  // Persist fetched evidence without a second unmetered model call; promoted
-  // sources receive normal enrichment on prospective scheduled collections.
-  const document = {
-    ...fetchedDocument,
-    metadata: {
-      ...(fetchedDocument.metadata ?? {}),
-      research_extraction_pending: true,
-    },
-  };
-  const persisted = await processIntelligenceDocument(admin, document);
+  const adapter = createSourceAdapter({
+    ...sourceRow,
+    config: { ...(sourceRow.config ?? {}), urls: [source.url] },
+  });
+  let fetchedDocument;
+  let persisted;
+  try {
+    fetchedDocument = await adapter.fetch(source.url, lead.owner_id);
+    // The bounded search responses perform the structured research extraction.
+    // The shared pipeline persists and deduplicates the source now; the normal
+    // collector adds page-level concepts, entities, events, and embeddings.
+    persisted = await processIntelligenceDocument(admin, {
+      ...fetchedDocument,
+      metadata: {
+        ...(fetchedDocument.metadata ?? {}),
+        research_extraction_pending: true,
+      },
+    });
+  } catch (error) {
+    const message = errorMessage(error);
+    const failedAt = new Date().toISOString();
+    const failedUpdate = await admin
+      .from("intelligence_sources")
+      .update({
+        last_error: message,
+        fetch_failure_count: Number(sourceRow.fetch_failure_count ?? 0) + 1,
+        fetch_cooldown_until: new Date(Date.now() + RESEARCH_FETCH_COOLDOWN_MS).toISOString(),
+        updated_at: failedAt,
+      })
+      .eq("id", sourceRow.id)
+      .eq("owner_id", lead.owner_id);
+    if (failedUpdate.error) {
+      console.error("[intelligence] Could not record research-source fetch failure.", failedUpdate.error);
+    }
+    throw error;
+  }
   const documentRow = await admin
     .from("documents")
     .select("source_identity_id")
@@ -399,7 +514,7 @@ async function ingestResearchSource(
       .eq("id", documentRow.data.source_identity_id);
     if (identity.error) throw new Error(identity.error.message);
   }
-  await admin
+  const sourceUpdate = await admin
     .from("intelligence_sources")
     .update({
       robots_status: fetchedDocument.metadata?.robots_status ?? "unknown",
@@ -412,6 +527,7 @@ async function ingestResearchSource(
     })
     .eq("id", sourceRow.id)
     .eq("owner_id", lead.owner_id);
+  if (sourceUpdate.error) throw new Error(sourceUpdate.error.message);
   return persisted.documentId;
 }
 
@@ -436,7 +552,7 @@ async function completeLead(
       url: source.url,
       title: source.title,
       domain,
-      primary: isPrimaryDomain(domain),
+      primary: isPrimaryDomainForLead(lead, domain),
       citation: source.citation || Boolean(existing?.citation),
       fetched: false,
       documentId: null,
@@ -473,19 +589,45 @@ async function completeLead(
           : claim.support,
     };
   });
+  const supportedClaimCount = claims.filter(
+    (claim) =>
+      (claim.support === "supported" || claim.support === "partial") &&
+      claim.sourceUrls.length > 0,
+  ).length;
+  const verifiedCausalExplanation = verifiedWhyNow(
+    {
+      text: synthesis.whyNow,
+      support: synthesis.whyNowSupport,
+      sourceUrls: synthesis.whyNowSourceUrls,
+    },
+    new Set(sourceMap.keys()),
+  );
+  const causalClaim = {
+    claim: verifiedCausalExplanation.text,
+    support: verifiedCausalExplanation.support,
+    date: "",
+    organization: "",
+    amount: "",
+    milestone: "",
+    sourceUrls: verifiedCausalExplanation.sourceUrls,
+    why_now_source: true,
+  };
   const result = await admin.from("intelligence_research_results").insert({
     owner_id: lead.owner_id,
     lead_id: lead.id,
     signal_kind: lead.signal_kind,
     signal_id: lead.signal_id,
-    assessment: synthesis.assessment,
+    assessment: supportedClaimCount ? synthesis.assessment : "unknown",
     what_changed: synthesis.whatChanged,
-    why_now: synthesis.whyNow,
+    why_now: verifiedCausalExplanation.text,
     why_it_matters: synthesis.whyItMatters,
     what_to_watch: synthesis.whatToWatch,
-    evidence_effect: synthesis.evidenceEffect,
+    evidence_effect: supportedClaimCount ? synthesis.evidenceEffect : "unchanged",
     sources: [...sourceMap.values()],
-    claims,
+    claims: [
+      ...claims.map((claim) => ({ ...claim, why_now_source: false })),
+      causalClaim,
+    ],
     openai_response_id: broad.id,
     model: INTELLIGENCE_RESEARCH_MODEL,
     estimated_cost_usd: cost,
@@ -517,9 +659,10 @@ export async function createResearchLead(
     queryContext?: Record<string, unknown>;
     triggerType?: "automatic" | "manual";
     priority?: number;
+    anchor?: Date;
   },
 ) {
-  const cooldownBoundary = new Date(Date.now() - RESEARCH_LIMITS.signalCooldownDays * 86_400_000).toISOString();
+  const anchor = input.anchor ?? new Date();
   const active = await admin
     .from("intelligence_research_leads")
     .select("id,status,created_at,cooldown_until")
@@ -534,17 +677,20 @@ export async function createResearchLead(
   if (active.data) return { lead: active.data, created: false };
   const recent = await admin
     .from("intelligence_research_leads")
-    .select("id,status,created_at,cooldown_until")
+    .select("id,status,created_at,completed_at,cooldown_until")
     .eq("owner_id", input.ownerId)
     .eq("signal_kind", input.signalKind)
     .eq("signal_id", input.signalId)
     .eq("status", "completed")
-    .gte("created_at", cooldownBoundary)
-    .order("created_at", { ascending: false })
+    .order("completed_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
   if (recent.error) throw new Error(recent.error.message);
-  if (recent.data) return { lead: recent.data, created: false };
+  if (recent.data) {
+    if (completedLeadIsCoolingDown(recent.data, anchor)) {
+      return { lead: recent.data, created: false };
+    }
+  }
 
   const inserted = await admin
     .from("intelligence_research_leads")
@@ -570,13 +716,14 @@ export async function createAutomaticResearchLeads(
   ownerId: string,
   anchor = new Date(),
 ) {
-  const today = startOfUtcDay(anchor).toISOString();
+  const dayBounds = halifaxDayBounds(anchor);
   const existingToday = await admin
     .from("intelligence_research_leads")
     .select("id", { count: "exact", head: true })
     .eq("owner_id", ownerId)
     .eq("trigger_type", "automatic")
-    .gte("created_at", today);
+    .gte("created_at", dayBounds.start)
+    .lt("created_at", dayBounds.end);
   if (existingToday.error) throw new Error(existingToday.error.message);
   const remainingDailyLeads = Math.max(
     0,
@@ -605,14 +752,8 @@ export async function createAutomaticResearchLeads(
   let created = 0;
   for (const signal of unique.values()) {
     if (created >= remainingDailyLeads) break;
-    const metadata =
-      signal.metadata && typeof signal.metadata === "object" && !Array.isArray(signal.metadata)
-        ? (signal.metadata as Record<string, unknown>)
-        : {};
-    const lacksExplanation = !String(metadata.why_now ?? "").trim();
-    if (Number(signal.primary_source_count) > 0 && Number(signal.unique_action_count) > 0 && !lacksExplanation) {
-      continue;
-    }
+    const gap = automaticResearchReason(signal);
+    if (!gap) continue;
     const result = await createResearchLead(admin, {
       ownerId,
       signalKind: signal.signal_kind as IntelligenceResearchSignalKind,
@@ -620,14 +761,9 @@ export async function createAutomaticResearchLeads(
       signalLabel: String(signal.signal_label),
       triggerType: "automatic",
       priority: 70,
-      reason: [
-        Number(signal.primary_source_count) === 0 ? "No primary source." : "",
-        Number(signal.unique_action_count) === 0 ? "No concrete action evidence." : "",
-        lacksExplanation ? "Explanation needs stronger evidence." : "",
-      ]
-        .filter(Boolean)
-        .join(" "),
-      queryContext: metadata,
+      anchor,
+      reason: gap.reason,
+      queryContext: gap.metadata,
     });
     if (result.created) created += 1;
   }
@@ -685,13 +821,14 @@ export async function runResearchQueue(
   let failed = 0;
   let fetched = 0;
   let cost = 0;
+  let reservedFailureCost = 0;
   const errors: string[] = [];
 
   for (const lead of leads) {
     // Reserve a fixed ceiling before the first request so the final lead cannot
     // consume the remainder and push the day's estimated spend past the cap.
     if (
-      capacity.estimatedCostUsd + cost + perLeadBudgetReserveUsd() >
+      capacity.estimatedCostUsd + cost + reservedFailureCost + perLeadBudgetReserveUsd() >
       dailyBudgetUsd()
     ) {
       break;
@@ -711,6 +848,15 @@ export async function runResearchQueue(
       .maybeSingle();
     if (claimed.error) throw new Error(claimed.error.message);
     if (!claimed.data) continue;
+    const activeReservation = perLeadBudgetReserveUsd();
+    const reservation = await admin
+      .from("intelligence_runs")
+      .update({
+        estimated_cost_usd: cost + reservedFailureCost + activeReservation,
+        heartbeat_at: new Date().toISOString(),
+      })
+      .eq("id", runId);
+    if (reservation.error) throw new Error(reservation.error.message);
     try {
       const result = await completeLead(admin, lead, {
         remainingPages: Math.max(0, RESEARCH_LIMITS.fetchedPagesPerDay - capacity.fetched - fetched),
@@ -720,6 +866,7 @@ export async function runResearchQueue(
       cost += result.cost;
     } catch (error) {
       failed += 1;
+      reservedFailureCost += activeReservation;
       const message = errorMessage(error);
       errors.push(`${lead.signal_label}: ${message}`);
       await admin
@@ -733,7 +880,7 @@ export async function runResearchQueue(
       .update({
         processed_count: fetched,
         failed_count: failed,
-        estimated_cost_usd: cost,
+        estimated_cost_usd: cost + reservedFailureCost,
         error_summary: errors.slice(0, 5).join("\n") || null,
         heartbeat_at: new Date().toISOString(),
       })
@@ -741,21 +888,30 @@ export async function runResearchQueue(
   }
 
   const completedAt = new Date().toISOString();
+  const accountedCost = cost + reservedFailureCost;
   const finish = await admin
     .from("intelligence_runs")
     .update({
       status: failed ? (completed ? "partial" : "failed") : "completed",
       processed_count: fetched,
       failed_count: failed,
-      estimated_cost_usd: cost,
-      checkpoint_after: { completed, failed, fetched },
+      estimated_cost_usd: accountedCost,
+      checkpoint_after: { completed, failed, fetched, estimated_cost_usd: accountedCost },
       error_summary: errors.slice(0, 5).join("\n") || null,
       heartbeat_at: completedAt,
       completed_at: completedAt,
     })
     .eq("id", runId);
   if (finish.error) throw new Error(finish.error.message);
-  return { runId, queued: leads.length, completed, failed, fetched, estimatedCostUsd: cost, errors: errors.slice(0, 5) };
+  return {
+    runId,
+    queued: leads.length,
+    completed,
+    failed,
+    fetched,
+    estimatedCostUsd: accountedCost,
+    errors: errors.slice(0, 5),
+  };
 }
 
 export async function promoteResearchSource(
@@ -800,4 +956,9 @@ export const __testables = {
   estimatedCost,
   isPrimaryDomain,
   perLeadBudgetReserveUsd,
+  verifiedWhyNow,
+  completedLeadIsCoolingDown,
+  automaticResearchReason,
+  officialDomainsForLead,
+  isPrimaryDomainForLead,
 };

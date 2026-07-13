@@ -58,6 +58,31 @@ describe("bounded intelligence research", () => {
     ]);
   });
 
+  it("retains up to five URLs for each web search call", () => {
+    const source = (index: number) => ({
+      type: "url",
+      url: `https://example${index}.com/report`,
+    });
+    const sources = __testables.responseSources({
+      id: "resp_2",
+      output_parsed: {},
+      output: [
+        {
+          type: "web_search_call",
+          action: { type: "search", query: "official", sources: Array.from({ length: 7 }, (_, index) => source(index)) },
+        },
+        {
+          type: "web_search_call",
+          action: { type: "search", query: "independent", sources: Array.from({ length: 7 }, (_, index) => source(index + 7)) },
+        },
+      ],
+      usage: null,
+    } as never);
+    expect(sources).toHaveLength(10);
+    expect(sources.map((item) => item.url)).toContain("https://example11.com/report");
+    expect(sources.map((item) => item.url)).not.toContain("https://example6.com/report");
+  });
+
   it("estimates token and search costs and reserves budget before a lead", () => {
     process.env.OPENAI_INTELLIGENCE_RESEARCH_INPUT_USD_PER_MILLION = "2";
     process.env.OPENAI_INTELLIGENCE_RESEARCH_OUTPUT_USD_PER_MILLION = "10";
@@ -80,5 +105,113 @@ describe("bounded intelligence research", () => {
     expect(__testables.isPrimaryDomain("www.nato.int")).toBe(true);
     expect(__testables.isPrimaryDomain("example.com")).toBe(false);
   });
-});
 
+  it("adds explicitly known programme and company domains to the official pass", () => {
+    const lead: Parameters<typeof __testables.officialDomainsForLead>[0] = {
+      id: "lead_1",
+      owner_id: "owner_1",
+      signal_kind: "system",
+      signal_id: "system_1",
+      signal_label: "Counter-drone system",
+      status: "queued",
+      trigger_type: "automatic",
+      reason: "No primary source.",
+      query_context: {
+        official_domains: ["https://www.vendor.example/news", "NCIA.NATO.INT", "not a domain"],
+      },
+      priority: 70,
+      attempt_count: 0,
+      created_at: "2026-07-13T12:00:00.000Z",
+    };
+    const domains = __testables.officialDomainsForLead(lead);
+    expect(domains).toContain("vendor.example");
+    expect(domains).toContain("ncia.nato.int");
+    expect(domains).not.toContain("not a domain");
+    expect(__testables.isPrimaryDomainForLead(lead, "press.vendor.example")).toBe(true);
+  });
+
+  it("allows only Strong New/Rising signals with a material research gap", () => {
+    expect(
+      __testables.automaticResearchReason({
+        direction: "rising",
+        evidence_strength: "strong",
+        primary_source_count: 0,
+        unique_action_count: 0,
+        metadata: {},
+      })?.reason,
+    ).toBe("No primary source. No concrete action evidence. Explanation needs stronger evidence.");
+    expect(
+      __testables.automaticResearchReason({
+        direction: "rising",
+        evidence_strength: "strong",
+        primary_source_count: 1,
+        unique_action_count: 1,
+        metadata: { why_now: "A cited award explains the movement." },
+      }),
+    ).toBeNull();
+    expect(
+      __testables.automaticResearchReason({
+        direction: "new",
+        evidence_strength: "moderate",
+        primary_source_count: 0,
+        unique_action_count: 0,
+        metadata: {},
+      }),
+    ).toBeNull();
+  });
+
+  it("enforces the seven-day cooldown from completion time", () => {
+    const anchor = new Date("2026-07-13T12:00:00.000Z");
+    expect(
+      __testables.completedLeadIsCoolingDown(
+        {
+          created_at: "2026-06-01T12:00:00.000Z",
+          completed_at: "2026-07-07T12:00:01.000Z",
+          cooldown_until: null,
+        },
+        anchor,
+      ),
+    ).toBe(true);
+    expect(
+      __testables.completedLeadIsCoolingDown(
+        {
+          created_at: "2026-06-01T12:00:00.000Z",
+          completed_at: "2026-07-06T11:59:59.000Z",
+          cooldown_until: null,
+        },
+        anchor,
+      ),
+    ).toBe(false);
+  });
+
+  it("replaces unsupported causal explanations with an explicit unknown", () => {
+    const known = new Set(["https://www.canada.ca/release"]);
+    expect(
+      __testables.verifiedWhyNow(
+        {
+          text: "A contract award caused the increase.",
+          support: "supported",
+          sourceUrls: ["https://www.canada.ca/release"],
+        },
+        known,
+      ),
+    ).toMatchObject({
+      text: "A contract award caused the increase.",
+      support: "supported",
+    });
+    expect(
+      __testables.verifiedWhyNow(
+        {
+          text: "A rumour caused the increase.",
+          support: "supported",
+          sourceUrls: ["https://unseen.example/claim"],
+        },
+        known,
+      ),
+    ).toEqual({
+      text: "The available evidence does not establish why this activity changed.",
+      support: "unknown",
+      sourceUrls: [],
+    });
+  });
+});

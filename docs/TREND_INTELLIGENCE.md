@@ -66,7 +66,11 @@ Required to enable immediate delivery after the v2 series is verified:
 
 Immediate delivery selects only **Strong** signals classified as **New** or **Rising** with at least one distinct real-world action or primary-source item. It uses a deterministic daily claim and sends no more than two messages per Halifax calendar day, including when both daylight-saving cron triggers invoke the route.
 
-Research runs at low reasoning with medium search context, a maximum of four web searches per lead, five retained URLs per search, 100 fetched pages per day, and a seven-day per-signal cooldown. Research sources enter the `research` cohort and cannot affect a trend. Selecting **Approve as regular source** starts measurement prospectively; it does not rewrite historical scores.
+Research creates at most five automatic leads per Halifax calendar day and only for **Strong New/Rising** signals that lack a primary source, concrete action, or supported explanation. Each lead runs an official-domain pass before broader discovery, with low reasoning, medium search context, a maximum of four web searches, five retained URLs per search, two transient retries, 100 successfully fetched pages per day, a `$5` estimated daily OpenAI ceiling, and a seven-day cooldown measured from completion. A budget reservation is recorded before each API call sequence, so failures and interrupted runs cannot silently reopen the day’s budget.
+
+Every retained page is checked against `robots.txt`, passed through the shared document pipeline, and deduplicated by its canonical document identity. Research results retain the complete consulted-source list and clickable citations, plus structured claims, dates, organizations, amounts, milestones, **What changed**, **Why now**, **Why it matters**, and **What to watch**. A causal explanation without a retained supporting URL is stored as unknown, and an assessment without supported claims is recorded as unknown/unchanged.
+
+Research sources always enter the `research` cohort—even when that domain was previously promoted—and cannot affect a trend. Selecting **Approve as regular source** starts measurement prospectively; it does not rewrite historical scores or convert the trend-triggered documents that motivated the research into historical trend votes.
 
 Optional:
 
