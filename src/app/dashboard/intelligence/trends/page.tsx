@@ -1,15 +1,16 @@
-import type { Metadata } from "next";
-import { TrendingDashboard } from "@/components/dashboard/intelligence/trending-dashboard";
-import { getTrendingAnalysis } from "@/lib/intelligence/trending-data";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "What Is Trending? · Crashboard" };
-export const dynamic = "force-dynamic";
-
-export default async function TrendsPage({
+function append(params: URLSearchParams, key: string, value: string | string[] | undefined) {
+  if (Array.isArray(value)) value.forEach((item) => params.append(key, item));
+  else if (value) params.set(key, value);
+}
+export default async function TrendsRedirect({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [{ q = "" }, data] = await Promise.all([searchParams, getTrendingAnalysis()]);
-  return <TrendingDashboard data={data} mode="all" query={q.slice(0, 80)} />;
+  const incoming = await searchParams;
+  const params = new URLSearchParams();
+  Object.entries(incoming).forEach(([key, value]) => append(params, key, value));
+  redirect(`/dashboard/intelligence/explore${params.size ? `?${params}` : ""}`);
 }

@@ -1,0 +1,518 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { sha256Hex } from "@/lib/ingestion/hash";
+import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
+
+type DbRow = Record<string, unknown>;
+const DAY_MS = 86_400_000;
+
+function normalizedWords(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-CA")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(/\s+/u)
+    .filter((word) => word.length >= 3 && !["the", "and", "for", "with", "from", "into", "new"].includes(word))
+    .map((word) => {
+      if (/^award(?:ed|ing|s)?$/u.test(word)) return "award";
+      if (/^announc(?:e|ed|es|ing|ement)$/u.test(word)) return "announce";
+      if (/^deploy(?:ed|ing|ment|ments|s)?$/u.test(word)) return "deploy";
+      if (/^trial(?:led|ing|s)?$/u.test(word)) return "trial";
+      return word;
+    });
+}
+
+export function titleSimilarity(a: unknown, b: unknown) {
+  const left = new Set(normalizedWords(a));
+  const right = new Set(normalizedWords(b));
+  if (!left.size || !right.size) return 0;
+  const overlap = [...left].filter((word) => right.has(word)).length;
+  return overlap / (left.size + right.size - overlap);
+}
+
+function eventDay(row: DbRow) {
+  return String(row.announced_at ?? row.occurred_at ?? "").slice(0, 10);
+}
+
+function daysApart(a: string, b: string) {
+  return Math.abs(Date.parse(`${a}T12:00:00Z`) - Date.parse(`${b}T12:00:00Z`)) / DAY_MS;
+}
+
+class DisjointSet {
+  private parent = new Map<string, string>();
+
+  add(id: string) {
+    if (!this.parent.has(id)) this.parent.set(id, id);
+  }
+
+  find(id: string): string {
+    const parent = this.parent.get(id) ?? id;
+    if (parent === id) return id;
+    const root = this.find(parent);
+    this.parent.set(id, root);
+    return root;
+  }
+
+  union(a: string, b: string) {
+    const left = this.find(a);
+    const right = this.find(b);
+    if (left !== right) this.parent.set(right, left < right ? left : right);
+  }
+}
+
+function storyExactKey(row: DbRow) {
+  return storyExactKeys(row)[0] ?? null;
+}
+
+function storyExactKeys(row: DbRow) {
+  const keys: string[] = [];
+  const url = normalizeSourceUrl(String(
+    row.outbound_url ?? row.canonical_url ?? row.original_url ?? "",
+  ));
+  if (url) keys.push(`url:${url}`);
+  const hash = String(row.content_hash ?? "").trim();
+  if (hash) keys.push(`hash:${hash}`);
+  return keys;
+}
+
+function embeddingVector(value: unknown) {
+  if (Array.isArray(value)) return value.map(Number).filter(Number.isFinite);
+  if (typeof value !== "string") return [];
+  return value.replace(/^\[|\]$/gu, "").split(",").map(Number).filter(Number.isFinite);
+}
+
+function cosineSimilarity(a: number[], b: number[]) {
+  if (!a.length || a.length !== b.length) return 0;
+  let dot = 0;
+  let left = 0;
+  let right = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    dot += a[index] * b[index];
+    left += a[index] ** 2;
+    right += b[index] ** 2;
+  }
+  return left && right ? dot / Math.sqrt(left * right) : 0;
+}
+
+function groupsFromSet(rows: DbRow[], set: DisjointSet) {
+  const groups = new Map<string, DbRow[]>();
+  for (const row of rows) {
+    const root = set.find(String(row.id));
+    const group = groups.get(root) ?? [];
+    group.push(row);
+    groups.set(root, group);
+  }
+  return [...groups.values()];
+}
+
+async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
+  const [segmentsResult, embeddingsResult, existingResult] = await Promise.all([
+    admin.from("intelligence_document_segments")
+      .select("id,document_id,title,outbound_url,content_hash,confidence,documents!inner(title,published_at)")
+      .eq("owner_id", ownerId).in("segment_type", ["editorial", "unknown"])
+      .is("exclusion_reason", null).order("id", { ascending: true }).limit(20_000),
+    admin.from("intelligence_segment_embeddings")
+      .select("segment_id,embedding").eq("owner_id", ownerId).limit(20_000),
+    admin.from("intelligence_clusters").select("id,metadata")
+      .eq("owner_id", ownerId).eq("cluster_type", "story").limit(20_000),
+  ]);
+  const error = [segmentsResult.error, embeddingsResult.error, existingResult.error].find(Boolean);
+  if (error) throw new Error(error.message);
+  const staleV2Ids = (existingResult.data ?? []).filter((row) => {
+    const metadata = row.metadata && typeof row.metadata === "object"
+      ? row.metadata as Record<string, unknown>
+      : {};
+    return metadata.dedupe_version === "story-dedup-v2.0.0";
+  }).map((row) => String(row.id));
+  if (staleV2Ids.length) {
+    const remove = await admin.from("intelligence_clusters").delete()
+      .eq("owner_id", ownerId).in("id", staleV2Ids);
+    if (remove.error) throw new Error(remove.error.message);
+  }
+  const vectors = new Map(
+    (embeddingsResult.data ?? []).map((row) => [String(row.segment_id), embeddingVector(row.embedding)]),
+  );
+  const segments = ((segmentsResult.data ?? []) as DbRow[]).map((segment) => {
+    const document = Array.isArray(segment.documents) ? segment.documents[0] : segment.documents;
+    const value = document && typeof document === "object" ? document as DbRow : {};
+    return {
+      ...segment,
+      published_at: value.published_at,
+      document_title: value.title,
+      story_title: segment.title ?? value.title,
+    } as DbRow;
+  }).filter((segment) => Boolean(segment.published_at))
+    .sort((a, b) => String(a.published_at).localeCompare(String(b.published_at)));
+  const set = new DisjointSet();
+  const exactOwner = new Map<string, string>();
+  for (const segment of segments) {
+    const id = String(segment.id);
+    set.add(id);
+    for (const exact of storyExactKeys(segment)) {
+      if (exactOwner.has(exact)) set.union(id, exactOwner.get(exact)!);
+      else exactOwner.set(exact, id);
+    }
+  }
+  for (let left = 0; left < segments.length; left += 1) {
+    const leftDate = String(segments[left].published_at).slice(0, 10);
+    for (let right = left + 1; right < segments.length; right += 1) {
+      const rightDate = String(segments[right].published_at).slice(0, 10);
+      if (daysApart(leftDate, rightDate) > 7) {
+        if (rightDate > leftDate) break;
+        continue;
+      }
+      if (titleSimilarity(segments[left].story_title, segments[right].story_title) < 0.5) continue;
+      const leftVector = vectors.get(String(segments[left].id)) ?? [];
+      const rightVector = vectors.get(String(segments[right].id)) ?? [];
+      if (cosineSimilarity(leftVector, rightVector) < 0.86) continue;
+      set.union(String(segments[left].id), String(segments[right].id));
+    }
+  }
+  const groups = groupsFromSet(segments, set);
+  const clusterRows = groups.map((group) => {
+    const canonical = [...group].sort((a, b) =>
+      Number(b.confidence ?? 0) - Number(a.confidence ?? 0) ||
+      String(a.published_at).localeCompare(String(b.published_at))
+    )[0];
+    const fingerprint = sha256Hex(`story|${group.map((row) => String(row.id)).sort().join("|")}`);
+    return {
+      owner_id: ownerId,
+      cluster_type: "story",
+      canonical_document_id: canonical.document_id,
+      fingerprint,
+      title: canonical.story_title,
+      metadata: {
+        member_count: group.length,
+        canonical_segment_id: canonical.id,
+        dedupe_version: "story-dedup-v2.0.0",
+      },
+      updated_at: new Date().toISOString(),
+      group,
+    };
+  });
+  const clusterByFingerprint = new Map<string, string>();
+  for (let index = 0; index < clusterRows.length; index += 500) {
+    const writeClusters = await admin.from("intelligence_clusters").upsert(
+      clusterRows.slice(index, index + 500).map(({ group, ...row }) => {
+        if (!group.length) throw new Error("Story cluster cannot be empty.");
+        return row;
+      }),
+      { onConflict: "owner_id,cluster_type,fingerprint" },
+    ).select("id,fingerprint");
+    if (writeClusters.error) throw new Error(writeClusters.error.message);
+    for (const row of writeClusters.data ?? []) {
+      clusterByFingerprint.set(String(row.fingerprint), String(row.id));
+    }
+  }
+  const documentRows = clusterRows.flatMap((cluster) => {
+    const clusterId = clusterByFingerprint.get(cluster.fingerprint)!;
+    return [...new Map(cluster.group.map((segment) => [String(segment.document_id), segment])).values()]
+      .map((segment) => ({
+      owner_id: ownerId,
+      cluster_id: clusterId,
+      document_id: segment.document_id,
+      relationship: segment.document_id === cluster.canonical_document_id ? "canonical" : "supporting",
+    }));
+  });
+  for (let index = 0; index < documentRows.length; index += 500) {
+    const write = await admin.from("intelligence_cluster_documents").upsert(
+      documentRows.slice(index, index + 500),
+      { onConflict: "cluster_id,document_id" },
+    );
+    if (write.error) throw new Error(write.error.message);
+  }
+  const segmentRows = clusterRows.flatMap((cluster) => {
+    const clusterId = clusterByFingerprint.get(cluster.fingerprint)!;
+    const canonicalSegmentId = String((cluster.metadata as { canonical_segment_id: unknown }).canonical_segment_id);
+    return cluster.group.map((segment) => ({
+      owner_id: ownerId,
+      cluster_id: clusterId,
+      segment_id: segment.id,
+      relationship: String(segment.id) === canonicalSegmentId ? "canonical" : "member",
+    }));
+  });
+  for (let index = 0; index < segmentRows.length; index += 500) {
+    const write = await admin.from("intelligence_cluster_segments").upsert(
+      segmentRows.slice(index, index + 500),
+      { onConflict: "cluster_id,segment_id" },
+    );
+    if (write.error) throw new Error(write.error.message);
+  }
+  return {
+    storyClusters: clusterRows.length,
+    storySegmentMemberships: segmentRows.length,
+    storyDocumentMemberships: documentRows.length,
+  };
+}
+
+async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, completeThrough: string) {
+  const [eventsResult, evidenceResult, eventEntitiesResult, entitiesResult,
+    conceptsResult, allEventEntitiesResult, documentConceptsResult,
+    documentEntitiesResult] = await Promise.all([
+    admin.from("intelligence_events")
+      .select("id,title,event_type,announced_at,occurred_at,confidence,cluster_id,review_status,metadata")
+      .eq("owner_id", ownerId).neq("event_type", "other").neq("review_status", "rejected")
+      .limit(10_000),
+    admin.from("intelligence_event_evidence").select("*").eq("owner_id", ownerId).limit(20_000),
+    admin.from("intelligence_event_entities").select("event_id,entity_id,role")
+      .eq("owner_id", ownerId).limit(20_000),
+    admin.from("intelligence_entities").select("id,entity_type").eq("owner_id", ownerId).limit(10_000),
+    admin.from("intelligence_event_concepts").select("*").eq("owner_id", ownerId).limit(20_000),
+    admin.from("intelligence_event_entities").select("*").eq("owner_id", ownerId).limit(20_000),
+    admin.from("intelligence_document_concepts")
+      .select("document_id,concept_id,confidence,evidence_text")
+      .eq("owner_id", ownerId).gte("confidence", 0.65).limit(50_000),
+    admin.from("intelligence_document_entities")
+      .select("document_id,entity_id,role,confidence,evidence_text")
+      .eq("owner_id", ownerId).gte("confidence", 0.65).limit(50_000),
+  ]);
+  const error = [eventsResult.error, evidenceResult.error, eventEntitiesResult.error,
+    entitiesResult.error, conceptsResult.error, allEventEntitiesResult.error,
+    documentConceptsResult.error, documentEntitiesResult.error].find(Boolean);
+  if (error) throw new Error(error.message);
+  const evidenceByEvent = new Map<string, DbRow[]>();
+  for (const row of evidenceResult.data ?? []) {
+    const values = evidenceByEvent.get(String(row.event_id)) ?? [];
+    values.push(row as DbRow);
+    evidenceByEvent.set(String(row.event_id), values);
+  }
+  const documentConcepts = new Map<string, DbRow[]>();
+  for (const row of documentConceptsResult.data ?? []) {
+    const values = documentConcepts.get(String(row.document_id)) ?? [];
+    values.push(row as DbRow);
+    documentConcepts.set(String(row.document_id), values);
+  }
+  const documentEntities = new Map<string, DbRow[]>();
+  for (const row of documentEntitiesResult.data ?? []) {
+    const values = documentEntities.get(String(row.document_id)) ?? [];
+    values.push(row as DbRow);
+    documentEntities.set(String(row.document_id), values);
+  }
+  const eventConceptRows: DbRow[] = [...(conceptsResult.data ?? [])] as DbRow[];
+  const eventEntityRowsAll: DbRow[] = [...(allEventEntitiesResult.data ?? [])] as DbRow[];
+  const conceptLinked = new Set(eventConceptRows.map((row) => String(row.event_id)));
+  const entityLinked = new Set(eventEntityRowsAll.map((row) => String(row.event_id)));
+  const inferredConceptRows: DbRow[] = [];
+  const inferredEntityRows: DbRow[] = [];
+  for (const event of eventsResult.data ?? []) {
+    const eventId = String(event.id);
+    const evidenceDocuments = (evidenceByEvent.get(eventId) ?? []).map((row) => String(row.document_id));
+    if (!conceptLinked.has(eventId)) {
+      const concepts = [...new Map(
+        evidenceDocuments.flatMap((documentId) => documentConcepts.get(documentId) ?? [])
+          .map((row) => [String(row.concept_id), row]),
+      ).values()].slice(0, 6);
+      inferredConceptRows.push(...concepts.map((row) => ({
+        owner_id: ownerId,
+        association_key: sha256Hex(`${eventId}|${row.concept_id}|evidence-link-v2`),
+        event_id: eventId,
+        concept_id: row.concept_id,
+        relation: "subject",
+        source: "rule",
+        confidence: Math.min(0.9, Number(row.confidence ?? 0.65) * 0.9),
+        evidence_text: row.evidence_text ?? null,
+        extraction_version: "event-evidence-link-v2.0.0",
+        metadata: { inferred_from_evidence_document: true },
+        updated_at: new Date().toISOString(),
+      })));
+    }
+    if (!entityLinked.has(eventId)) {
+      const entities = [...new Map(
+        evidenceDocuments.flatMap((documentId) => documentEntities.get(documentId) ?? [])
+          .map((row) => [String(row.entity_id), row]),
+      ).values()].slice(0, 8);
+      inferredEntityRows.push(...entities.map((row) => ({
+        owner_id: ownerId,
+        event_id: eventId,
+        entity_id: row.entity_id,
+        role: row.role || "involved",
+        source: "rule",
+        confidence: Math.min(0.9, Number(row.confidence ?? 0.65) * 0.9),
+        evidence_text: row.evidence_text ?? null,
+        extraction_version: "event-evidence-link-v2.0.0",
+        metadata: { inferred_from_evidence_document: true },
+      })));
+    }
+  }
+  for (let index = 0; index < inferredConceptRows.length; index += 500) {
+    const write = await admin.from("intelligence_event_concepts").upsert(
+      inferredConceptRows.slice(index, index + 500),
+      { onConflict: "owner_id,association_key", ignoreDuplicates: true },
+    );
+    if (write.error) throw new Error(write.error.message);
+  }
+  for (let index = 0; index < inferredEntityRows.length; index += 500) {
+    const write = await admin.from("intelligence_event_entities").upsert(
+      inferredEntityRows.slice(index, index + 500),
+      { onConflict: "event_id,entity_id,role", ignoreDuplicates: true },
+    );
+    if (write.error) throw new Error(write.error.message);
+  }
+  eventConceptRows.push(...inferredConceptRows);
+  eventEntityRowsAll.push(...inferredEntityRows);
+  const entityType = new Map((entitiesResult.data ?? []).map((row) => [String(row.id), String(row.entity_type)]));
+  const entitiesByEvent = new Map<string, Array<{ id: string; type: string; role: string }>>();
+  for (const row of eventEntityRowsAll) {
+    const eventId = String(row.event_id);
+    const values = entitiesByEvent.get(eventId) ?? [];
+    values.push({ id: String(row.entity_id), type: entityType.get(String(row.entity_id)) ?? "", role: String(row.role) });
+    entitiesByEvent.set(eventId, values);
+  }
+  const principal = (eventId: string) => [...(entitiesByEvent.get(eventId) ?? [])]
+    .filter((value) =>
+      ["program", "product_system", "capability_technology", "government_agency"].includes(value.type) ||
+      (["organization"].includes(value.type) && /buyer|customer|agency|operator|subject/iu.test(value.role))
+    )
+    .sort((a, b) => {
+      const score = (value: { type: string; role: string }) =>
+        ["program", "product_system", "capability_technology"].includes(value.type) ? 3 :
+          /buyer|customer|agency|operator|subject/iu.test(value.role) ? 2 : 1;
+      return score(b) - score(a);
+    })[0]?.id ?? null;
+  const genericIds = ((eventsResult.data ?? []) as DbRow[]).filter((event) =>
+    /\b(?:daily|weekly) (?:brief|roundup)|\bnews digest\b|\btop stories\b/iu.test(String(event.title))
+  ).map((event) => String(event.id));
+  if (genericIds.length) {
+    const exclude = await admin.from("intelligence_events").update({ review_status: "rejected" })
+      .eq("owner_id", ownerId).in("id", genericIds).eq("review_status", "unreviewed");
+    if (exclude.error) throw new Error(exclude.error.message);
+  }
+  const events = ((eventsResult.data ?? []) as DbRow[]).filter((event) => {
+    const date = eventDay(event);
+    const announced = String(event.announced_at ?? "").slice(0, 10);
+    const occurred = String(event.occurred_at ?? "").slice(0, 10);
+    if (
+      !date || announced > completeThrough || occurred > completeThrough ||
+      Number(event.confidence ?? 0) < 0.6 || genericIds.includes(String(event.id))
+    ) return false;
+    if (event.event_type === "procurement_notice" && !principal(String(event.id))) return false;
+    return true;
+  });
+  const set = new DisjointSet();
+  for (const event of events) set.add(String(event.id));
+  for (let left = 0; left < events.length; left += 1) {
+    for (let right = left + 1; right < events.length; right += 1) {
+      if (events[left].event_type !== events[right].event_type) continue;
+      if (daysApart(eventDay(events[left]), eventDay(events[right])) > 7) continue;
+      const leftPrincipal = principal(String(events[left].id));
+      const rightPrincipal = principal(String(events[right].id));
+      if (leftPrincipal && leftPrincipal === rightPrincipal) {
+        set.union(String(events[left].id), String(events[right].id));
+      } else if (!leftPrincipal && !rightPrincipal &&
+        titleSimilarity(events[left].title, events[right].title) >= 0.86) {
+        set.union(String(events[left].id), String(events[right].id));
+      }
+    }
+  }
+  const groups = groupsFromSet(events, set);
+  let duplicateEventsRemoved = 0;
+  for (const group of groups) {
+    // Existing ingestion already creates one event cluster per event. Only
+    // write when two or more extracted events resolve to the same story.
+    if (group.length < 2) continue;
+    const canonical = [...group].sort((a, b) =>
+      (evidenceByEvent.get(String(b.id))?.length ?? 0) -
+        (evidenceByEvent.get(String(a.id))?.length ?? 0) ||
+      Number(b.confidence ?? 0) - Number(a.confidence ?? 0)
+    )[0];
+    const canonicalId = String(canonical.id);
+    const fingerprint = sha256Hex(`event|${String(canonical.event_type)}|${principal(canonicalId) ?? normalizedWords(canonical.title).join(" ")}|${eventDay(canonical)}`);
+    const cluster = await admin.from("intelligence_clusters").upsert({
+      owner_id: ownerId,
+      cluster_type: "event",
+      fingerprint,
+      title: canonical.title,
+      metadata: { member_count: group.length, dedupe_version: "event-dedup-v2.0.0" },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "owner_id,cluster_type,fingerprint" }).select("id").single();
+    if (cluster.error || !cluster.data?.id) throw new Error(cluster.error?.message ?? "Failed to create event cluster.");
+    const clusterId = String(cluster.data.id);
+    const updateCanonical = await admin.from("intelligence_events")
+      .update({ cluster_id: clusterId, updated_at: new Date().toISOString() })
+      .eq("owner_id", ownerId).eq("id", canonicalId);
+    if (updateCanonical.error) throw new Error(updateCanonical.error.message);
+    const duplicates = group.filter((event) => String(event.id) !== canonicalId);
+    const duplicateIds = duplicates.map((event) => String(event.id));
+    const evidenceRows: DbRow[] = [...new Map<string, DbRow>(
+      group.flatMap((event) => evidenceByEvent.get(String(event.id)) ?? [])
+        .map((row: DbRow): DbRow => ({ ...row, event_id: canonicalId }))
+        .map((row): [string, DbRow] => [String(row.document_id), row]),
+    ).values()];
+    if (evidenceRows.length) {
+      const writeEvidence = await admin.from("intelligence_event_evidence").upsert(evidenceRows, {
+        onConflict: "event_id,document_id",
+      });
+      if (writeEvidence.error) throw new Error(writeEvidence.error.message);
+      const memberships = evidenceRows.map((row: DbRow) => ({
+        owner_id: ownerId,
+        cluster_id: clusterId,
+        document_id: row.document_id,
+        relationship: "supporting",
+      }));
+      const writeMemberships = await admin.from("intelligence_cluster_documents").upsert(memberships, {
+        onConflict: "cluster_id,document_id",
+      });
+      if (writeMemberships.error) throw new Error(writeMemberships.error.message);
+    }
+    if (duplicateIds.length) {
+      const conceptRows = [...new Map(
+        eventConceptRows.filter((row) => duplicateIds.includes(String(row.event_id)))
+        .map((row) => ({
+          ...row,
+          id: undefined,
+          event_id: canonicalId,
+          association_key: sha256Hex(`${canonicalId}|${row.concept_id}|${row.relation}|${row.source}`),
+        }))
+        .map((row) => [String(row.association_key), row]),
+      ).values()];
+      if (conceptRows.length) {
+        const write = await admin.from("intelligence_event_concepts").upsert(conceptRows, {
+          onConflict: "owner_id,association_key",
+        });
+        if (write.error) throw new Error(write.error.message);
+      }
+      const entityRows = [...new Map<string, DbRow>(
+        eventEntityRowsAll.filter((row) => duplicateIds.includes(String(row.event_id)))
+        .map((row): DbRow => ({ ...row, event_id: canonicalId }))
+        .map((row): [string, DbRow] => [`${row.entity_id}|${row.role}`, row]),
+      ).values()];
+      if (entityRows.length) {
+        const write = await admin.from("intelligence_event_entities").upsert(entityRows, {
+          onConflict: "event_id,entity_id,role",
+          ignoreDuplicates: true,
+        });
+        if (write.error) throw new Error(write.error.message);
+      }
+      const remove = await admin.from("intelligence_events").delete()
+        .eq("owner_id", ownerId).in("id", duplicateIds);
+      if (remove.error) throw new Error(remove.error.message);
+      duplicateEventsRemoved += duplicateIds.length;
+    }
+  }
+  const linkedEventIds = new Set([
+    ...eventConceptRows.map((row) => String(row.event_id)),
+    ...eventEntityRowsAll.map((row) => String(row.event_id)),
+  ]);
+  return {
+    eventClusters: groups.length,
+    duplicateEventsRemoved,
+    usableEvents: events.length,
+    linkedUsableEvents: events.filter((event) => linkedEventIds.has(String(event.id))).length,
+    inferredConceptLinks: inferredConceptRows.length,
+    inferredEntityLinks: inferredEntityRows.length,
+    genericEventsExcluded: genericIds.length,
+  };
+}
+
+export async function rebuildStoryAndEventClustersV2(
+  admin: SupabaseClient,
+  ownerId: string,
+  options: { completeThrough?: string } = {},
+) {
+  const completeThrough = options.completeThrough ?? new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
+  const stories = await rebuildStoryClusters(admin, ownerId);
+  const events = await rebuildEventClusters(admin, ownerId, completeThrough);
+  return { ...stories, ...events, completeThrough };
+}
+
+export const __testables = { daysApart, normalizedWords, storyExactKey };

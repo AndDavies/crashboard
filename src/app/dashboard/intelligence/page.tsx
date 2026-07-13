@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { TrendingDashboard } from "@/components/dashboard/intelligence/trending-dashboard";
-import { getTrendingAnalysis } from "@/lib/intelligence/trending-data";
+import { IntelligenceOverview } from "@/components/dashboard/intelligence/intelligence-overview";
+import { getIntelligenceUiData } from "@/components/dashboard/intelligence/intelligence-ui-data";
 
 export const metadata: Metadata = {
   title: "Trend Intelligence · Crashboard",
@@ -10,6 +10,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function IntelligencePage() {
-  const data = await getTrendingAnalysis();
-  return <TrendingDashboard data={data} mode="overview" />;
+  const data = await getIntelligenceUiData({ range: "90d", lens: "all", kind: "all" });
+  return (
+    <IntelligenceOverview
+      signals={data.signals}
+      completeThrough={data.completeThrough}
+      completedResearch={data.completedResearch}
+      dataStatus={data.dataStatus}
+      usesLegacyFallback={data.usesLegacyFallback}
+    />
+  );
 }

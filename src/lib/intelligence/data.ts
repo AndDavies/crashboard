@@ -418,7 +418,7 @@ export async function getIntelligenceOperations() {
   const [sources, runs, digests, watchlists] = await Promise.all([
     admin
       .from("intelligence_sources")
-      .select("id,name,source_type,status,config,checkpoint,last_synced_at,last_error,created_at")
+      .select("id,name,source_type,status,config,checkpoint,last_synced_at,last_error,created_at,cohort,measurement_active_from,last_successful_fetch_at,robots_status,fetch_failure_count,fetch_cooldown_until,discovery_origin,triggering_research_lead_id")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: true }),
     admin

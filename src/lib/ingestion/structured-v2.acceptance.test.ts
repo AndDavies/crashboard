@@ -42,7 +42,7 @@ describe("v2 structured payload acceptance (parse)", () => {
     if (!parsed.ok) return;
     expect(parsed.value.document.summary_short).toContain("Snapshot");
     expect(parsed.value.document.source_type).toBe("article");
-    expect(extractUrlHost(parsed.value.document.original_url)).toBe("www.example.com");
+    expect(extractUrlHost(parsed.value.document.original_url!)).toBe("www.example.com");
     expect(normalizeUserTagLabel("#ai").tag_normalized).toBe("ai");
     expect(normalizeUserTagLabel("#policy").tag_normalized).toBe("policy");
     expect(parsed.value.tags?.user_tags).toHaveLength(2);

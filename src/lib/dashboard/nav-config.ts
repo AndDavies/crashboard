@@ -4,8 +4,6 @@ import {
   Database,
   FileText,
   LineChart,
-  Search,
-  Shield,
   Wrench,
 } from "lucide-react";
 
@@ -37,11 +35,13 @@ export const dashboardNavGroups: DashboardNavGroup[] = [
     icon: Activity,
     defaultOpen: true,
     items: [
-      { title: "What's changing", href: "/dashboard/intelligence", icon: Activity },
-      { title: "All trends", href: "/dashboard/intelligence/trends", icon: LineChart },
-      { title: "Search evidence", href: "/dashboard/intelligence/explorer", icon: Search },
-      { title: "Defence", href: "/dashboard/intelligence/defence", icon: Shield },
-      { title: "Operations", href: "/dashboard/intelligence/operations", icon: Database },
+      { title: "Overview", href: "/dashboard/intelligence", icon: Activity },
+      { title: "Explore", href: "/dashboard/intelligence/explore", icon: LineChart },
+      {
+        title: "Sources & automations",
+        href: "/dashboard/intelligence/sources",
+        icon: Database,
+      },
     ],
   },
   {
@@ -97,7 +97,9 @@ export function getDashboardBreadcrumbs(pathname: string): BreadcrumbItem[] {
     acc += `/${parts[i]}`;
     const exact = flattenDashboardNav().find((item) => item.href === acc);
     const label = exact?.title ??
-      parts[i]!.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      (acc === "/dashboard/intelligence"
+        ? "Overview"
+        : parts[i]!.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
     crumbs.push({ label, href: acc });
   }
   return crumbs;

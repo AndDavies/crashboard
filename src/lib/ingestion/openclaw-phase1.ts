@@ -2,7 +2,6 @@ import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 import OpenAI from "openai";
 import * as pdfParse from "pdf-parse";
-import { fetchTranscript } from "youtube-transcript";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { persistDocumentGraph } from "@/lib/ingestion/persistence";
 import type { OpenclawIngestionBody } from "@/lib/openclaw/ingestion/schema";
@@ -106,7 +105,16 @@ const STOPWORDS = new Set([
   "your",
 ]);
 
-const pdf: any = (pdfParse as any).default ?? (pdfParse as any);
+type PdfParseResult = {
+  text?: string;
+  info?: { Title?: string };
+  metadata?: { get?: (key: string) => unknown };
+};
+
+type PdfParseFunction = (data: Buffer) => Promise<PdfParseResult>;
+const pdfModule = pdfParse as unknown as { default?: PdfParseFunction };
+const pdf: PdfParseFunction = pdfModule.default ??
+  (pdfParse as unknown as PdfParseFunction);
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -362,7 +370,12 @@ async function extractPdfFromResponse(response: Response, requestedUrl: string):
     throw new Error("Could not extract enough readable PDF text.");
   }
 
-  const title = cleanTitle(parsed.info?.Title ?? parsed.metadata?.get?.("dc:title") ?? filenameTitleFromUrl(response.url || requestedUrl));
+  const metadataTitle = parsed.metadata?.get?.("dc:title");
+  const title = cleanTitle(
+    parsed.info?.Title
+      ?? (typeof metadataTitle === "string" ? metadataTitle : null)
+      ?? filenameTitleFromUrl(response.url || requestedUrl),
+  );
   const summary = truncate(sentenceSummary(content), 1200);
   const keywords = deriveKeywords(title, content, null);
   const entities = deriveEntities(title, summary, content);
@@ -467,6 +480,7 @@ async function extractYouTubeFromUrl(url: string): Promise<ExtractedDocument> {
 
   let transcript;
   try {
+    const { fetchTranscript } = await import("youtube-transcript");
     transcript = await fetchTranscript(videoId, { fetch: globalThis.fetch });
   } catch (error) {
     throw new Error(

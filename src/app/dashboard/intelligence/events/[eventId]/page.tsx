@@ -2,12 +2,34 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { EVENT_TYPE_LABELS } from "@/lib/intelligence/taxonomy";
 import { getIntelligenceEvent } from "@/lib/intelligence/data";
 import type { IntelligenceEventType } from "@/lib/intelligence/types";
 
 export const metadata: Metadata = { title: "Evidence Event · Trend Intelligence" };
 export const dynamic = "force-dynamic";
+
+const ACTION_LABELS: Record<IntelligenceEventType, string> = {
+  procurement_notice: "Buying opportunity",
+  rfi_rfp_challenge: "Request or challenge",
+  award: "Contract awarded",
+  funding_investment: "Funding announced",
+  partnership: "Partnership announced",
+  acquisition: "Acquisition announced",
+  development: "In development",
+  trial_pilot: "Being tested",
+  deployment: "Entering use",
+  policy_regulation: "Policy change",
+  capacity_expansion: "Capacity expansion",
+  cancellation: "Cancelled",
+  other: "Announcement",
+};
+
+function evidenceStrength(value: unknown) {
+  const score = Number(value ?? 0);
+  if (score >= 0.75) return "Strong evidence";
+  if (score >= 0.6) return "Moderate evidence";
+  return "Early evidence";
+}
 
 export default async function IntelligenceEventPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
@@ -19,16 +41,14 @@ export default async function IntelligenceEventPage({ params }: { params: Promis
     <article className="space-y-8 pb-14">
       <header className="border-b border-foreground/80 pb-7">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{EVENT_TYPE_LABELS[event.event_type as IntelligenceEventType]}</Badge>
-          <Badge variant="outline">{String(event.lifecycle_status).replaceAll("_", " ")}</Badge>
+          <Badge>{ACTION_LABELS[event.event_type as IntelligenceEventType]}</Badge>
+          <Badge variant="outline">{evidenceStrength(event.evidence_quality ?? event.confidence)}</Badge>
           {event.defence_relevance ? <Badge variant="secondary">Defence</Badge> : null}
           {event.canada_allied_relevance ? <Badge variant="secondary">Canada / allied</Badge> : null}
         </div>
         <h1 className="mt-5 max-w-5xl font-heading text-4xl font-semibold leading-tight">{String(event.title)}</h1>
         <p className="mt-4 max-w-4xl text-base leading-7 text-muted-foreground">{String(event.summary ?? "")}</p>
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs text-muted-foreground">
-          <span>Confidence {Math.round(Number(event.confidence) * 100)}%</span>
-          <span>Evidence quality {Math.round(Number(event.evidence_quality) * 100)}%</span>
           {event.announced_at ? <span>Announced {String(event.announced_at).slice(0, 10)}</span> : null}
           {event.closes_at ? <span>Closes {String(event.closes_at).slice(0, 10)}</span> : null}
           {event.geography ? <span>{String(event.geography)}</span> : null}
@@ -54,7 +74,7 @@ export default async function IntelligenceEventPage({ params }: { params: Promis
           </div>
         </div>
         <aside className="border border-border bg-card p-4">
-          <p className="editorial-kicker">Entity register</p>
+          <p className="editorial-kicker">Organizations, systems, and programmes</p>
           <div className="mt-4 space-y-4">
             {result.entities.map((row, index) => {
               const relation = row as unknown as { role: string; intelligence_entities: Record<string, unknown> | null };

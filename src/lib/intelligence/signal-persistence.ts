@@ -172,6 +172,7 @@ export async function persistDocumentSegments(
         token_count: segment.tokenCount,
         parser_version: segment.parserVersion,
         confidence: segment.confidence,
+        exclusion_reason: segment.exclusionReason ?? null,
         metadata: segment.metadata,
         updated_at: now,
       })),

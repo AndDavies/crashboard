@@ -9,7 +9,16 @@ import {
 } from "@/lib/intelligence/source-url";
 import type { IntelligenceDocumentSegmentInput } from "@/lib/intelligence/types";
 
-export const INTELLIGENCE_SEGMENT_PARSER_VERSION = "newsletter-segments-v1";
+export const INTELLIGENCE_SEGMENT_PARSER_VERSION = "newsletter-segments-v2";
+export const INTELLIGENCE_MODEL_SEGMENTATION_THRESHOLD = 0.7;
+
+export type NewsletterSegmentationFallbackRequest = {
+  parserVersion: string;
+  confidence: number;
+  likelyArticleCount: number;
+  shouldUseModel: boolean;
+  reason: "low_confidence_multi_article" | "coarse_item_accepted";
+};
 
 const FOOTER_PATTERN =
   /\b(unsubscribe|manage (?:your )?preferences|email preferences|view (?:this )?email in (?:your )?browser|privacy policy|copyright ©|all rights reserved)\b/iu;
@@ -62,12 +71,47 @@ function segmentType(text: string, title: string | null, linkCount: number) {
   return "editorial" as const;
 }
 
+function exclusionReason(type: IntelligenceDocumentSegmentInput["segmentType"]) {
+  if (type === "sponsored") return "sponsored_content";
+  if (type === "footer") return "footer_boilerplate";
+  if (type === "navigation") return "navigation_boilerplate";
+  return null;
+}
+
+function likelyArticleCount(value: string) {
+  const headings = value.match(/(?:^|\n)\s*(?:#{1,4}\s+|[A-Z][^\n]{12,100}\n[-=]{3,})/gmu)?.length ?? 0;
+  const links = new Set(value.match(/https?:\/\/[^\s<>)"']+/giu) ?? []).size;
+  const labelled = value.match(/\b(?:read more|continue reading|full story|learn more)\b/giu)?.length ?? 0;
+  return Math.max(1, headings, links, labelled);
+}
+
+export function modelSegmentationFallbackRequest(input: {
+  confidence: number;
+  likelyArticleCount: number;
+}): NewsletterSegmentationFallbackRequest {
+  const shouldUseModel =
+    input.confidence < INTELLIGENCE_MODEL_SEGMENTATION_THRESHOLD &&
+    input.likelyArticleCount >= 2;
+  return {
+    parserVersion: INTELLIGENCE_SEGMENT_PARSER_VERSION,
+    confidence: input.confidence,
+    likelyArticleCount: input.likelyArticleCount,
+    shouldUseModel,
+    reason: shouldUseModel ? "low_confidence_multi_article" : "coarse_item_accepted",
+  };
+}
+
 export function buildFallbackSegment(input: {
   title?: string | null;
   contentText: string;
   canonicalUrl?: string | null;
+  likelyArticles?: number;
 }): IntelligenceDocumentSegmentInput {
   const contentText = compact(input.contentText);
+  const fallback = modelSegmentationFallbackRequest({
+    confidence: 0.35,
+    likelyArticleCount: input.likelyArticles ?? likelyArticleCount(contentText),
+  });
   return {
     segmentIndex: 0,
     segmentType: "unknown",
@@ -79,7 +123,13 @@ export function buildFallbackSegment(input: {
     tokenCount: roughTokenCount(contentText),
     parserVersion: INTELLIGENCE_SEGMENT_PARSER_VERSION,
     confidence: 0.35,
-    metadata: { fallback: true },
+    exclusionReason: null,
+    metadata: {
+      fallback: true,
+      coarse_item: true,
+      segmentation_method: "deterministic_fallback",
+      model_fallback: fallback,
+    },
   };
 }
 
@@ -95,6 +145,7 @@ export function segmentNewsletterContent(input: {
         title: input.fallbackTitle,
         contentText: input.plainText,
         canonicalUrl: input.fallbackCanonicalUrl,
+        likelyArticles: likelyArticleCount(input.plainText),
       }),
     ];
   }
@@ -187,7 +238,13 @@ export function segmentNewsletterContent(input: {
       tokenCount: roughTokenCount(contentText),
       parserVersion: INTELLIGENCE_SEGMENT_PARSER_VERSION,
       confidence: type === "editorial" ? (outboundUrl ? 0.9 : 0.72) : 0.8,
-      metadata: { fallback: false, link_count: candidate.linkCount },
+      exclusionReason: exclusionReason(type),
+      metadata: {
+        fallback: false,
+        coarse_item: false,
+        segmentation_method: "dom_rules",
+        link_count: candidate.linkCount,
+      },
     });
   }
 
@@ -198,6 +255,7 @@ export function segmentNewsletterContent(input: {
         title: input.fallbackTitle,
         contentText: input.plainText || cleanHtmlText(input.html),
         canonicalUrl: input.fallbackCanonicalUrl,
+        likelyArticles: likelyArticleCount(input.plainText || cleanHtmlText(input.html)),
       }),
     ];
   }
@@ -212,4 +270,6 @@ export const __testables = {
   cleanHtmlText,
   hashText,
   segmentType,
+  exclusionReason,
+  likelyArticleCount,
 };

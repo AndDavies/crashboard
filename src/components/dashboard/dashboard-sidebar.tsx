@@ -19,6 +19,9 @@ import { ExternalLinkIcon } from "lucide-react";
 
 function pathIsActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/dashboard/intelligence") {
+    return pathname === href || ["/documents/", "/events/", "/trends/"].some((part) => pathname.startsWith(`${href}${part}`));
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

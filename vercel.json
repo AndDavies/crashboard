@@ -1,9 +1,15 @@
 {
   "crons": [
+    { "path": "/api/intelligence/cron/collect", "schedule": "0 7 * * *" },
+    { "path": "/api/intelligence/cron/collect", "schedule": "0 8 * * *" },
     { "path": "/api/intelligence/cron/sync", "schedule": "0 8 * * *" },
     { "path": "/api/intelligence/cron/sync", "schedule": "0 9 * * *" },
-    { "path": "/api/intelligence/cron/trends", "schedule": "0 9 * * *" },
-    { "path": "/api/intelligence/cron/trends", "schedule": "0 10 * * *" },
+    { "path": "/api/intelligence/cron/signal-refresh", "schedule": "0 9 * * *" },
+    { "path": "/api/intelligence/cron/signal-refresh", "schedule": "0 10 * * *" },
+    { "path": "/api/intelligence/cron/research", "schedule": "20 9 * * *" },
+    { "path": "/api/intelligence/cron/research", "schedule": "20 10 * * *" },
+    { "path": "/api/intelligence/cron/topic-maintenance", "schedule": "40 9 * * 0" },
+    { "path": "/api/intelligence/cron/topic-maintenance", "schedule": "40 10 * * 0" },
     { "path": "/api/intelligence/cron/digest", "schedule": "0 10 * * *" },
     { "path": "/api/intelligence/cron/digest", "schedule": "0 11 * * *" }
   ]

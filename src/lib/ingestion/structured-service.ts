@@ -1,4 +1,5 @@
 import { persistDocumentGraph } from "@/lib/ingestion/persistence";
+import { persistStructuredDocumentV2 } from "@/lib/ingestion/document-persistence";
 import type { StructuredIngestionBody } from "@/lib/ingestion/structured-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -38,6 +39,18 @@ export async function runStructuredIngestion(
   admin: SupabaseClient,
 ): Promise<StructuredIngestSuccess | StructuredIngestError> {
   try {
+    if (!body.document.url || !body.document.content) {
+      const persisted = await persistStructuredDocumentV2(admin, body);
+      return {
+        ok: true,
+        documentId: persisted.documentId,
+        sourceType: body.document.source_type,
+        deduped: false,
+        url: body.document.original_url ?? "",
+        title: body.document.title ?? null,
+        counts: { entities: 0, embeddings: 0 },
+      };
+    }
     const persisted = await persistDocumentGraph(admin, {
       url: body.document.url,
       sourceType: body.document.source_type,

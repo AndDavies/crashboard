@@ -63,6 +63,7 @@ export type IntelligenceDocumentSegmentInput = {
   tokenCount: number;
   parserVersion: string;
   confidence: number;
+  exclusionReason?: string | null;
   metadata: Record<string, unknown>;
 };
 
