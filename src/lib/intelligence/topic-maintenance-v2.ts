@@ -148,6 +148,43 @@ export function decideTopicAssignment(input: {
 }
 
 /**
+ * Carries an explicit topic-review decision across later maintenance runs.
+ * Rejected candidate/target pairs stay separate, while a genuinely different
+ * suggested target can still be presented for review.
+ */
+export function topicMergeReviewMetadata(input: {
+  previousMetadata?: unknown;
+  suggestedConceptId: string | null;
+  suggestedSimilarity: number;
+  approvalSuggested: boolean;
+}): DbRow {
+  const previous = nested(input.previousMetadata);
+  const suggestedConceptId = input.suggestedConceptId?.trim() || null;
+  const rejectedIds = Array.isArray(previous.rejected_suggested_concept_ids)
+    ? previous.rejected_suggested_concept_ids.map(String)
+    : [];
+  const legacyRejectedId = previous.merge_review_status === "rejected"
+    ? String(previous.reviewed_suggested_concept_id ?? "").trim()
+    : "";
+  const wasRejected = Boolean(
+    input.approvalSuggested &&
+    suggestedConceptId &&
+    (rejectedIds.includes(suggestedConceptId) || legacyRejectedId === suggestedConceptId),
+  );
+
+  return {
+    ...previous,
+    suggested_concept_id: suggestedConceptId,
+    suggested_similarity: input.suggestedSimilarity,
+    approval_required: input.approvalSuggested && !wasRejected,
+    merge_review_status: input.approvalSuggested
+      ? wasRejected ? "rejected" : "pending"
+      : previous.merge_review_status ?? null,
+    suggestion_suppressed: wasRejected,
+  };
+}
+
+/**
  * Assigns one previously unassigned editorial segment before topic discovery.
  * Exact canonical labels/aliases always win. Semantic assignment is restricted
  * to the segment's inferred domain and must clear the explicit 0.84 gate.
@@ -402,19 +439,52 @@ function vectorLiteral(value: number[]) {
   return `[${value.map((item) => Number(item.toFixed(8))).join(",")}]`;
 }
 
+export function selectCurrentConceptEmbeddingRows(
+  concepts: DbRow[],
+  embeddingRows: DbRow[],
+) {
+  const currentTaxonomy = new Map(concepts.map((concept) => [
+    String(concept.id),
+    String(concept.taxonomy_version),
+  ]));
+  return embeddingRows.filter((row) =>
+    String(row.taxonomy_version) === currentTaxonomy.get(String(row.concept_id))
+  );
+}
+
 export async function refreshConceptEmbeddingsBatch(
   admin: SupabaseClient,
   ownerId: string,
-  options: { cursor?: number; limit?: number } = {},
+  options: { cursor?: number; limit?: number; conceptIds?: string[]; batchSize?: number } = {},
 ) {
   const cursor = Math.max(0, Math.floor(options.cursor ?? 0));
-  const limit = Math.min(25, Math.max(1, Math.floor(options.limit ?? 10)));
+  const explicitConceptIds = options.conceptIds === undefined
+    ? null
+    : [...new Set(options.conceptIds.map(String).filter(Boolean))].slice(0, 1_000);
+  const limit = explicitConceptIds
+    ? Math.max(1, explicitConceptIds.length)
+    : Math.min(25, Math.max(1, Math.floor(options.limit ?? 10)));
+  const batchSize = Math.min(50, Math.max(1, Math.floor(options.batchSize ?? 5)));
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY is required for concept embedding backfill.");
-  const concepts = await admin.from("intelligence_concepts")
+  if (explicitConceptIds?.length === 0) {
+    return {
+      phase: "concept_embeddings" as const,
+      cursor,
+      processed: 0,
+      embedded: 0,
+      skipped: 0,
+      hasMore: false,
+      nextCursor: null,
+    };
+  }
+  let query = admin.from("intelligence_concepts")
     .select("id,canonical_label,domain,subdomain,description,taxonomy_version")
     .eq("owner_id", ownerId).in("status", ["active", "candidate"])
-    .order("id", { ascending: true }).range(cursor, cursor + limit - 1);
+  query = explicitConceptIds
+    ? query.in("id", explicitConceptIds).order("id", { ascending: true })
+    : query.order("id", { ascending: true }).range(cursor, cursor + limit - 1);
+  const concepts = await query;
   if (concepts.error) throw new Error(concepts.error.message);
   const conceptIds = (concepts.data ?? []).map((row) => String(row.id));
   const existing = conceptIds.length
@@ -440,8 +510,8 @@ export async function refreshConceptEmbeddingsBatch(
     }
     return true;
   });
-  for (let from = 0; from < pending.length; from += 5) {
-    const group = pending.slice(from, from + 5);
+  for (let from = 0; from < pending.length; from += batchSize) {
+    const group = pending.slice(from, from + batchSize);
     const embeddings = await createEmbeddings(
       group.map((concept) =>
         [concept.canonical_label, concept.description, concept.domain, concept.subdomain]
@@ -463,6 +533,13 @@ export async function refreshConceptEmbeddingsBatch(
           updated_at: new Date().toISOString(),
         }, { onConflict: "concept_id,embedding_model,taxonomy_version" });
         if (write.error) throw new Error(write.error.message);
+        const cleanup = await admin.from("intelligence_concept_embeddings")
+          .delete()
+          .eq("owner_id", ownerId)
+          .eq("concept_id", concept.id)
+          .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
+          .neq("taxonomy_version", taxonomyVersion);
+        if (cleanup.error) throw new Error(cleanup.error.message);
         embedded += 1;
       } catch (error) {
         throw new Error(
@@ -478,8 +555,8 @@ export async function refreshConceptEmbeddingsBatch(
     processed,
     embedded,
     skipped,
-    hasMore: processed === limit,
-    nextCursor: processed === limit ? cursor + processed : null,
+    hasMore: explicitConceptIds ? false : processed === limit,
+    nextCursor: explicitConceptIds ? null : processed === limit ? cursor + processed : null,
   };
 }
 
@@ -899,7 +976,7 @@ export async function runTopicMaintenance(
   const [input, concepts, aliases, conceptEmbeddingRows] = await Promise.all([
     fetchTopicInputs(admin, ownerId, { cursor, limit: segmentLimit, since }),
     fetchAllRows<DbRow>((from, to) => admin.from("intelligence_concepts")
-      .select("id,concept_type,canonical_label,normalized_key,domain,status,metadata")
+      .select("id,concept_type,canonical_label,normalized_key,domain,status,metadata,taxonomy_version")
       .eq("owner_id", ownerId)
       .in("status", ["active", "candidate"])
       .order("status", { ascending: true })
@@ -911,7 +988,7 @@ export async function runTopicMaintenance(
       .order("id", { ascending: true })
       .range(from, to)),
     fetchAllRows<DbRow>((from, to) => admin.from("intelligence_concept_embeddings")
-      .select("concept_id,embedding")
+      .select("concept_id,embedding,taxonomy_version")
       .eq("owner_id", ownerId)
       .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
       .order("id", { ascending: true })
@@ -935,7 +1012,8 @@ export async function runTopicMaintenance(
     }
   }
   const embeddingByConcept = new Map(
-    conceptEmbeddingRows.map((row) => [String(row.concept_id), vector(row.embedding)]),
+    selectCurrentConceptEmbeddingRows(concepts, conceptEmbeddingRows)
+      .map((row) => [String(row.concept_id), vector(row.embedding)]),
   );
   const topicVectors = concepts.flatMap((concept): ExistingTopicVector[] => {
     const embedding = embeddingByConcept.get(String(concept.id)) ?? [];
@@ -1060,6 +1138,12 @@ export async function runTopicMaintenance(
         String(nested(concept.metadata).component_fingerprint ?? "") === fingerprint
       );
       const metadata = {
+        ...topicMergeReviewMetadata({
+          previousMetadata: existingComponent?.metadata,
+          suggestedConceptId: decision.conceptId,
+          suggestedSimilarity: decision.similarity,
+          approvalSuggested: decision.action === "candidate_with_suggestion",
+        }),
         component_fingerprint: fingerprint,
         support_items: component.nodes.length,
         source_families: component.sourceFamilies.length,
@@ -1067,9 +1151,6 @@ export async function runTopicMaintenance(
         graph_similarity: options.graphSimilarity ?? TOPIC_GRAPH_SIMILARITY,
         graph_edges: component.edges.length,
         naming_method: naming.method,
-        suggested_concept_id: decision.conceptId,
-        suggested_similarity: decision.similarity,
-        approval_required: decision.action === "candidate_with_suggestion",
       };
       const payload = {
         owner_id: ownerId,
@@ -1125,6 +1206,13 @@ export async function runTopicMaintenance(
           updated_at: new Date().toISOString(),
         }, { onConflict: "concept_id,embedding_model,taxonomy_version" });
         if (write.error) throw new Error(write.error.message);
+        const cleanup = await admin.from("intelligence_concept_embeddings")
+          .delete()
+          .eq("owner_id", ownerId)
+          .eq("concept_id", conceptId)
+          .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
+          .neq("taxonomy_version", INTELLIGENCE_TOPIC_MAINTENANCE_VERSION);
+        if (cleanup.error) throw new Error(cleanup.error.message);
         embeddingByConcept.set(conceptId, centroid);
       }
     }

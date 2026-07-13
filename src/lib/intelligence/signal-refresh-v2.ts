@@ -26,6 +26,10 @@ import {
   refreshConceptEmbeddingsBatch,
   runTopicMaintenance,
 } from "@/lib/intelligence/topic-maintenance-v2";
+import {
+  isMeasurementDocument,
+  sourceIdFromDocument,
+} from "@/lib/intelligence/source-cohort";
 
 const PAGE_SIZE = 1_000;
 const DAY_MS = 86_400_000;
@@ -74,6 +78,25 @@ function segmentSupportsLabel(content: string, label: unknown, evidence: unknown
   return evidenceText.length >= 12 && haystack.includes(` ${evidenceText} `);
 }
 
+function measurementSupportsEventSubject(input: {
+  eventId: string;
+  subjectId: string;
+  measurementDocumentsByEvent: Map<string, Set<string>>;
+  subjectsByDocument: Map<string, Set<string>>;
+}) {
+  return [...(input.measurementDocumentsByEvent.get(input.eventId) ?? [])]
+    .some((documentId) =>
+      input.subjectsByDocument.get(documentId)?.has(input.subjectId) === true
+    );
+}
+
+function isMeasurementStoryCluster(row: DbRow) {
+  const metadata = object(row.metadata);
+  return row.cluster_type === "story" &&
+    metadata.measurement_eligible === true &&
+    String(metadata.dedupe_version ?? "").startsWith("story-dedup-v2.");
+}
+
 function lensKeys(label: string, domain = ""): IntelligenceSignalLens[] {
   const value = `${label} ${domain}`.toLocaleLowerCase("en-CA");
   const lenses: IntelligenceSignalLens[] = ["all"];
@@ -103,26 +126,6 @@ function entitySignalKind(value: unknown): IntelligenceSignalKind | null {
   if (value === "program") return "programme";
   if (value === "product_system" || value === "capability_technology") return "system";
   return null;
-}
-
-function sourceIdFromDocument(document: DbRow, identity: DbRow) {
-  return String(identity.source_id ?? object(document.metadata).source_id ?? "").trim();
-}
-
-function isMeasurementDocument(input: {
-  document: DbRow;
-  identity: DbRow;
-  source: DbRow;
-  publishedAt: string;
-}) {
-  const metadata = object(input.document.metadata);
-  const cohort = String(input.source.cohort ?? metadata.source_cohort ?? "measurement");
-  if (cohort !== "measurement") return false;
-  if (input.source.id && input.source.status !== "active") return false;
-  const activeFrom = typeof input.source.measurement_active_from === "string"
-    ? input.source.measurement_active_from
-    : null;
-  return !activeFrom || input.publishedAt >= activeFrom;
 }
 
 function summaryByKey(rows: CanonicalSignalDailyRow[], dailyTotals: Map<string, { items: number; tokens: number }>, completeThrough: string) {
@@ -174,8 +177,8 @@ export async function refreshSignalsV2(
       .select("document_id,cluster_id")
       .eq("owner_id", ownerId).range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_clusters")
-      .select("id,cluster_type")
-      .eq("owner_id", ownerId).in("cluster_type", ["story", "exact_duplicate", "syndicated"])
+      .select("id,cluster_type,metadata")
+      .eq("owner_id", ownerId).eq("cluster_type", "story")
       .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_term_observations")
       .select("segment_id,document_id,normalized_term,display_term,term_kind,occurrence_count,salience")
@@ -211,16 +214,22 @@ export async function refreshSignalsV2(
 
   const identityById = new Map(identities.map((row) => [String(row.id), row]));
   const sourceById = new Map(sources.map((row) => [String(row.id), row]));
-  const clusterTypeById = new Map(clusters.map((row) => [String(row.id), String(row.cluster_type)]));
+  const measurementStoryClusterIds = new Set(
+    clusters.filter(isMeasurementStoryCluster).map((row) => String(row.id)),
+  );
   const storyBySegment = new Map<string, string>();
   for (const row of storyMemberships) {
     const clusterId = String(row.cluster_id);
-    if (clusterTypeById.has(clusterId)) storyBySegment.set(String(row.segment_id), clusterId);
+    if (measurementStoryClusterIds.has(clusterId)) {
+      storyBySegment.set(String(row.segment_id), clusterId);
+    }
   }
   const storyByDocument = new Map<string, string>();
   for (const row of documentMemberships) {
     const clusterId = String(row.cluster_id);
-    if (clusterTypeById.has(clusterId)) storyByDocument.set(String(row.document_id), clusterId);
+    if (measurementStoryClusterIds.has(clusterId)) {
+      storyByDocument.set(String(row.document_id), clusterId);
+    }
   }
 
   const items: SignalMeasurementItem[] = [];
@@ -283,28 +292,61 @@ export async function refreshSignalsV2(
     String(row.cluster_id ?? row.id),
   ]));
   const eventIdsByDocument = new Map<string, Set<string>>();
+  const measurementDocumentsByEvent = new Map<string, Set<string>>();
   for (const row of eventEvidence) {
     const eventId = String(row.event_id);
     if (!validEventIds.has(eventId)) continue;
     const documentId = String(row.document_id);
+    if (!itemsByDocument.has(documentId)) continue;
     const ids = eventIdsByDocument.get(documentId) ?? new Set<string>();
     ids.add(eventId);
     eventIdsByDocument.set(documentId, ids);
+    const documents = measurementDocumentsByEvent.get(eventId) ?? new Set<string>();
+    documents.add(documentId);
+    measurementDocumentsByEvent.set(eventId, documents);
+  }
+  const conceptIdsByDocument = new Map<string, Set<string>>();
+  for (const row of documentConcepts) {
+    const documentId = String(row.document_id);
+    if (!itemsByDocument.has(documentId)) continue;
+    const ids = conceptIdsByDocument.get(documentId) ?? new Set<string>();
+    ids.add(String(row.concept_id));
+    conceptIdsByDocument.set(documentId, ids);
   }
   const eventIdsByConcept = new Map<string, Set<string>>();
   for (const row of eventConcepts) {
     const eventId = String(row.event_id);
     if (!validEventIds.has(eventId)) continue;
     const id = String(row.concept_id);
+    if (!measurementSupportsEventSubject({
+      eventId,
+      subjectId: id,
+      measurementDocumentsByEvent,
+      subjectsByDocument: conceptIdsByDocument,
+    })) continue;
     const ids = eventIdsByConcept.get(id) ?? new Set<string>();
     ids.add(eventId);
     eventIdsByConcept.set(id, ids);
+  }
+  const entityIdsByDocument = new Map<string, Set<string>>();
+  for (const row of documentEntities) {
+    const documentId = String(row.document_id);
+    if (!itemsByDocument.has(documentId)) continue;
+    const ids = entityIdsByDocument.get(documentId) ?? new Set<string>();
+    ids.add(String(row.entity_id));
+    entityIdsByDocument.set(documentId, ids);
   }
   const eventIdsByEntity = new Map<string, Set<string>>();
   for (const row of eventEntities) {
     const eventId = String(row.event_id);
     if (!validEventIds.has(eventId)) continue;
     const id = String(row.entity_id);
+    if (!measurementSupportsEventSubject({
+      eventId,
+      subjectId: id,
+      measurementDocumentsByEvent,
+      subjectsByDocument: entityIdsByDocument,
+    })) continue;
     const ids = eventIdsByEntity.get(id) ?? new Set<string>();
     ids.add(eventId);
     eventIdsByEntity.set(id, ids);
@@ -423,7 +465,9 @@ export async function refreshSignalsV2(
       signal_kind: row.signalKind,
       signal_id: row.signalId,
       signal_label: row.signalLabel,
-      lens_keys: row.lensKeys,
+      // The complete-day row is also the persisted query summary. Keep its
+      // lenses stable across the full measurement window, not only this day.
+      lens_keys: row.signalDate === completeThrough ? summary.lensKeys : row.lensKeys,
       signal_date: row.signalDate,
       metric_version: INTELLIGENCE_SIGNAL_METRIC_VERSION,
       eligible_items: row.eligibleItems,
@@ -631,6 +675,8 @@ export const __testables = {
   conceptSignalKind,
   entitySignalKind,
   isMeasurementDocument,
+  isMeasurementStoryCluster,
   lensKeys,
+  measurementSupportsEventSubject,
   segmentSupportsLabel,
 };

@@ -160,6 +160,35 @@ describe("bounded intelligence research", () => {
     ).toBeNull();
   });
 
+  it("selects automatic research only from the exact latest complete-day summary", () => {
+    const rows = [
+      {
+        signal_kind: "topic",
+        signal_id: "stale-but-higher-ranked",
+        signal_date: "2026-07-11",
+        direction: "rising",
+        evidence_strength: "strong",
+      },
+      {
+        signal_kind: "topic",
+        signal_id: "current",
+        signal_date: "2026-07-12",
+        direction: "new",
+        evidence_strength: "strong",
+      },
+      {
+        signal_kind: "topic",
+        signal_id: "current-moderate",
+        signal_date: "2026-07-12",
+        direction: "rising",
+        evidence_strength: "moderate",
+      },
+    ];
+
+    expect(__testables.automaticResearchCandidates(rows, "2026-07-12"))
+      .toEqual([rows[1]]);
+  });
+
   it("enforces the seven-day cooldown from completion time", () => {
     const anchor = new Date("2026-07-13T12:00:00.000Z");
     expect(

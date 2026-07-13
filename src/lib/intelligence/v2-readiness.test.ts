@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  intelligenceAutomaticResearchEnabled,
   intelligenceSignalsV2Enabled,
   isCompletedIntelligenceV2BackfillRun,
 } from "@/lib/intelligence/v2-readiness";
 
 const originalFlag = process.env.INTELLIGENCE_SIGNALS_V2;
+const originalResearchFlag = process.env.INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED;
 
 afterEach(() => {
   if (originalFlag === undefined) delete process.env.INTELLIGENCE_SIGNALS_V2;
   else process.env.INTELLIGENCE_SIGNALS_V2 = originalFlag;
+  if (originalResearchFlag === undefined) delete process.env.INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED;
+  else process.env.INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED = originalResearchFlag;
 });
 
 describe("Intelligence v2 activation gate", () => {
@@ -17,6 +21,13 @@ describe("Intelligence v2 activation gate", () => {
     expect(intelligenceSignalsV2Enabled()).toBe(false);
     process.env.INTELLIGENCE_SIGNALS_V2 = "true";
     expect(intelligenceSignalsV2Enabled()).toBe(true);
+  });
+
+  it("requires a separate explicit feature flag for automatic research", () => {
+    delete process.env.INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED;
+    expect(intelligenceAutomaticResearchEnabled()).toBe(false);
+    process.env.INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED = "true";
+    expect(intelligenceAutomaticResearchEnabled()).toBe(true);
   });
 
   it("accepts only a completed run at the final v2 checkpoint", () => {

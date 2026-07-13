@@ -6,7 +6,9 @@ import {
   decideTopicAssignment,
   meanEmbedding,
   qualifyingTopicComponents,
+  selectCurrentConceptEmbeddingRows,
   TOPIC_ASSIGNMENT_SIMILARITY,
+  topicMergeReviewMetadata,
   type TopicGraphNode,
   type TopicTermEvidence,
 } from "@/lib/intelligence/topic-maintenance-v2";
@@ -66,6 +68,23 @@ describe("segment topic assignment order", () => {
 });
 
 describe("topic maintenance assignment guards", () => {
+  it("uses only the embedding for each concept's current taxonomy version", () => {
+    expect(selectCurrentConceptEmbeddingRows(
+      [
+        { id: "a", taxonomy_version: "v2" },
+        { id: "b", taxonomy_version: "v1" },
+      ],
+      [
+        { concept_id: "a", taxonomy_version: "v1", embedding: [1, 0] },
+        { concept_id: "a", taxonomy_version: "v2", embedding: [0, 1] },
+        { concept_id: "b", taxonomy_version: "v1", embedding: [1, 1] },
+      ],
+    ).map((row) => `${row.concept_id}:${row.taxonomy_version}`)).toEqual([
+      "a:v2",
+      "b:v1",
+    ]);
+  });
+
   it("prefers exact aliases and only auto-merges at 0.92 or above", () => {
     const aliases = new Map([["counter uas", "concept-exact"]]);
     expect(decideTopicAssignment({
@@ -102,6 +121,61 @@ describe("topic maintenance assignment guards", () => {
       exactAliases: aliases,
       nearest: { conceptId: "existing", similarity: 0.9199 },
     }).action).toBe("candidate_with_suggestion");
+  });
+
+  it("keeps an explicitly rejected candidate and target pair separate", () => {
+    expect(topicMergeReviewMetadata({
+      previousMetadata: {
+        merge_review_status: "rejected",
+        reviewed_suggested_concept_id: "existing",
+        rejected_suggested_concept_ids: ["existing"],
+      },
+      suggestedConceptId: "existing",
+      suggestedSimilarity: 0.9,
+      approvalSuggested: true,
+    })).toMatchObject({
+      suggested_concept_id: "existing",
+      approval_required: false,
+      merge_review_status: "rejected",
+      suggestion_suppressed: true,
+    });
+  });
+
+  it("opens a new review when the same candidate has a different suggested target", () => {
+    expect(topicMergeReviewMetadata({
+      previousMetadata: {
+        merge_review_status: "rejected",
+        reviewed_suggested_concept_id: "old-target",
+        rejected_suggested_concept_ids: ["old-target"],
+      },
+      suggestedConceptId: "new-target",
+      suggestedSimilarity: 0.86,
+      approvalSuggested: true,
+    })).toMatchObject({
+      suggested_concept_id: "new-target",
+      approval_required: true,
+      merge_review_status: "pending",
+      suggestion_suppressed: false,
+      rejected_suggested_concept_ids: ["old-target"],
+    });
+  });
+
+  it("does not revive an older rejection after a different target was reviewed", () => {
+    expect(topicMergeReviewMetadata({
+      previousMetadata: {
+        merge_review_status: "pending",
+        reviewed_suggested_concept_id: "newer-target",
+        rejected_suggested_concept_ids: ["older-rejected-target"],
+      },
+      suggestedConceptId: "older-rejected-target",
+      suggestedSimilarity: 0.89,
+      approvalSuggested: true,
+    })).toMatchObject({
+      suggested_concept_id: "older-rejected-target",
+      approval_required: false,
+      merge_review_status: "rejected",
+      suggestion_suppressed: true,
+    });
   });
 });
 

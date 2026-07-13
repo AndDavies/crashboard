@@ -83,4 +83,46 @@ describe("canonical v2 signal metrics", () => {
     expect(summary?.currentReach).toBeCloseTo(6 / 280, 8);
     expect(dailyTotalsFromRows(rows).size).toBe(6);
   });
+
+  it("does not call persistent but statistically flat coverage Strong evidence", () => {
+    const items: SignalMeasurementItem[] = [];
+    const observations: SignalMeasurementObservation[] = [];
+    for (let index = 0; index < 56; index += 1) {
+      const date = new Date(Date.UTC(2026, 4, 18 + index)).toISOString().slice(0, 10);
+      for (let item = 0; item < 10; item += 1) {
+        const id = `${date}-${item}`;
+        items.push({
+          id,
+          documentId: `document-${id}`,
+          date,
+          tokenCount: 100,
+          sourceFamily: `source-${item % 4}`,
+          authorityTier: "specialist",
+          storyId: `story-${id}`,
+        });
+      }
+      observations.push({
+        itemId: `${date}-${index % 4}`,
+        signalKey: "topic:flat",
+        signalId: "flat",
+        signalKind: "topic",
+        signalLabel: "Flat persistent topic",
+        mentions: 1,
+        extractionConfidence: 0.9,
+        lensKeys: ["defence"],
+      });
+    }
+    const rows = buildCanonicalSignalDailyRows({ items, observations });
+    const summary = summarizeCanonicalSignal({
+      rows,
+      dailyTotals: new Map(
+        [...new Set(items.map((item) => item.date))].map((date) => [date, { items: 10, tokens: 1_000 }]),
+      ),
+      completeThrough: "2026-07-12",
+    });
+
+    expect(summary?.persistence).toBe(4);
+    expect(summary?.increaseProbability).toBeCloseTo(0.5, 5);
+    expect(summary?.evidenceStrength).toBe("moderate");
+  });
 });

@@ -1,35 +1,18 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import {
+  actionLabel,
+  entityRoleLabel,
+  entityTypeLabel,
+  evidenceRoleLabel,
+  evidenceStrengthLabel,
+} from "@/components/dashboard/intelligence/deep-link-language";
 import { Badge } from "@/components/ui/badge";
 import { getIntelligenceEvent } from "@/lib/intelligence/data";
-import type { IntelligenceEventType } from "@/lib/intelligence/types";
 
-export const metadata: Metadata = { title: "Evidence Event · Trend Intelligence" };
+export const metadata: Metadata = { title: "Announcement · Intelligence" };
 export const dynamic = "force-dynamic";
-
-const ACTION_LABELS: Record<IntelligenceEventType, string> = {
-  procurement_notice: "Buying opportunity",
-  rfi_rfp_challenge: "Request or challenge",
-  award: "Contract awarded",
-  funding_investment: "Funding announced",
-  partnership: "Partnership announced",
-  acquisition: "Acquisition announced",
-  development: "In development",
-  trial_pilot: "Being tested",
-  deployment: "Entering use",
-  policy_regulation: "Policy change",
-  capacity_expansion: "Capacity expansion",
-  cancellation: "Cancelled",
-  other: "Announcement",
-};
-
-function evidenceStrength(value: unknown) {
-  const score = Number(value ?? 0);
-  if (score >= 0.75) return "Strong evidence";
-  if (score >= 0.6) return "Moderate evidence";
-  return "Early evidence";
-}
 
 export default async function IntelligenceEventPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
@@ -41,10 +24,12 @@ export default async function IntelligenceEventPage({ params }: { params: Promis
     <article className="space-y-8 pb-14">
       <header className="border-b border-foreground/80 pb-7">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{ACTION_LABELS[event.event_type as IntelligenceEventType]}</Badge>
-          <Badge variant="outline">{evidenceStrength(event.evidence_quality ?? event.confidence)}</Badge>
-          {event.defence_relevance ? <Badge variant="secondary">Defence</Badge> : null}
-          {event.canada_allied_relevance ? <Badge variant="secondary">Canada / allied</Badge> : null}
+          <Badge>{actionLabel(event.event_type)}</Badge>
+          <Badge variant="outline">
+            {evidenceStrengthLabel(event.evidence_quality ?? event.confidence)}
+          </Badge>
+          {event.defence_relevance ? <Badge variant="secondary">Defence &amp; Security</Badge> : null}
+          {event.canada_allied_relevance ? <Badge variant="secondary">Canada &amp; Allies</Badge> : null}
         </div>
         <h1 className="mt-5 max-w-5xl font-heading text-4xl font-semibold leading-tight">{String(event.title)}</h1>
         <p className="mt-4 max-w-4xl text-base leading-7 text-muted-foreground">{String(event.summary ?? "")}</p>
@@ -57,14 +42,14 @@ export default async function IntelligenceEventPage({ params }: { params: Promis
 
       <section className="grid gap-5 lg:grid-cols-[1.45fr_0.8fr]">
         <div>
-          <div className="border-b border-foreground/80 pb-3"><p className="editorial-kicker">Evidence chain</p><h2 className="mt-1 font-heading text-2xl font-semibold">Supporting sources</h2></div>
+          <div className="border-b border-foreground/80 pb-3"><p className="editorial-kicker">Why this is here</p><h2 className="mt-1 font-heading text-2xl font-semibold">Supporting sources</h2></div>
           <div className="border-x border-b border-border">
             {result.evidence.map((row, index) => {
               const evidence = row as unknown as { document_id: string; evidence_role: string; evidence_text: string | null; documents: Record<string, unknown> | null };
               const document = evidence.documents ?? {};
               return (
                 <Link key={`${evidence.evidence_role}-${index}`} href={`/dashboard/intelligence/documents/${String(evidence.document_id)}`} className="block border-t border-border bg-card px-4 py-4 hover:bg-muted/50">
-                  <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{evidence.evidence_role.replaceAll("_", " ")}</Badge>{document.publisher_name ? <span className="text-xs text-muted-foreground">{String(document.publisher_name)}</span> : null}</div>
+                  <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{evidenceRoleLabel(evidence.evidence_role)}</Badge>{document.publisher_name ? <span className="text-xs text-muted-foreground">{String(document.publisher_name)}</span> : null}</div>
                   <h3 className="mt-2 font-heading text-lg font-semibold">{String(document.title ?? "Untitled source")}</h3>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">{evidence.evidence_text ?? String(document.summary_short ?? "")}</p>
                   {document.published_at ? <p className="mt-2 font-mono text-xs text-muted-foreground">{String(document.published_at).slice(0, 10)}</p> : null}
@@ -81,12 +66,12 @@ export default async function IntelligenceEventPage({ params }: { params: Promis
               const entity = relation.intelligence_entities ?? {};
               return (
                 <div key={`${relation.role}-${index}`} className="border-t border-border pt-3 first:border-0 first:pt-0">
-                  <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{String(entity.canonical_name ?? "Unknown entity")}</span><Badge variant="outline">{String(entity.entity_type ?? "entity").replaceAll("_", " ")}</Badge></div>
-                  <p className="mt-1 text-xs text-muted-foreground">{relation.role}</p>
+                  <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{String(entity.canonical_name ?? "Unknown organization or system")}</span><Badge variant="outline">{entityTypeLabel(entity.entity_type)}</Badge></div>
+                  <p className="mt-1 text-xs text-muted-foreground">{entityRoleLabel(relation.role)}</p>
                 </div>
               );
             })}
-            {!result.entities.length ? <p className="text-sm text-muted-foreground">No resolved entities.</p> : null}
+            {!result.entities.length ? <p className="text-sm text-muted-foreground">No organizations, systems, or programmes were identified.</p> : null}
           </div>
         </aside>
       </section>

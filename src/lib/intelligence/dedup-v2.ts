@@ -1,8 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sha256Hex } from "@/lib/ingestion/hash";
 import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
+import {
+  isMeasurementDocument,
+  sourceIdFromDocument,
+} from "@/lib/intelligence/source-cohort";
 
 type DbRow = Record<string, unknown>;
+type DedupCohort = "measurement" | "non_measurement";
 const DAY_MS = 86_400_000;
 
 async function fetchPages<T>(
@@ -18,6 +23,33 @@ async function fetchPages<T>(
     rows.push(...(result.data ?? []));
     if ((result.data ?? []).length < 1_000) return rows;
   }
+}
+
+async function loadDocumentCohorts(admin: SupabaseClient, ownerId: string) {
+  const [documents, identities, sources] = await Promise.all([
+    fetchPages<DbRow>((from, to) => admin.from("documents")
+      .select("id,published_at,created_at,source_identity_id,metadata")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_source_identities")
+      .select("id,source_id").eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_sources")
+      .select("id,status,cohort,measurement_active_from")
+      .eq("owner_id", ownerId).range(from, to)),
+  ]);
+  const identityById = new Map(identities.map((row) => [String(row.id), row]));
+  const sourceById = new Map(sources.map((row) => [String(row.id), row]));
+  return new Map(documents.map((document) => {
+    const identity = identityById.get(String(document.source_identity_id ?? "")) ?? {};
+    const source = sourceById.get(sourceIdFromDocument(document, identity)) ?? {};
+    const publishedAt = String(document.published_at ?? document.created_at ?? "");
+    const cohort: DedupCohort = isMeasurementDocument({
+      document,
+      identity,
+      source,
+      publishedAt,
+    }) ? "measurement" : "non_measurement";
+    return [String(document.id), cohort] as const;
+  }));
 }
 
 function normalizedWords(value: unknown) {
@@ -71,7 +103,9 @@ class DisjointSet {
   union(a: string, b: string) {
     const left = this.find(a);
     const right = this.find(b);
-    if (left !== right) this.parent.set(right, left < right ? left : right);
+    if (left === right) return;
+    const root = left < right ? left : right;
+    this.parent.set(left === root ? right : left, root);
   }
 }
 
@@ -120,7 +154,87 @@ function groupsFromSet(rows: DbRow[], set: DisjointSet) {
   return [...groups.values()];
 }
 
-async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
+type StoryReviewCandidate = {
+  left: DbRow;
+  right: DbRow;
+  titleScore: number;
+  embeddingScore: number;
+};
+
+function dedupCohort(row: DbRow): DedupCohort {
+  return row.dedup_cohort === "measurement" ? "measurement" : "non_measurement";
+}
+
+function groupStoryCandidates(input: {
+  segments: DbRow[];
+  vectors: Map<string, number[]>;
+  principalsByDocument: Map<string, Set<string>>;
+  eventTypesByDocument: Map<string, Set<string>>;
+}) {
+  const set = new DisjointSet();
+  const reviewCandidates: StoryReviewCandidate[] = [];
+  const exactOwner = new Map<string, string>();
+  for (const segment of input.segments) {
+    const id = String(segment.id);
+    const cohort = dedupCohort(segment);
+    set.add(id);
+    for (const exact of storyExactKeys(segment)) {
+      const cohortExact = `${cohort}|${exact}`;
+      if (exactOwner.has(cohortExact)) set.union(id, exactOwner.get(cohortExact)!);
+      else exactOwner.set(cohortExact, id);
+    }
+  }
+  for (let left = 0; left < input.segments.length; left += 1) {
+    const leftSegment = input.segments[left];
+    const leftDate = String(leftSegment.published_at).slice(0, 10);
+    for (let right = left + 1; right < input.segments.length; right += 1) {
+      const rightSegment = input.segments[right];
+      const rightDate = String(rightSegment.published_at).slice(0, 10);
+      if (daysApart(leftDate, rightDate) > 7) {
+        if (rightDate > leftDate) break;
+        continue;
+      }
+      if (dedupCohort(leftSegment) !== dedupCohort(rightSegment)) continue;
+      const leftPrincipals = input.principalsByDocument.get(String(leftSegment.document_id)) ?? new Set<string>();
+      const rightPrincipals = input.principalsByDocument.get(String(rightSegment.document_id)) ?? new Set<string>();
+      const sharesPrincipal = [...leftPrincipals].some((id) => rightPrincipals.has(id));
+      const leftEventTypes = input.eventTypesByDocument.get(String(leftSegment.document_id)) ?? new Set<string>();
+      const rightEventTypes = input.eventTypesByDocument.get(String(rightSegment.document_id)) ?? new Set<string>();
+      const hasCompatibleEvent = [...leftEventTypes].some((eventType) => rightEventTypes.has(eventType));
+      if (sharesPrincipal && hasCompatibleEvent) {
+        set.union(String(leftSegment.id), String(rightSegment.id));
+        continue;
+      }
+      const titleScore = titleSimilarity(leftSegment.story_title, rightSegment.story_title);
+      if (titleScore < 0.5) continue;
+      const leftVector = input.vectors.get(String(leftSegment.id)) ?? [];
+      const rightVector = input.vectors.get(String(rightSegment.id)) ?? [];
+      const embeddingScore = cosineSimilarity(leftVector, rightVector);
+      if (embeddingScore >= 0.86) {
+        set.union(String(leftSegment.id), String(rightSegment.id));
+      } else if (embeddingScore >= 0.8) {
+        reviewCandidates.push({
+          left: leftSegment,
+          right: rightSegment,
+          titleScore,
+          embeddingScore,
+        });
+      }
+    }
+  }
+  return {
+    groups: groupsFromSet(input.segments, set),
+    reviewCandidates: reviewCandidates.filter((candidate) =>
+      set.find(String(candidate.left.id)) !== set.find(String(candidate.right.id))
+    ),
+  };
+}
+
+async function rebuildStoryClusters(
+  admin: SupabaseClient,
+  ownerId: string,
+  documentCohorts: Map<string, DedupCohort>,
+) {
   const [segmentRows, embeddingRows, existingRows, documentEntityRows, entityRows,
     eventEvidenceRows, eventRows] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_segments")
@@ -148,11 +262,6 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
       : {};
     return ["story-dedup-v2.0.0", "story-review-v2.0.0"].includes(String(metadata.dedupe_version));
   }).map((row) => String(row.id));
-  if (staleV2Ids.length) {
-    const remove = await admin.from("intelligence_clusters").delete()
-      .eq("owner_id", ownerId).in("id", staleV2Ids);
-    if (remove.error) throw new Error(remove.error.message);
-  }
   const vectors = new Map(
     embeddingRows.map((row) => [String(row.segment_id), embeddingVector(row.embedding)]),
   );
@@ -169,11 +278,20 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
     principalsByDocument.set(documentId, values);
   }
   const eventTypeById = new Map(eventRows.map((row) => [String(row.id), String(row.event_type)]));
+  const measurementEventIds = new Set(eventEvidenceRows
+    .filter((row) => documentCohorts.get(String(row.document_id)) === "measurement")
+    .map((row) => String(row.event_id)));
   const eventTypesByDocument = new Map<string, Set<string>>();
   for (const row of eventEvidenceRows) {
-    const eventType = eventTypeById.get(String(row.event_id));
+    const eventId = String(row.event_id);
+    const eventType = eventTypeById.get(eventId);
     if (!eventType) continue;
     const documentId = String(row.document_id);
+    const documentCohort = documentCohorts.get(documentId) ?? "non_measurement";
+    const eventCohort: DedupCohort = measurementEventIds.has(eventId)
+      ? "measurement"
+      : "non_measurement";
+    if (documentCohort !== eventCohort) continue;
     const values = eventTypesByDocument.get(documentId) ?? new Set<string>();
     values.add(eventType);
     eventTypesByDocument.set(documentId, values);
@@ -186,67 +304,25 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
       published_at: value.published_at,
       document_title: value.title,
       story_title: segment.title ?? value.title,
+      dedup_cohort: documentCohorts.get(String(segment.document_id)) ?? "non_measurement",
     } as DbRow;
   }).filter((segment) => Boolean(segment.published_at))
     .sort((a, b) => String(a.published_at).localeCompare(String(b.published_at)));
-  const set = new DisjointSet();
-  const reviewCandidates: Array<{
-    left: DbRow;
-    right: DbRow;
-    titleScore: number;
-    embeddingScore: number;
-  }> = [];
-  const exactOwner = new Map<string, string>();
-  for (const segment of segments) {
-    const id = String(segment.id);
-    set.add(id);
-    for (const exact of storyExactKeys(segment)) {
-      if (exactOwner.has(exact)) set.union(id, exactOwner.get(exact)!);
-      else exactOwner.set(exact, id);
-    }
-  }
-  for (let left = 0; left < segments.length; left += 1) {
-    const leftDate = String(segments[left].published_at).slice(0, 10);
-    for (let right = left + 1; right < segments.length; right += 1) {
-      const rightDate = String(segments[right].published_at).slice(0, 10);
-      if (daysApart(leftDate, rightDate) > 7) {
-        if (rightDate > leftDate) break;
-        continue;
-      }
-      const leftPrincipals = principalsByDocument.get(String(segments[left].document_id)) ?? new Set<string>();
-      const rightPrincipals = principalsByDocument.get(String(segments[right].document_id)) ?? new Set<string>();
-      const sharesPrincipal = [...leftPrincipals].some((id) => rightPrincipals.has(id));
-      const leftEventTypes = eventTypesByDocument.get(String(segments[left].document_id)) ?? new Set<string>();
-      const rightEventTypes = eventTypesByDocument.get(String(segments[right].document_id)) ?? new Set<string>();
-      const hasCompatibleEvent = [...leftEventTypes].some((eventType) => rightEventTypes.has(eventType));
-      if (sharesPrincipal && hasCompatibleEvent) {
-        set.union(String(segments[left].id), String(segments[right].id));
-        continue;
-      }
-      const titleScore = titleSimilarity(segments[left].story_title, segments[right].story_title);
-      if (titleScore < 0.5) continue;
-      const leftVector = vectors.get(String(segments[left].id)) ?? [];
-      const rightVector = vectors.get(String(segments[right].id)) ?? [];
-      const embeddingScore = cosineSimilarity(leftVector, rightVector);
-      if (embeddingScore >= 0.86) {
-        set.union(String(segments[left].id), String(segments[right].id));
-      } else if (embeddingScore >= 0.8) {
-        reviewCandidates.push({
-          left: segments[left],
-          right: segments[right],
-          titleScore,
-          embeddingScore,
-        });
-      }
-    }
-  }
-  const groups = groupsFromSet(segments, set);
+  const { groups, reviewCandidates } = groupStoryCandidates({
+    segments,
+    vectors,
+    principalsByDocument,
+    eventTypesByDocument,
+  });
   const clusterRows = groups.map((group) => {
     const canonical = [...group].sort((a, b) =>
       Number(b.confidence ?? 0) - Number(a.confidence ?? 0) ||
       String(a.published_at).localeCompare(String(b.published_at))
     )[0];
-    const fingerprint = sha256Hex(`story|${group.map((row) => String(row.id)).sort().join("|")}`);
+    const cohort = dedupCohort(canonical);
+    const fingerprint = sha256Hex(
+      `story|${cohort}|${group.map((row) => String(row.id)).sort().join("|")}`,
+    );
     return {
       owner_id: ownerId,
       cluster_type: "story",
@@ -257,6 +333,8 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
         member_count: group.length,
         canonical_segment_id: canonical.id,
         dedupe_version: "story-dedup-v2.0.0",
+        dedup_cohort: cohort,
+        measurement_eligible: cohort === "measurement",
       },
       updated_at: new Date().toISOString(),
       group,
@@ -310,10 +388,7 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
     );
     if (write.error) throw new Error(write.error.message);
   }
-  const unresolvedCandidates = reviewCandidates.filter((candidate) =>
-    set.find(String(candidate.left.id)) !== set.find(String(candidate.right.id))
-  );
-  const reviewClusterRows = unresolvedCandidates.map((candidate) => {
+  const reviewClusterRows = reviewCandidates.map((candidate) => {
     const segmentIds = [String(candidate.left.id), String(candidate.right.id)].sort();
     return {
       owner_id: ownerId,
@@ -327,6 +402,8 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
         title_similarity: candidate.titleScore,
         embedding_similarity: candidate.embeddingScore,
         dedupe_version: "story-review-v2.0.0",
+        dedup_cohort: dedupCohort(candidate.left),
+        measurement_eligible: dedupCohort(candidate.left) === "measurement",
       },
       updated_at: new Date().toISOString(),
       candidate,
@@ -362,6 +439,19 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
     );
     if (write.error) throw new Error(write.error.message);
   }
+  // Keep the last complete cluster set available until every replacement and
+  // membership write succeeds. Upserted fingerprints reuse their existing IDs;
+  // only obsolete v2 clusters are removed after the replacement is complete.
+  const replacementClusterIds = new Set([
+    ...clusterByFingerprint.values(),
+    ...reviewClusterByFingerprint.values(),
+  ]);
+  const obsoleteV2Ids = staleV2Ids.filter((id) => !replacementClusterIds.has(id));
+  for (let index = 0; index < obsoleteV2Ids.length; index += 100) {
+    const remove = await admin.from("intelligence_clusters").delete()
+      .eq("owner_id", ownerId).in("id", obsoleteV2Ids.slice(index, index + 100));
+    if (remove.error) throw new Error(remove.error.message);
+  }
   return {
     storyClusters: clusterRows.length,
     storySegmentMemberships: segmentMembershipRows.length,
@@ -370,9 +460,73 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
   };
 }
 
-async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, completeThrough: string) {
-  const [eventRows, evidenceRowsInput, eventEntityPrincipalRows, entityRows,
-    conceptRowsInput, allEventEntityRows, documentConceptRows,
+function groupEventCandidates(input: {
+  events: DbRow[];
+  cohortByEvent: Map<string, DedupCohort>;
+  principal: (eventId: string) => string | null;
+}) {
+  const set = new DisjointSet();
+  for (const event of input.events) set.add(String(event.id));
+  for (let left = 0; left < input.events.length; left += 1) {
+    for (let right = left + 1; right < input.events.length; right += 1) {
+      const leftEvent = input.events[left];
+      const rightEvent = input.events[right];
+      if (leftEvent.event_type !== rightEvent.event_type) continue;
+      if (daysApart(eventDay(leftEvent), eventDay(rightEvent)) > 7) continue;
+      const leftCohort = input.cohortByEvent.get(String(leftEvent.id)) ?? "non_measurement";
+      const rightCohort = input.cohortByEvent.get(String(rightEvent.id)) ?? "non_measurement";
+      if (leftCohort !== rightCohort) continue;
+      const leftPrincipal = input.principal(String(leftEvent.id));
+      const rightPrincipal = input.principal(String(rightEvent.id));
+      if (leftPrincipal && leftPrincipal === rightPrincipal) {
+        set.union(String(leftEvent.id), String(rightEvent.id));
+      } else if (!leftPrincipal && !rightPrincipal &&
+        titleSimilarity(leftEvent.title, rightEvent.title) >= 0.86) {
+        set.union(String(leftEvent.id), String(rightEvent.id));
+      }
+    }
+  }
+  return groupsFromSet(input.events, set);
+}
+
+function cohortAlignedEvidenceDocumentIds(input: {
+  eventId: string;
+  cohortByEvent: Map<string, DedupCohort>;
+  evidenceByEvent: Map<string, DbRow[]>;
+  documentCohorts: Map<string, DedupCohort>;
+}) {
+  const cohort = input.cohortByEvent.get(input.eventId) ?? "non_measurement";
+  return (input.evidenceByEvent.get(input.eventId) ?? [])
+    .map((row) => String(row.document_id))
+    .filter((documentId) =>
+      (input.documentCohorts.get(documentId) ?? "non_measurement") === cohort
+    );
+}
+
+function principalEntity(
+  values: Array<{ id: string; type: string; role: string }>,
+) {
+  return [...values]
+    .filter((value) =>
+      ["program", "product_system", "capability_technology", "government_agency"].includes(value.type) ||
+      (value.type === "organization" && /buyer|customer|agency|operator|subject/iu.test(value.role))
+    )
+    .sort((a, b) => {
+      const score = (value: { type: string; role: string }) =>
+        ["program", "product_system", "capability_technology"].includes(value.type) ? 3 :
+          /buyer|customer|agency|operator|subject/iu.test(value.role) ? 2 : 1;
+      return score(b) - score(a);
+    })[0]?.id ?? null;
+}
+
+async function rebuildEventClusters(
+  admin: SupabaseClient,
+  ownerId: string,
+  completeThrough: string,
+  documentCohorts: Map<string, DedupCohort>,
+) {
+  const [eventRows, evidenceRowsInput, entityRows, conceptRowsInput,
+    allEventEntityRows, documentConceptRows,
     documentEntityRows] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin.from("intelligence_events")
       .select("id,title,event_type,announced_at,occurred_at,confidence,cluster_id,review_status,metadata")
@@ -380,8 +534,6 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
       .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_event_evidence").select("*")
       .eq("owner_id", ownerId).range(from, to)),
-    fetchPages<DbRow>((from, to) => admin.from("intelligence_event_entities")
-      .select("event_id,entity_id,role").eq("owner_id", ownerId).range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_entities").select("id,entity_type")
       .eq("owner_id", ownerId).range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_event_concepts").select("*")
@@ -400,6 +552,16 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
     const values = evidenceByEvent.get(String(row.event_id)) ?? [];
     values.push(row);
     evidenceByEvent.set(String(row.event_id), values);
+  }
+  const cohortByEvent = new Map<string, DedupCohort>();
+  for (const event of eventRows) {
+    const evidence = evidenceByEvent.get(String(event.id)) ?? [];
+    cohortByEvent.set(
+      String(event.id),
+      evidence.some((row) =>
+        documentCohorts.get(String(row.document_id)) === "measurement"
+      ) ? "measurement" : "non_measurement",
+    );
   }
   const documentConcepts = new Map<string, DbRow[]>();
   for (const row of documentConceptRows) {
@@ -421,7 +583,12 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
   const inferredEntityRows: DbRow[] = [];
   for (const event of eventRows) {
     const eventId = String(event.id);
-    const evidenceDocuments = (evidenceByEvent.get(eventId) ?? []).map((row) => String(row.document_id));
+    const evidenceDocuments = cohortAlignedEvidenceDocumentIds({
+      eventId,
+      cohortByEvent,
+      evidenceByEvent,
+      documentCohorts,
+    });
     if (!conceptLinked.has(eventId)) {
       const concepts = [...new Map(
         evidenceDocuments.flatMap((documentId) => documentConcepts.get(documentId) ?? [])
@@ -476,24 +643,33 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
   eventConceptRows.push(...inferredConceptRows);
   eventEntityRowsAll.push(...inferredEntityRows);
   const entityType = new Map(entityRows.map((row) => [String(row.id), String(row.entity_type)]));
-  const entitiesByEvent = new Map<string, Array<{ id: string; type: string; role: string }>>();
-  for (const row of eventEntityRowsAll.length ? eventEntityRowsAll : eventEntityPrincipalRows) {
-    const eventId = String(row.event_id);
-    const values = entitiesByEvent.get(eventId) ?? [];
-    values.push({ id: String(row.entity_id), type: entityType.get(String(row.entity_id)) ?? "", role: String(row.role) });
-    entitiesByEvent.set(eventId, values);
+  const provenanceEntitiesByEvent = new Map<
+    string,
+    Array<{ id: string; type: string; role: string }>
+  >();
+  for (const event of eventRows) {
+    const eventId = String(event.id);
+    const evidenceDocumentIds = cohortAlignedEvidenceDocumentIds({
+      eventId,
+      cohortByEvent,
+      evidenceByEvent,
+      documentCohorts,
+    });
+    const values = [...new Map(
+      evidenceDocumentIds.flatMap((documentId) => documentEntities.get(documentId) ?? [])
+        .map((row) => [
+          `${row.entity_id}|${row.role}`,
+          {
+            id: String(row.entity_id),
+            type: entityType.get(String(row.entity_id)) ?? "",
+            role: String(row.role),
+          },
+        ] as const),
+    ).values()];
+    provenanceEntitiesByEvent.set(eventId, values);
   }
-  const principal = (eventId: string) => [...(entitiesByEvent.get(eventId) ?? [])]
-    .filter((value) =>
-      ["program", "product_system", "capability_technology", "government_agency"].includes(value.type) ||
-      (["organization"].includes(value.type) && /buyer|customer|agency|operator|subject/iu.test(value.role))
-    )
-    .sort((a, b) => {
-      const score = (value: { type: string; role: string }) =>
-        ["program", "product_system", "capability_technology"].includes(value.type) ? 3 :
-          /buyer|customer|agency|operator|subject/iu.test(value.role) ? 2 : 1;
-      return score(b) - score(a);
-    })[0]?.id ?? null;
+  const principal = (eventId: string) =>
+    principalEntity(provenanceEntitiesByEvent.get(eventId) ?? []);
   const genericIds = eventRows.filter((event) =>
     /\b(?:daily|weekly) (?:brief|roundup)|\bnews digest\b|\btop stories\b/iu.test(String(event.title))
   ).map((event) => String(event.id));
@@ -522,23 +698,7 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
     if (event.event_type === "procurement_notice" && !principal(String(event.id))) return false;
     return true;
   });
-  const set = new DisjointSet();
-  for (const event of events) set.add(String(event.id));
-  for (let left = 0; left < events.length; left += 1) {
-    for (let right = left + 1; right < events.length; right += 1) {
-      if (events[left].event_type !== events[right].event_type) continue;
-      if (daysApart(eventDay(events[left]), eventDay(events[right])) > 7) continue;
-      const leftPrincipal = principal(String(events[left].id));
-      const rightPrincipal = principal(String(events[right].id));
-      if (leftPrincipal && leftPrincipal === rightPrincipal) {
-        set.union(String(events[left].id), String(events[right].id));
-      } else if (!leftPrincipal && !rightPrincipal &&
-        titleSimilarity(events[left].title, events[right].title) >= 0.86) {
-        set.union(String(events[left].id), String(events[right].id));
-      }
-    }
-  }
-  const groups = groupsFromSet(events, set);
+  const groups = groupEventCandidates({ events, cohortByEvent, principal });
   let duplicateEventsCollapsed = 0;
   for (const group of groups) {
     // Existing ingestion already creates one event cluster per event. Only
@@ -550,13 +710,19 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
       Number(b.confidence ?? 0) - Number(a.confidence ?? 0)
     )[0];
     const canonicalId = String(canonical.id);
-    const fingerprint = sha256Hex(`event|${String(canonical.event_type)}|${principal(canonicalId) ?? normalizedWords(canonical.title).join(" ")}|${eventDay(canonical)}`);
+    const cohort = cohortByEvent.get(canonicalId) ?? "non_measurement";
+    const fingerprint = sha256Hex(`event|${cohort}|${String(canonical.event_type)}|${principal(canonicalId) ?? normalizedWords(canonical.title).join(" ")}|${eventDay(canonical)}`);
     const cluster = await admin.from("intelligence_clusters").upsert({
       owner_id: ownerId,
       cluster_type: "event",
       fingerprint,
       title: canonical.title,
-      metadata: { member_count: group.length, dedupe_version: "event-dedup-v2.0.0" },
+      metadata: {
+        member_count: group.length,
+        dedupe_version: "event-dedup-v2.0.0",
+        dedup_cohort: cohort,
+        measurement_eligible: cohort === "measurement",
+      },
       updated_at: new Date().toISOString(),
     }, { onConflict: "owner_id,cluster_type,fingerprint" }).select("id").single();
     if (cluster.error || !cluster.data?.id) throw new Error(cluster.error?.message ?? "Failed to create event cluster.");
@@ -650,9 +816,18 @@ export async function rebuildStoryAndEventClustersV2(
   options: { completeThrough?: string } = {},
 ) {
   const completeThrough = options.completeThrough ?? new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
-  const stories = await rebuildStoryClusters(admin, ownerId);
-  const events = await rebuildEventClusters(admin, ownerId, completeThrough);
+  const documentCohorts = await loadDocumentCohorts(admin, ownerId);
+  const stories = await rebuildStoryClusters(admin, ownerId, documentCohorts);
+  const events = await rebuildEventClusters(admin, ownerId, completeThrough, documentCohorts);
   return { ...stories, ...events, completeThrough };
 }
 
-export const __testables = { daysApart, normalizedWords, storyExactKey };
+export const __testables = {
+  cohortAlignedEvidenceDocumentIds,
+  daysApart,
+  groupEventCandidates,
+  groupStoryCandidates,
+  normalizedWords,
+  principalEntity,
+  storyExactKey,
+};

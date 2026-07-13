@@ -4,6 +4,7 @@ import {
   __testables,
   halifaxDayBounds,
   selectImmediateAlertSignals,
+  sendImmediateIntelligenceAlerts,
   type ImmediateAlertSignal,
 } from "@/lib/intelligence/immediate-alerts";
 
@@ -68,5 +69,28 @@ describe("immediate intelligence alerts", () => {
     const candidate = signal("C-UAS", { metadata: { summary: { actions: 3, current_reach: 0.239 } } });
     expect(__testables.explanation(candidate)).toContain("3 distinct real-world actions");
     expect(__testables.currentReach(candidate)).toBe(0.239);
+  });
+
+  it("uses primary-source support from the current 28-day summary", () => {
+    const candidate = signal("primary-backed", {
+      primary_source_count: 0,
+      unique_action_count: 0,
+      metadata: { summary: { actions: 0, primary_sources: 1 } },
+    });
+    expect(__testables.primarySourceCount(candidate)).toBe(1);
+    expect(__testables.qualifies(candidate)).toBe(true);
+  });
+
+  it("keeps alerts off until the canonical v2 series is ready", async () => {
+    await expect(sendImmediateIntelligenceAlerts(
+      {} as never,
+      "owner",
+      new Date("2026-07-13T12:00:00.000Z"),
+      { enabled: true, getDataStatus: async () => "building" },
+    )).resolves.toEqual({
+      skipped: true,
+      reason: "Canonical v2 signals are building; immediate alerts stayed off.",
+      sent: 0,
+    });
   });
 });

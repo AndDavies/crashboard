@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { searchIntelligenceV2 } from "@/lib/intelligence/hybrid-search-v2";
-import { getIntelligenceSignals } from "@/lib/intelligence/signals-v2";
+import { requireDashboardUser } from "@/lib/blog/data";
+import { intelligenceSignalsV2DataStatus } from "@/lib/intelligence/v2-readiness";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -9,13 +11,14 @@ export async function GET(request: NextRequest) {
   try {
     const query = request.nextUrl.searchParams.get("q") ?? "";
     const limit = Number(request.nextUrl.searchParams.get("limit") ?? 30);
-    const readiness = await getIntelligenceSignals({ limit: 1 });
-    if (readiness.dataStatus !== "ready") {
+    const ownerId = (await requireDashboardUser()).id;
+    const dataStatus = await intelligenceSignalsV2DataStatus(createAdminClient(), ownerId);
+    if (dataStatus !== "ready") {
       return NextResponse.json({
         query,
         catalog: [],
         results: [],
-        dataStatus: readiness.dataStatus,
+        dataStatus,
       });
     }
     return NextResponse.json(await searchIntelligenceV2(query, { limit }));

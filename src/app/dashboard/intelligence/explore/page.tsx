@@ -39,6 +39,12 @@ export default async function ExplorePage({
     q: q || undefined,
     compare: loadComparison,
   });
+  const resolvedRequestedSignal = requestedSignal
+    ? data.resolvedSignalIds[0] ?? requestedSignal
+    : undefined;
+  const resolvedCompare = requestedSignal
+    ? data.resolvedSignalIds.slice(1)
+    : data.resolvedSignalIds;
 
   return (
     <ExploreWorkspace
@@ -50,8 +56,8 @@ export default async function ExplorePage({
       initialKind={kind}
       initialRange={range}
       initialQuery={q}
-      initialSignalId={requestedSignal || undefined}
-      initialCompare={compare}
+      initialSignalId={resolvedRequestedSignal}
+      initialCompare={resolvedCompare}
       dataStatus={data.dataStatus}
       usesLegacyFallback={data.usesLegacyFallback}
     />

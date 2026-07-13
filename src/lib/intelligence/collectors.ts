@@ -4,7 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   extractFromHtml,
   extractFromPlainText,
-  fetchRemoteResource,
   normalizeIngestionUrl,
 } from "@/lib/ingestion/url";
 import { normalizeTextForStorage } from "@/lib/ingestion/normalize";
@@ -22,6 +21,38 @@ const DEFAULT_PAGE_LIMIT = 25;
 const DEFAULT_TIME_BUDGET_MS = 210_000;
 const MAX_RESPONSE_BYTES = 5_000_000;
 const RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1_000;
+const DEFAULT_DOMAIN_INTERVAL_MS = 250;
+const TRANSIENT_RETRIES = 2;
+const MAX_IN_REQUEST_RETRY_DELAY_MS = 15_000;
+const TRANSIENT_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const PODCAST_NAMESPACE = "https://podcastindex.org/namespace/1.0";
+const PODCAST_TRANSCRIPT_TYPES = new Set([
+  "application/json",
+  "application/x-subrip",
+  "text/html",
+  "text/plain",
+  "text/vtt",
+]);
+
+const domainQueues = new Map<string, Promise<void>>();
+const domainNextRequestAt = new Map<string, number>();
+
+class CollectorHttpError extends Error {
+  readonly status: number | null;
+  readonly retryAfterMs: number | null;
+  readonly transient: boolean;
+
+  constructor(
+    message: string,
+    options: { status?: number | null; retryAfterMs?: number | null; transient?: boolean; cause?: unknown } = {},
+  ) {
+    super(message, { cause: options.cause });
+    this.name = "CollectorHttpError";
+    this.status = options.status ?? null;
+    this.retryAfterMs = options.retryAfterMs ?? null;
+    this.transient = options.transient ?? false;
+  }
+}
 
 export type IntelligenceSourceCohort = "measurement" | "research";
 
@@ -53,6 +84,13 @@ export type CollectionSourceRow = {
   fetch_cooldown_until: string | null;
 };
 
+type PodcastTranscriptLink = {
+  url: string;
+  type: string;
+  language: string | null;
+  rel: string | null;
+};
+
 type FeedEntry = {
   id: string;
   url: string;
@@ -61,6 +99,7 @@ type FeedEntry = {
   author: string | null;
   publishedAt: string | null;
   summary: string | null;
+  transcripts: PodcastTranscriptLink[];
 };
 
 type RobotsRule = {
@@ -73,6 +112,8 @@ type SourceConfig = {
   sitemapUrl?: string;
   datasetUrl?: string;
   datasetId?: string;
+  apiUrl?: string;
+  expertQuery?: string;
   adapter?: string;
   discoverLinks: boolean;
   linkPathPatterns: string[];
@@ -116,6 +157,8 @@ function sourceConfig(source: CollectionSourceRow): SourceConfig {
     sitemapUrl: stringValue(config.sitemap_url) ?? stringValue(config.sitemapUrl),
     datasetUrl: stringValue(config.dataset_url) ?? stringValue(config.datasetUrl),
     datasetId: stringValue(config.dataset_id) ?? stringValue(config.datasetId),
+    apiUrl: stringValue(config.api_url) ?? stringValue(config.apiUrl),
+    expertQuery: stringValue(config.expert_query) ?? stringValue(config.expertQuery),
     adapter: stringValue(config.adapter),
     discoverLinks: config.discover_links === true || config.discoverLinks === true,
     linkPathPatterns: stringArray(config.link_path_patterns ?? config.linkPathPatterns),
@@ -138,33 +181,188 @@ function requiredEnvironment(name: string) {
   return value;
 }
 
+function sleep(milliseconds: number) {
+  if (milliseconds <= 0) return Promise.resolve();
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function collectorDomainIntervalMs() {
+  if (process.env.NODE_ENV === "test") return 0;
+  const configured = Number(process.env.INTELLIGENCE_COLLECTOR_DOMAIN_INTERVAL_MS);
+  if (!Number.isFinite(configured)) return DEFAULT_DOMAIN_INTERVAL_MS;
+  return Math.max(0, Math.min(Math.trunc(configured), 5_000));
+}
+
+function domainKey(url: string | URL) {
+  return new URL(url).hostname.toLowerCase();
+}
+
+async function paceDomain(url: string | URL) {
+  const key = domainKey(url);
+  const previous = domainQueues.get(key) ?? Promise.resolve();
+  const queued = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const waitMs = Math.max(0, (domainNextRequestAt.get(key) ?? 0) - Date.now());
+      await sleep(waitMs);
+      domainNextRequestAt.set(key, Date.now() + collectorDomainIntervalMs());
+    });
+  domainQueues.set(key, queued);
+  await queued;
+  if (domainQueues.get(key) === queued) domainQueues.delete(key);
+}
+
+function parseRetryAfter(value: string | null, now = Date.now()) {
+  if (!value?.trim()) return null;
+  const seconds = Number(value.trim());
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1_000);
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, timestamp - now);
+}
+
+function retryDelayMs(attempt: number, retryAfterMs: number | null) {
+  const fallback = 250 * 2 ** attempt;
+  return Math.min(retryAfterMs ?? fallback, MAX_IN_REQUEST_RETRY_DELAY_MS);
+}
+
+async function collectorFetch(
+  url: string | URL,
+  init: RequestInit = {},
+  timeoutMs = 20_000,
+) {
+  const normalizedUrl = url instanceof URL ? url : new URL(normalizeIngestionUrl(url));
+  if (!publicFetchUrl(normalizedUrl.toString())) {
+    throw new Error("Private-network source URLs are not permitted.");
+  }
+
+  for (let attempt = 0; attempt <= TRANSIENT_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      let requestUrl = normalizedUrl;
+      let requestInit: RequestInit = { ...init };
+      let response: Response | null = null;
+      for (let redirect = 0; redirect <= 5; redirect += 1) {
+        if (!publicFetchUrl(requestUrl.toString())) {
+          throw new CollectorHttpError("Redirects to private-network source URLs are not permitted.");
+        }
+        await paceDomain(requestUrl);
+        response = await fetch(requestUrl, {
+          ...requestInit,
+          redirect: "manual",
+          signal: controller.signal,
+        });
+        if (![301, 302, 303, 307, 308].includes(response.status)) break;
+        const location = response.headers.get("Location");
+        if (!location) break;
+        if (redirect >= 5) {
+          await response.body?.cancel();
+          throw new CollectorHttpError("Remote source exceeded five redirects.");
+        }
+        const nextUrl = new URL(location, requestUrl);
+        if (!publicFetchUrl(nextUrl.toString())) {
+          await response.body?.cancel();
+          throw new CollectorHttpError("Redirects to private-network source URLs are not permitted.");
+        }
+        await response.body?.cancel();
+        if (response.status === 303 || ([301, 302].includes(response.status) && requestInit.method === "POST")) {
+          requestInit = { ...requestInit, method: "GET", body: undefined };
+        }
+        requestUrl = nextUrl;
+      }
+      if (!response) throw new Error("Collector request returned no response.");
+      if (!TRANSIENT_HTTP_STATUSES.has(response.status)) return response;
+
+      const retryAfterMs = parseRetryAfter(response.headers.get("Retry-After"));
+      const error = new CollectorHttpError(
+        `HTTP ${response.status} after ${attempt + 1} collector attempt${attempt ? "s" : ""}.`,
+        { status: response.status, retryAfterMs, transient: true },
+      );
+      if (attempt >= TRANSIENT_RETRIES) throw error;
+      await response.body?.cancel();
+      await sleep(retryDelayMs(attempt, retryAfterMs));
+    } catch (error) {
+      if (error instanceof CollectorHttpError) throw error;
+      if (attempt >= TRANSIENT_RETRIES) {
+        throw new CollectorHttpError(
+          `Collector request failed after ${attempt + 1} attempts.`,
+          { transient: true, cause: error },
+        );
+      }
+      await sleep(retryDelayMs(attempt, null));
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  throw new CollectorHttpError("Collector request failed after three attempts.", { transient: true });
+}
+
+async function readLimitedText(response: Response, maximumBytes = MAX_RESPONSE_BYTES) {
+  const declaredLength = Number(response.headers.get("Content-Length"));
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
+    await response.body?.cancel();
+    throw new Error(`Remote source exceeds ${Math.round(maximumBytes / 1_000_000)} MB.`);
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8", { fatal: false });
+  let totalBytes = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maximumBytes) {
+        await reader.cancel();
+        throw new Error(`Remote source exceeds ${Math.round(maximumBytes / 1_000_000)} MB.`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function collectorCooldownMs(error: unknown) {
+  if (error instanceof CollectorHttpError && error.transient) {
+    if (error.status === 429 || error.retryAfterMs !== null) {
+      return Math.max(60_000, error.retryAfterMs ?? 15 * 60_000);
+    }
+    return 15 * 60_000;
+  }
+  return RETRY_COOLDOWN_MS;
+}
+
 async function apiJson<T>(
   url: URL,
-  options: { authorization?: string; basicAuthorization?: string; method?: "GET" | "POST"; body?: URLSearchParams } = {},
+  options: {
+    authorization?: string;
+    basicAuthorization?: string;
+    method?: "GET" | "POST";
+    body?: URLSearchParams | string;
+    contentType?: string;
+  } = {},
 ) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-  try {
-    const response = await fetch(url, {
-      method: options.method ?? "GET",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": COLLECTION_USER_AGENT,
-        ...(options.authorization ? { Authorization: options.authorization } : {}),
-        ...(options.basicAuthorization ? { Authorization: options.basicAuthorization } : {}),
-        ...(options.body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
-      },
-      body: options.body,
-      cache: "no-store",
-      signal: controller.signal,
-    });
-    const text = await response.text();
-    if (text.length > MAX_RESPONSE_BYTES) throw new Error("Approved API response exceeds 5 MB.");
-    if (!response.ok) throw new Error(`Approved API request failed with HTTP ${response.status}.`);
-    return JSON.parse(text) as T;
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await collectorFetch(url, {
+    method: options.method ?? "GET",
+    headers: {
+      Accept: "application/json",
+      "User-Agent": COLLECTION_USER_AGENT,
+      ...(options.authorization ? { Authorization: options.authorization } : {}),
+      ...(options.basicAuthorization ? { Authorization: options.basicAuthorization } : {}),
+      ...(options.body
+        ? { "Content-Type": options.contentType ?? "application/x-www-form-urlencoded" }
+        : {}),
+    },
+    body: options.body,
+    cache: "no-store",
+  });
+  const text = await readLimitedText(response);
+  if (!response.ok) throw new Error(`Approved API request failed with HTTP ${response.status}.`);
+  return JSON.parse(text) as T;
 }
 
 function parseCsv(text: string) {
@@ -244,6 +442,18 @@ function xmlText(value: string) {
 
 function parseFeed(xml: string, baseUrl: string): FeedEntry[] {
   const $ = load(xml, { xmlMode: true });
+  const podcastPrefixes = new Set<string>();
+  $("*").each((_, element) => {
+    const attributes = $(element).attr() ?? {};
+    for (const [attribute, value] of Object.entries(attributes)) {
+      if (
+        attribute.toLowerCase().startsWith("xmlns:") &&
+        value.replace(/\/+$/u, "") === PODCAST_NAMESPACE
+      ) {
+        podcastPrefixes.add(attribute.slice(attribute.indexOf(":") + 1).toLowerCase());
+      }
+    }
+  });
   const publisher =
     normalizeTextForStorage($("channel > title").first().text()) ||
     normalizeTextForStorage($("feed > title").first().text()) ||
@@ -272,6 +482,34 @@ function parseFeed(xml: string, baseUrl: string): FeedEntry[] {
       node.find("content").first().text() ||
       node.find("description").first().text() ||
       node.find("summary").first().text();
+    const transcripts = node
+      .find("*")
+      .toArray()
+      .flatMap((child): PodcastTranscriptLink[] => {
+        const tagName = "name" in child && typeof child.name === "string" ? child.name : "";
+        const separator = tagName.indexOf(":");
+        if (separator < 1 || tagName.slice(separator + 1).toLowerCase() !== "transcript") return [];
+        if (!podcastPrefixes.has(tagName.slice(0, separator).toLowerCase())) return [];
+        const transcriptNode = $(child);
+        const rawUrl = transcriptNode.attr("url")?.trim();
+        const type = transcriptNode.attr("type")?.trim().toLowerCase();
+        if (!rawUrl || !type || !PODCAST_TRANSCRIPT_TYPES.has(type)) return [];
+        try {
+          const transcriptUrl = new URL(rawUrl, baseUrl);
+          if (transcriptUrl.protocol !== "https:" || !publicFetchUrl(transcriptUrl.toString())) return [];
+          return [{
+            url: normalizeSourceUrl(transcriptUrl.toString()) ?? transcriptUrl.toString(),
+            type,
+            language: transcriptNode.attr("language")?.trim() || null,
+            rel: transcriptNode.attr("rel")?.trim() || null,
+          }];
+        } catch {
+          return [];
+        }
+      })
+      .filter((transcript, index, all) =>
+        all.findIndex((candidate) => candidate.url === transcript.url && candidate.type === transcript.type) === index,
+      );
     entries.push({
       id: rawId,
       url,
@@ -287,6 +525,7 @@ function parseFeed(xml: string, baseUrl: string): FeedEntry[] {
           node.find("updated").first().text(),
       ),
       summary: summaryRaw ? xmlText(summaryRaw).slice(0, 2_000) : null,
+      transcripts,
     });
   });
   return entries;
@@ -405,22 +644,17 @@ export function isRobotsAllowed(rules: RobotsRule[], url: string) {
 }
 
 async function fetchText(url: string, accept: string) {
-  if (!publicFetchUrl(url)) throw new Error("Private-network source URLs are not permitted.");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-  try {
-    const response = await fetch(normalizeIngestionUrl(url), {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { "User-Agent": COLLECTION_USER_AGENT, Accept: accept },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status} when fetching ${url}.`);
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > MAX_RESPONSE_BYTES) throw new Error("Remote source exceeds 5 MB.");
-    return { text: new TextDecoder("utf-8", { fatal: false }).decode(buffer), url: response.url || url };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await collectorFetch(normalizeIngestionUrl(url), {
+    redirect: "follow",
+    headers: { "User-Agent": COLLECTION_USER_AGENT, Accept: accept },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status} when fetching ${url}.`);
+  return {
+    text: await readLimitedText(response),
+    url: response.url || url,
+    contentType: response.headers.get("content-type")?.toLowerCase() ?? "",
+  };
 }
 
 export async function robotsPermission(url: string) {
@@ -434,21 +668,24 @@ export async function robotsPermission(url: string) {
   const parsed = new URL(normalizeIngestionUrl(url));
   const robotsUrl = `${parsed.origin}/robots.txt`;
   try {
-    const response = await fetch(robotsUrl, {
+    const response = await collectorFetch(robotsUrl, {
       headers: { "User-Agent": COLLECTION_USER_AGENT, Accept: "text/plain" },
-      signal: AbortSignal.timeout(10_000),
-    });
+      cache: "no-store",
+    }, 10_000);
     if (response.status === 401 || response.status === 403) {
       return { allowed: false, status: "disallowed" as const, robotsUrl };
     }
     if (!response.ok) return { allowed: true, status: "not_applicable" as const, robotsUrl };
-    const rules = parseRobotsRules(await response.text());
+    const rules = parseRobotsRules(await readLimitedText(response));
     return {
       allowed: isRobotsAllowed(rules, url),
       status: isRobotsAllowed(rules, url) ? ("allowed" as const) : ("disallowed" as const),
       robotsUrl,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof CollectorHttpError && error.transient) {
+      return { allowed: false, status: "unknown" as const, robotsUrl };
+    }
     return { allowed: true, status: "unknown" as const, robotsUrl };
   }
 }
@@ -461,6 +698,84 @@ function sourceTypeFor(source: CollectionSourceRow): IntelligenceSourceType {
   if (source.source_type === "social") return "social_post";
   const authority = stringValue(source.config?.authority);
   return authority === "official" ? "official_release" : "web_article";
+}
+
+function transcriptJsonText(raw: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    return "";
+  }
+  const parts: string[] = [];
+  const visit = (value: unknown, key = "") => {
+    if (typeof value === "string") {
+      if (/^(?:body|caption|content|dialogue|sentence|text|transcript|utterance)$/iu.test(key)) {
+        parts.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, key);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [childKey, child] of Object.entries(value)) visit(child, childKey);
+    }
+  };
+  visit(parsed);
+  return normalizeTextForStorage(parts.join(" "));
+}
+
+function publisherTranscriptText(raw: string, type: string, url: string) {
+  if (type === "text/html") return extractFromHtml(raw, url).normalizedText;
+  if (type === "text/vtt" || type === "application/x-subrip") return captionText(raw);
+  if (type === "application/json") return transcriptJsonText(raw);
+  return extractFromPlainText(raw).normalizedText;
+}
+
+async function fetchPublisherTranscript(entry: FeedEntry, preferredLanguage: string) {
+  if (!entry.transcripts.length) {
+    return { text: null, status: "not_declared", url: null, type: null, language: null, robotsUrl: null };
+  }
+  const preferred = preferredLanguage.toLowerCase().split("-")[0];
+  const links = [...entry.transcripts].sort((left, right) =>
+    Number(!(left.language ?? "").toLowerCase().startsWith(preferred)) -
+    Number(!(right.language ?? "").toLowerCase().startsWith(preferred)),
+  );
+  let blocked = false;
+  let lastRobotsUrl: string | null = null;
+  for (const link of links) {
+    const permission = await robotsPermission(link.url);
+    lastRobotsUrl = permission.robotsUrl;
+    if (!permission.allowed) {
+      blocked = true;
+      continue;
+    }
+    try {
+      const resource = await fetchText(link.url, [...PODCAST_TRANSCRIPT_TYPES].join(","));
+      const text = publisherTranscriptText(resource.text, link.type, resource.url);
+      if (!text) continue;
+      return {
+        text,
+        status: "downloaded",
+        url: resource.url,
+        type: link.type,
+        language: link.language,
+        robotsUrl: permission.robotsUrl,
+      };
+    } catch (error) {
+      if (error instanceof CollectorHttpError) throw error;
+    }
+  }
+  return {
+    text: null,
+    status: blocked ? "blocked_by_robots" : "unavailable",
+    url: null,
+    type: null,
+    language: null,
+    robotsUrl: lastRobotsUrl,
+  };
 }
 
 class WebCollectionAdapter implements IntelligenceSourceAdapter {
@@ -488,6 +803,7 @@ class WebCollectionAdapter implements IntelligenceSourceAdapter {
         author: null,
         publishedAt: null,
         summary: null,
+        transcripts: [],
       }));
     } else {
       const urls = config.discoverLinks
@@ -505,6 +821,7 @@ class WebCollectionAdapter implements IntelligenceSourceAdapter {
         author: null,
         publishedAt: null,
         summary: null,
+        transcripts: [],
       }));
     }
 
@@ -537,17 +854,24 @@ class WebCollectionAdapter implements IntelligenceSourceAdapter {
       author: null,
       publishedAt: null,
       summary: null,
+      transcripts: [],
     };
     const permission = await robotsPermission(entry.url);
     if (!permission.allowed) throw new Error(`robots.txt disallows ${entry.url}`);
-    const resource = await fetchRemoteResource(entry.url);
-    if (!resource.textBody) throw new Error("Only permitted HTML, XML, and plain-text collection is supported.");
+    const resource = await fetchText(
+      entry.url,
+      "text/html,application/xhtml+xml,text/plain,application/xml,text/xml",
+    );
     const extracted = resource.contentType.includes("html")
-      ? extractFromHtml(resource.textBody, resource.finalUrl)
-      : extractFromPlainText(resource.textBody);
-    const contentText = extracted.normalizedText || entry.summary || "";
+      ? extractFromHtml(resource.text, resource.url)
+      : extractFromPlainText(resource.text);
+    const config = sourceConfig(this.source);
+    const transcript = this.source.source_type === "podcast"
+      ? await fetchPublisherTranscript(entry, config.language ?? "en")
+      : { text: null, status: "not_applicable", url: null, type: null, language: null, robotsUrl: null };
+    const contentText = transcript.text || extracted.normalizedText || entry.summary || "";
     if (!contentText) throw new Error("The source did not contain readable editorial text.");
-    const canonicalUrl = normalizeSourceUrl(extracted.canonicalUrl) ?? normalizeSourceUrl(resource.finalUrl) ?? entry.url;
+    const canonicalUrl = normalizeSourceUrl(extracted.canonicalUrl) ?? normalizeSourceUrl(resource.url) ?? entry.url;
     return {
       ownerId,
       sourceType: sourceTypeFor(this.source),
@@ -557,7 +881,7 @@ class WebCollectionAdapter implements IntelligenceSourceAdapter {
       title: extracted.title ?? entry.title,
       authorName: entry.author,
       publisherName: extracted.publisherName ?? entry.publisher ?? this.source.name,
-      language: extracted.language ?? sourceConfig(this.source).language ?? "en",
+      language: transcript.language ?? extracted.language ?? config.language ?? "en",
       publishedAt: entry.publishedAt,
       contentText,
       summaryShort: entry.summary,
@@ -570,7 +894,12 @@ class WebCollectionAdapter implements IntelligenceSourceAdapter {
         triggering_research_lead_id: this.source.triggering_research_lead_id,
         robots_status: permission.status,
         robots_url: permission.robotsUrl,
-        collector: "web-collector-v1",
+        transcript_status: transcript.status,
+        transcript_url: transcript.url,
+        transcript_type: transcript.type,
+        transcript_language: transcript.language,
+        transcript_robots_url: transcript.robotsUrl,
+        collector: "web-collector-v2",
       },
     };
   }
@@ -667,21 +996,20 @@ async function officialYouTubeCaption(videoId: string, language: string) {
       `https://www.googleapis.com/youtube/v3/captions/${encodeURIComponent(selected.id)}`,
     );
     downloadUrl.searchParams.set("tfmt", "vtt");
-    const response = await fetch(downloadUrl, {
+    const response = await collectorFetch(downloadUrl, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: "text/vtt" },
       cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) return { text: null, status: "not_permitted" as const, language: null };
-    const raw = await response.text();
-    if (raw.length > MAX_RESPONSE_BYTES) return { text: null, status: "too_large" as const, language: null };
+    const raw = await readLimitedText(response);
     const text = captionText(raw);
     return {
       text: text || null,
       status: text ? ("downloaded" as const) : ("empty" as const),
       language: selected.snippet?.language ?? null,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof CollectorHttpError) throw error;
     return { text: null, status: "not_permitted" as const, language: null };
   }
 }
@@ -1055,6 +1383,729 @@ class XApiAdapter implements IntelligenceSourceAdapter {
   }
 }
 
+type OcdsReference = { id?: string; name?: string };
+type OcdsValue = { amount?: number; currency?: string };
+type OcdsPeriod = { startDate?: string; endDate?: string; durationInDays?: number };
+type OcdsDocument = {
+  id?: string;
+  documentType?: string;
+  noticeType?: string;
+  title?: string;
+  description?: string;
+  url?: string;
+  datePublished?: string;
+};
+type OcdsItem = {
+  id?: string;
+  description?: string;
+  classification?: { id?: string; scheme?: string; description?: string };
+  additionalClassifications?: Array<{ id?: string; scheme?: string; description?: string }>;
+};
+type OcdsMilestone = {
+  id?: string;
+  title?: string;
+  description?: string;
+  type?: string;
+  status?: string;
+  dueDate?: string;
+  dateMet?: string;
+};
+type OcdsRelease = {
+  id?: string;
+  ocid?: string;
+  date?: string;
+  tag?: string[];
+  initiationType?: string;
+  buyer?: OcdsReference;
+  planning?: {
+    rationale?: string;
+    budget?: { description?: string; amount?: OcdsValue; project?: string; projectID?: string };
+    documents?: OcdsDocument[];
+    milestones?: OcdsMilestone[];
+  };
+  tender?: {
+    id?: string;
+    title?: string;
+    description?: string;
+    status?: string;
+    procurementMethod?: string;
+    procurementMethodDetails?: string;
+    mainProcurementCategory?: string;
+    value?: OcdsValue;
+    minValue?: OcdsValue;
+    tenderPeriod?: OcdsPeriod;
+    enquiryPeriod?: OcdsPeriod;
+    awardPeriod?: OcdsPeriod;
+    items?: OcdsItem[];
+    documents?: OcdsDocument[];
+    milestones?: OcdsMilestone[];
+  };
+  awards?: Array<{
+    id?: string;
+    title?: string;
+    description?: string;
+    status?: string;
+    date?: string;
+    value?: OcdsValue;
+    suppliers?: OcdsReference[];
+    items?: OcdsItem[];
+    documents?: OcdsDocument[];
+  }>;
+  contracts?: Array<{
+    id?: string;
+    awardID?: string;
+    title?: string;
+    description?: string;
+    status?: string;
+    value?: OcdsValue;
+    period?: OcdsPeriod;
+    dateSigned?: string;
+    documents?: OcdsDocument[];
+  }>;
+  parties?: Array<OcdsReference & { roles?: string[] }>;
+  relatedProcesses?: Array<{ id?: string; relationship?: string[]; title?: string; scheme?: string; identifier?: string; uri?: string }>;
+};
+
+type FindTenderReleasePackage = {
+  version?: string;
+  publishedDate?: string;
+  publisher?: { name?: string; uri?: string };
+  links?: { next?: string };
+  releases?: OcdsRelease[];
+};
+
+const FIND_TENDER_API_URL =
+  "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages";
+
+function findTenderApiUrl(source: CollectionSourceRow) {
+  const configured = sourceConfig(source).apiUrl ?? FIND_TENDER_API_URL;
+  const url = new URL(configured);
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "www.find-tender.service.gov.uk" ||
+    url.pathname.replace(/\/$/u, "") !== "/api/1.0/ocdsReleasePackages"
+  ) {
+    throw new Error("Find a Tender must use the verified official OCDS release-package endpoint.");
+  }
+  url.pathname = url.pathname.replace(/\/$/u, "");
+  url.search = "";
+  return url;
+}
+
+function findTenderTimestamp(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new Error("Find a Tender collection window is invalid.");
+  return date.toISOString().slice(0, 19);
+}
+
+function findTenderCursor(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || !/^[A-Za-z0-9=]{1,300}$/u.test(value)) {
+    throw new Error("Find a Tender cursor is invalid.");
+  }
+  return value;
+}
+
+function nextFindTenderCursor(value: string | undefined, apiUrl: URL) {
+  if (!value) return null;
+  try {
+    const next = new URL(value, apiUrl);
+    if (next.origin !== apiUrl.origin || next.pathname.replace(/\/$/u, "") !== apiUrl.pathname) {
+      return null;
+    }
+    return findTenderCursor(next.searchParams.get("cursor"));
+  } catch {
+    return null;
+  }
+}
+
+function ocdsMoney(value: OcdsValue | undefined) {
+  if (!Number.isFinite(value?.amount)) return null;
+  return `${value?.amount} ${value?.currency ?? ""}`.trim();
+}
+
+function ocdsPeriod(value: OcdsPeriod | undefined) {
+  if (!value) return null;
+  return [value.startDate, value.endDate]
+    .filter((part): part is string => Boolean(part))
+    .join(" to ") || (value.durationInDays ? `${value.durationInDays} days` : null);
+}
+
+function addOcdsLine(lines: string[], label: string, value: unknown) {
+  if (typeof value !== "string" && typeof value !== "number") return;
+  const normalized = normalizeTextForStorage(String(value));
+  if (normalized) lines.push(`${label}: ${normalized}`);
+}
+
+function addOcdsItems(lines: string[], items: OcdsItem[] | undefined, label: string) {
+  for (const item of items ?? []) {
+    const classifications = [item.classification, ...(item.additionalClassifications ?? [])]
+      .filter((classification): classification is NonNullable<typeof classification> => Boolean(classification))
+      .map((classification) =>
+        [classification.scheme, classification.id, classification.description].filter(Boolean).join(" "),
+      )
+      .filter(Boolean)
+      .join("; ");
+    addOcdsLine(lines, label, [item.description, classifications].filter(Boolean).join(" — "));
+  }
+}
+
+function addOcdsMilestones(lines: string[], milestones: OcdsMilestone[] | undefined) {
+  for (const milestone of milestones ?? []) {
+    addOcdsLine(
+      lines,
+      "Milestone",
+      [
+        milestone.title,
+        milestone.description,
+        milestone.type,
+        milestone.status,
+        milestone.dueDate ? `due ${milestone.dueDate}` : null,
+        milestone.dateMet ? `met ${milestone.dateMet}` : null,
+      ].filter(Boolean).join(" — "),
+    );
+  }
+}
+
+function findTenderDocuments(release: OcdsRelease) {
+  return [
+    ...(release.planning?.documents ?? []),
+    ...(release.tender?.documents ?? []),
+    ...(release.awards ?? []).flatMap((award) => award.documents ?? []),
+    ...(release.contracts ?? []).flatMap((contract) => contract.documents ?? []),
+  ];
+}
+
+function findTenderNoticeUrl(release: OcdsRelease) {
+  for (const document of findTenderDocuments(release)) {
+    if (!document.url) continue;
+    try {
+      const url = new URL(document.url);
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "www.find-tender.service.gov.uk" &&
+        /^\/Notice\/\d{6}-\d{4}\/?$/u.test(url.pathname)
+      ) {
+        return normalizeSourceUrl(url.toString()) ?? url.toString();
+      }
+    } catch {
+      // Ignore malformed document links from an otherwise usable release.
+    }
+  }
+  return `https://www.find-tender.service.gov.uk/Notice/${encodeURIComponent(release.id ?? "")}`;
+}
+
+function findTenderReleaseText(release: OcdsRelease) {
+  const lines: string[] = [];
+  addOcdsLine(lines, "Notice ID", release.id);
+  addOcdsLine(lines, "Procurement identifier", release.ocid);
+  addOcdsLine(lines, "Published", release.date);
+  addOcdsLine(lines, "Release stage", release.tag?.join(", "));
+  addOcdsLine(lines, "Buyer", release.buyer?.name);
+  addOcdsLine(lines, "Planning rationale", release.planning?.rationale);
+  addOcdsLine(lines, "Budget description", release.planning?.budget?.description);
+  addOcdsLine(lines, "Budget", ocdsMoney(release.planning?.budget?.amount));
+  addOcdsLine(lines, "Project", release.planning?.budget?.project);
+  addOcdsLine(lines, "Project ID", release.planning?.budget?.projectID);
+  addOcdsLine(lines, "Reference", release.tender?.id);
+  addOcdsLine(lines, "Title", release.tender?.title);
+  addOcdsLine(lines, "Description", release.tender?.description);
+  addOcdsLine(lines, "Tender status", release.tender?.status);
+  addOcdsLine(lines, "Procurement method", release.tender?.procurementMethodDetails ?? release.tender?.procurementMethod);
+  addOcdsLine(lines, "Procurement category", release.tender?.mainProcurementCategory);
+  addOcdsLine(lines, "Estimated value", ocdsMoney(release.tender?.value ?? release.tender?.minValue));
+  addOcdsLine(lines, "Tender period", ocdsPeriod(release.tender?.tenderPeriod));
+  addOcdsLine(lines, "Enquiry period", ocdsPeriod(release.tender?.enquiryPeriod));
+  addOcdsLine(lines, "Award period", ocdsPeriod(release.tender?.awardPeriod));
+  addOcdsItems(lines, release.tender?.items, "Tender item");
+  addOcdsMilestones(lines, release.planning?.milestones);
+  addOcdsMilestones(lines, release.tender?.milestones);
+
+  for (const award of release.awards ?? []) {
+    addOcdsLine(lines, "Award", [award.title, award.description].filter(Boolean).join(" — "));
+    addOcdsLine(lines, "Award status", award.status);
+    addOcdsLine(lines, "Award date", award.date);
+    addOcdsLine(lines, "Award value", ocdsMoney(award.value));
+    addOcdsLine(lines, "Supplier", award.suppliers?.map((supplier) => supplier.name).filter(Boolean).join(", "));
+    addOcdsItems(lines, award.items, "Award item");
+  }
+  for (const contract of release.contracts ?? []) {
+    addOcdsLine(lines, "Contract", [contract.title, contract.description].filter(Boolean).join(" — "));
+    addOcdsLine(lines, "Contract status", contract.status);
+    addOcdsLine(lines, "Contract value", ocdsMoney(contract.value));
+    addOcdsLine(lines, "Contract period", ocdsPeriod(contract.period));
+    addOcdsLine(lines, "Contract signed", contract.dateSigned);
+  }
+  for (const process of release.relatedProcesses ?? []) {
+    addOcdsLine(
+      lines,
+      "Related process",
+      [process.title, process.relationship?.join(", "), process.identifier, process.uri].filter(Boolean).join(" — "),
+    );
+  }
+  for (const document of findTenderDocuments(release)) {
+    addOcdsLine(
+      lines,
+      "Official document",
+      [document.documentType, document.noticeType, document.title, document.description, document.url]
+        .filter(Boolean)
+        .join(" — "),
+    );
+  }
+  return lines.join("\n");
+}
+
+function findTenderSummary(release: OcdsRelease) {
+  return normalizeTextForStorage(
+    release.tender?.description ??
+    release.planning?.rationale ??
+    release.awards?.find((award) => award.description)?.description ??
+    release.contracts?.find((contract) => contract.description)?.description ??
+    "",
+  ).slice(0, 2_000) || null;
+}
+
+class FindTenderOcdsAdapter implements IntelligenceSourceAdapter {
+  private readonly releases = new Map<string, { release: OcdsRelease; publisher: string | null }>();
+
+  constructor(private readonly source: CollectionSourceRow) {}
+
+  async discover(input: {
+    windowStart: string;
+    windowEnd: string;
+    checkpoint?: Record<string, unknown>;
+  }): Promise<SourceDiscoveryPage> {
+    const apiUrl = findTenderApiUrl(this.source);
+    const cursor = findTenderCursor(input.checkpoint?.find_tender_cursor);
+    const start = cursor
+      ? stringValue(input.checkpoint?.find_tender_window_start) ?? findTenderTimestamp(input.windowStart)
+      : findTenderTimestamp(input.windowStart);
+    const end = cursor
+      ? stringValue(input.checkpoint?.find_tender_window_end) ?? findTenderTimestamp(input.windowEnd)
+      : findTenderTimestamp(input.windowEnd);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/u.test(start) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/u.test(end)) {
+      throw new Error("Find a Tender checkpoint window is invalid.");
+    }
+    apiUrl.searchParams.set("limit", String(DEFAULT_PAGE_LIMIT));
+    apiUrl.searchParams.set("updatedFrom", start);
+    apiUrl.searchParams.set("updatedTo", end);
+    if (cursor) apiUrl.searchParams.set("cursor", cursor);
+    const result = await apiJson<FindTenderReleasePackage>(apiUrl);
+    const publisher = result.publisher?.name?.trim() || null;
+    const seen = new Set(stringArray(input.checkpoint?.seen_external_ids));
+    const releases = (result.releases ?? []).filter((release): release is OcdsRelease & { id: string } =>
+      Boolean(release.id && /^\d{6}-\d{4}$/u.test(release.id) && !seen.has(release.id)),
+    );
+    for (const release of releases) this.releases.set(release.id, { release, publisher });
+    const ids = releases.map((release) => release.id).slice(0, DEFAULT_PAGE_LIMIT);
+    const nextCursor = nextFindTenderCursor(result.links?.next, findTenderApiUrl(this.source));
+    return {
+      externalIds: ids,
+      nextCheckpoint: {
+        seen_external_ids: [...seen, ...ids].slice(-10_000),
+        find_tender_cursor: nextCursor,
+        find_tender_window_start: nextCursor ? start : null,
+        find_tender_window_end: nextCursor ? end : null,
+        has_more: Boolean(nextCursor) || releases.length > ids.length,
+        api_version: result.version ?? "1.1",
+      },
+    };
+  }
+
+  private async release(externalId: string) {
+    if (!/^\d{6}-\d{4}$/u.test(externalId)) throw new Error("Find a Tender notice ID is invalid.");
+    const existing = this.releases.get(externalId);
+    if (existing) return existing;
+    const url = findTenderApiUrl(this.source);
+    url.pathname = `${url.pathname}/${encodeURIComponent(externalId)}`;
+    const result = await apiJson<FindTenderReleasePackage>(url);
+    const release = (result.releases ?? []).find((item) => item.id === externalId);
+    if (!release) throw new Error(`Find a Tender notice ${externalId} was not returned by the official API.`);
+    return { release, publisher: result.publisher?.name?.trim() || null };
+  }
+
+  async fetch(externalId: string, ownerId: string): Promise<IntelligenceDocumentEnvelope> {
+    const { release, publisher } = await this.release(externalId);
+    const title = normalizeTextForStorage(
+      release.tender?.title ??
+      release.awards?.find((award) => award.title)?.title ??
+      release.contracts?.find((contract) => contract.title)?.title ??
+      `Find a Tender notice ${externalId}`,
+    );
+    const contentText = findTenderReleaseText(release);
+    if (!contentText) throw new Error("Find a Tender returned an empty OCDS release.");
+    const tags = release.tag ?? [];
+    return {
+      ownerId,
+      sourceType: "procurement_notice",
+      externalId,
+      originalUrl: findTenderNoticeUrl(release),
+      canonicalUrl: findTenderNoticeUrl(release),
+      title,
+      authorName: release.buyer?.name ?? null,
+      publisherName: publisher ?? "UK Cabinet Office — Find a Tender",
+      language: "en",
+      publishedAt: safeDate(release.date),
+      contentText,
+      summaryShort: findTenderSummary(release),
+      sourceChannel: "find_a_tender_ocds",
+      metadata: {
+        source_id: this.source.id,
+        source_cohort: this.source.cohort,
+        measurement_active_from: this.source.measurement_active_from,
+        discovery_origin: this.source.discovery_origin,
+        triggering_research_lead_id: this.source.triggering_research_lead_id,
+        ocid: release.ocid ?? null,
+        notice_id: release.id ?? externalId,
+        procurement_reference: release.tender?.id ?? null,
+        buyer: release.buyer?.name ?? null,
+        release_tags: tags,
+        event_type_hint: tags.includes("award") || tags.includes("contract") ? "award" : "procurement_notice",
+        authority: "official",
+        jurisdiction: "United Kingdom",
+        api: "find-a-tender-ocds-release-packages-1.0",
+        ocds_version: "1.1.5",
+        collector: "find-a-tender-ocds-v1",
+      },
+    };
+  }
+}
+
+type TedNoticeLinks = Partial<Record<"xml" | "pdf" | "pdfs" | "html" | "htmlDirect", Record<string, string>>>;
+type TedNotice = {
+  "publication-number"?: string;
+  "publication-date"?: string;
+  "notice-title"?: unknown;
+  "buyer-name"?: unknown;
+  "notice-type"?: string;
+  "notice-subtype"?: string;
+  "form-type"?: string;
+  "procedure-identifier"?: string;
+  "description-lot"?: unknown;
+  "main-classification-proc"?: string[];
+  "buyer-country"?: string[];
+  "winner-name"?: unknown;
+  "estimated-value-proc"?: number;
+  "estimated-value-cur-proc"?: string;
+  "estimated-value-lot"?: number[];
+  "estimated-value-cur-lot"?: string[];
+  "result-value-notice"?: number;
+  "result-value-cur-notice"?: string;
+  "deadline-receipt-tender-date-lot"?: string[];
+  "contract-nature-main-proc"?: string[];
+  links?: TedNoticeLinks;
+};
+
+type TedSearchResponse = {
+  notices?: TedNotice[];
+  totalNoticeCount?: number | null;
+  iterationNextToken?: string | null;
+  timedOut?: boolean;
+};
+
+const TED_SEARCH_API_URL = "https://api.ted.europa.eu/v3/notices/search";
+const TED_DEFAULT_EXPERT_QUERY = "main-classification-proc=(35* OR 734* OR 7522*)";
+const TED_SEARCH_FIELDS = [
+  "publication-number",
+  "publication-date",
+  "notice-title",
+  "buyer-name",
+  "notice-type",
+  "notice-subtype",
+  "form-type",
+  "procedure-identifier",
+  "description-lot",
+  "main-classification-proc",
+  "buyer-country",
+  "winner-name",
+  "estimated-value-proc",
+  "estimated-value-cur-proc",
+  "estimated-value-lot",
+  "estimated-value-cur-lot",
+  "result-value-notice",
+  "result-value-cur-notice",
+  "deadline-receipt-tender-date-lot",
+  "contract-nature-main-proc",
+  "links",
+] as const;
+
+function tedSearchApiUrl(source: CollectionSourceRow) {
+  const configured = sourceConfig(source).apiUrl ?? TED_SEARCH_API_URL;
+  const url = new URL(configured);
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "api.ted.europa.eu" ||
+    url.pathname.replace(/\/$/u, "") !== "/v3/notices/search"
+  ) {
+    throw new Error("TED must use the verified official v3 Search API endpoint.");
+  }
+  url.pathname = url.pathname.replace(/\/$/u, "");
+  url.search = "";
+  return url;
+}
+
+function tedQueryDate(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new Error("TED collection window is invalid.");
+  return date.toISOString().slice(0, 10).replaceAll("-", "");
+}
+
+function tedCheckpointDate(value: unknown, fallback: string) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value !== "string" || !/^\d{8}$/u.test(value)) {
+    throw new Error("TED checkpoint date is invalid.");
+  }
+  return value;
+}
+
+function tedIterationToken(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  if (
+    typeof value !== "string" ||
+    value.length > 20_000 ||
+    /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    throw new Error("TED iteration token is invalid.");
+  }
+  return value;
+}
+
+function tedExpertQuery(source: CollectionSourceRow, checkpoint?: Record<string, unknown>) {
+  const checkpointQuery = stringValue(checkpoint?.ted_expert_query);
+  const query = checkpointQuery ?? sourceConfig(source).expertQuery ?? TED_DEFAULT_EXPERT_QUERY;
+  if (query.length > 2_000 || /[\u0000-\u001f\u007f]/u.test(query) || /\bSORT\s+BY\b/iu.test(query)) {
+    throw new Error("TED expert query is invalid.");
+  }
+  return query;
+}
+
+function tedLocalizedValues(value: unknown) {
+  const collect = (candidate: unknown) => {
+    if (typeof candidate === "string") return [normalizeTextForStorage(candidate)].filter(Boolean);
+    if (Array.isArray(candidate)) {
+      return candidate.flatMap((item) => typeof item === "string" ? [normalizeTextForStorage(item)] : []).filter(Boolean);
+    }
+    return [];
+  };
+  if (typeof value === "string" || Array.isArray(value)) return { values: collect(value), language: null };
+  if (!value || typeof value !== "object") return { values: [] as string[], language: null };
+  const entries = Object.entries(value);
+  const preferred = entries.find(([language]) => ["eng", "en"].includes(language.toLowerCase()));
+  const selected = preferred ?? entries.find(([, candidate]) => collect(candidate).length > 0);
+  return selected
+    ? { values: collect(selected[1]), language: selected[0].toLowerCase() }
+    : { values: [] as string[], language: null };
+}
+
+function tedArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.flatMap((item) => typeof item === "string" || typeof item === "number" ? [String(item)] : [])
+    : typeof value === "string" || typeof value === "number"
+      ? [String(value)]
+      : [];
+}
+
+function tedOfficialLink(notice: TedNotice) {
+  const groups: Array<keyof TedNoticeLinks> = ["html", "htmlDirect", "xml"];
+  for (const group of groups) {
+    const links = notice.links?.[group];
+    if (!links) continue;
+    const entry = Object.entries(links).find(([language]) => language.toUpperCase() === "ENG") ?? Object.entries(links)[0];
+    if (!entry?.[1]) continue;
+    try {
+      const url = new URL(entry[1]);
+      if (url.protocol === "https:" && url.hostname === "ted.europa.eu") {
+        return normalizeSourceUrl(url.toString()) ?? url.toString();
+      }
+    } catch {
+      // Ignore malformed links from an otherwise usable notice.
+    }
+  }
+  return `https://ted.europa.eu/en/notice/${encodeURIComponent(notice["publication-number"] ?? "")}`;
+}
+
+function tedPublishedAt(value: string | undefined) {
+  if (!value) return null;
+  const zonedDate = value.match(/^(\d{4}-\d{2}-\d{2})[+-]\d{2}:\d{2}$/u);
+  if (zonedDate) return safeDate(`${zonedDate[1]}T00:00:00.000Z`);
+  const plainDate = value.match(/^\d{4}-\d{2}-\d{2}$/u);
+  if (plainDate) return safeDate(`${value}T00:00:00.000Z`);
+  return safeDate(value);
+}
+
+function tedNoticeText(notice: TedNotice) {
+  const lines: string[] = [];
+  const titles = tedLocalizedValues(notice["notice-title"]);
+  const buyers = tedLocalizedValues(notice["buyer-name"]);
+  const descriptions = tedLocalizedValues(notice["description-lot"]);
+  const winners = tedLocalizedValues(notice["winner-name"]);
+  addOcdsLine(lines, "Publication number", notice["publication-number"]);
+  addOcdsLine(lines, "Publication date", notice["publication-date"]);
+  addOcdsLine(lines, "Notice type", notice["notice-type"]);
+  addOcdsLine(lines, "Notice subtype", notice["notice-subtype"]);
+  addOcdsLine(lines, "Form type", notice["form-type"]);
+  addOcdsLine(lines, "Procedure identifier", notice["procedure-identifier"]);
+  addOcdsLine(lines, "Title", titles.values.join("; "));
+  addOcdsLine(lines, "Buyer", buyers.values.join("; "));
+  for (const description of descriptions.values) addOcdsLine(lines, "Description", description);
+  addOcdsLine(lines, "Main CPV classification", tedArray(notice["main-classification-proc"]).join(", "));
+  addOcdsLine(lines, "Buyer country", tedArray(notice["buyer-country"]).join(", "));
+  addOcdsLine(lines, "Winner", winners.values.join("; "));
+  addOcdsLine(
+    lines,
+    "Estimated procedure value",
+    [notice["estimated-value-proc"], notice["estimated-value-cur-proc"]].filter((part) => part !== undefined).join(" "),
+  );
+  const lotValues = tedArray(notice["estimated-value-lot"]);
+  const lotCurrencies = tedArray(notice["estimated-value-cur-lot"]);
+  for (const [index, value] of lotValues.entries()) {
+    addOcdsLine(lines, "Estimated lot value", [value, lotCurrencies[index] ?? lotCurrencies[0]].filter(Boolean).join(" "));
+  }
+  addOcdsLine(
+    lines,
+    "Result value",
+    [notice["result-value-notice"], notice["result-value-cur-notice"]].filter((part) => part !== undefined).join(" "),
+  );
+  addOcdsLine(lines, "Tender deadline", tedArray(notice["deadline-receipt-tender-date-lot"]).join(", "));
+  addOcdsLine(lines, "Contract nature", tedArray(notice["contract-nature-main-proc"]).join(", "));
+  addOcdsLine(lines, "Official notice", tedOfficialLink(notice));
+  return lines.join("\n");
+}
+
+class TedSearchAdapter implements IntelligenceSourceAdapter {
+  private readonly notices = new Map<string, TedNotice>();
+
+  constructor(private readonly source: CollectionSourceRow) {}
+
+  private async search(body: Record<string, unknown>) {
+    const response = await apiJson<TedSearchResponse>(tedSearchApiUrl(this.source), {
+      method: "POST",
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+    if (response.timedOut) {
+      throw new CollectorHttpError("TED Search API timed out.", { transient: true });
+    }
+    return response;
+  }
+
+  private fields() {
+    return [...TED_SEARCH_FIELDS];
+  }
+
+  async discover(input: {
+    windowStart: string;
+    windowEnd: string;
+    checkpoint?: Record<string, unknown>;
+  }): Promise<SourceDiscoveryPage> {
+    const token = tedIterationToken(input.checkpoint?.ted_iteration_token);
+    const start = tedCheckpointDate(input.checkpoint?.ted_window_start, tedQueryDate(input.windowStart));
+    const end = tedCheckpointDate(input.checkpoint?.ted_window_end, tedQueryDate(input.windowEnd));
+    const expertQuery = tedExpertQuery(this.source, token ? input.checkpoint : undefined);
+    const body: Record<string, unknown> = {
+      query: `publication-date>=${start} AND publication-date<=${end} AND (${expertQuery}) SORT BY publication-date`,
+      fields: this.fields(),
+      limit: DEFAULT_PAGE_LIMIT,
+      scope: "ALL",
+      checkQuerySyntax: false,
+      paginationMode: "ITERATION",
+      onlyLatestVersions: true,
+    };
+    if (token) body.iterationNextToken = token;
+    const response = await this.search(body);
+    const seen = new Set(stringArray(input.checkpoint?.seen_external_ids));
+    const notices = (response.notices ?? []).filter((notice): notice is TedNotice & { "publication-number": string } => {
+      const id = notice["publication-number"];
+      return Boolean(id && /^\d{6}-\d{4}$/u.test(id) && !seen.has(id));
+    });
+    for (const notice of notices) this.notices.set(notice["publication-number"], notice);
+    const ids = notices.map((notice) => notice["publication-number"]).slice(0, DEFAULT_PAGE_LIMIT);
+    const nextToken = (response.notices?.length ?? 0) > 0
+      ? tedIterationToken(response.iterationNextToken)
+      : null;
+    return {
+      externalIds: ids,
+      nextCheckpoint: {
+        seen_external_ids: [...seen, ...ids].slice(-10_000),
+        ted_iteration_token: nextToken,
+        ted_window_start: nextToken ? start : null,
+        ted_window_end: nextToken ? end : null,
+        ted_expert_query: nextToken ? expertQuery : null,
+        total_notice_count: response.totalNoticeCount ?? null,
+        has_more: Boolean(nextToken),
+        pagination_mode: "ITERATION",
+      },
+    };
+  }
+
+  private async notice(externalId: string) {
+    if (!/^\d{6}-\d{4}$/u.test(externalId)) throw new Error("TED publication number is invalid.");
+    const existing = this.notices.get(externalId);
+    if (existing) return existing;
+    const response = await this.search({
+      query: `publication-number=${externalId}`,
+      fields: this.fields(),
+      page: 1,
+      limit: 1,
+      scope: "ALL",
+      checkQuerySyntax: false,
+      paginationMode: "PAGE_NUMBER",
+      onlyLatestVersions: true,
+    });
+    const notice = (response.notices ?? []).find((item) => item["publication-number"] === externalId);
+    if (!notice) throw new Error(`TED notice ${externalId} was not returned by the official Search API.`);
+    return notice;
+  }
+
+  async fetch(externalId: string, ownerId: string): Promise<IntelligenceDocumentEnvelope> {
+    const notice = await this.notice(externalId);
+    const titles = tedLocalizedValues(notice["notice-title"]);
+    const buyers = tedLocalizedValues(notice["buyer-name"]);
+    const descriptions = tedLocalizedValues(notice["description-lot"]);
+    const winners = tedLocalizedValues(notice["winner-name"]);
+    const canonicalUrl = tedOfficialLink(notice);
+    const contentText = tedNoticeText(notice);
+    if (!contentText) throw new Error("TED returned an empty notice record.");
+    const noticeType = notice["notice-type"] ?? null;
+    return {
+      ownerId,
+      sourceType: "procurement_notice",
+      externalId,
+      originalUrl: canonicalUrl,
+      canonicalUrl,
+      title: titles.values[0] ?? `TED notice ${externalId}`,
+      authorName: buyers.values[0] ?? null,
+      publisherName: "Tenders Electronic Daily (TED)",
+      language: titles.language === "eng" ? "en" : titles.language,
+      publishedAt: tedPublishedAt(notice["publication-date"]),
+      contentText,
+      summaryShort: descriptions.values.join(" ").slice(0, 2_000) || null,
+      sourceChannel: "ted_search_api_v3",
+      metadata: {
+        source_id: this.source.id,
+        source_cohort: this.source.cohort,
+        measurement_active_from: this.source.measurement_active_from,
+        discovery_origin: this.source.discovery_origin,
+        triggering_research_lead_id: this.source.triggering_research_lead_id,
+        publication_number: notice["publication-number"] ?? externalId,
+        procedure_identifier: notice["procedure-identifier"] ?? null,
+        notice_type: noticeType,
+        notice_subtype: notice["notice-subtype"] ?? null,
+        form_type: notice["form-type"] ?? null,
+        buyer: buyers.values,
+        buyer_country: notice["buyer-country"] ?? [],
+        winner: winners.values,
+        main_classification: notice["main-classification-proc"] ?? [],
+        event_type_hint: winners.values.length || notice["result-value-notice"] !== undefined ? "award" : "procurement_notice",
+        authority: "official",
+        jurisdiction: "European Union",
+        api: "ted-search-api-v3",
+        collector: "ted-search-api-v3",
+      },
+    };
+  }
+}
+
 class CanadaBuysContractAdapter implements IntelligenceSourceAdapter {
   private readonly rows = new Map<string, Record<string, string>>();
 
@@ -1161,6 +2212,26 @@ class CanadaBuysContractAdapter implements IntelligenceSourceAdapter {
 export function createSourceAdapter(source: CollectionSourceRow): IntelligenceSourceAdapter {
   if (
     source.source_type === "procurement_portal" &&
+    sourceConfig(source).adapter === "uk_find_a_tender_ocds"
+  ) {
+    return new FindTenderOcdsAdapter(source);
+  }
+  if (
+    source.source_type === "procurement_portal" &&
+    sourceConfig(source).adapter === "eu_ted_search_v3"
+  ) {
+    return new TedSearchAdapter(source);
+  }
+  if (
+    source.source_type === "procurement_portal" &&
+    sourceConfig(source).adapter === "manual_entry_point_only"
+  ) {
+    throw new Error(
+      "This procurement source is an inactive entry-point candidate; no verified scheduled adapter is enabled.",
+    );
+  }
+  if (
+    source.source_type === "procurement_portal" &&
     sourceConfig(source).adapter === "canadabuys_contract_history"
   ) {
     return new CanadaBuysContractAdapter(source);
@@ -1231,6 +2302,7 @@ export async function collectExternalSources(
         continue;
       }
       let sourceFailed = 0;
+      let sourceCooldownMs = 0;
       let robotsStatus = source.robots_status;
       try {
         const adapter = createSourceAdapter(source);
@@ -1267,6 +2339,7 @@ export async function collectExternalSources(
             processed += 1;
           } catch (error) {
             sourceFailed += 1;
+            sourceCooldownMs = Math.max(sourceCooldownMs, collectorCooldownMs(error));
             failed += 1;
             errors.push(`${source.name}: ${error instanceof Error ? error.message : String(error)}`);
           }
@@ -1282,7 +2355,7 @@ export async function collectExternalSources(
             robots_status: robotsStatus,
             fetch_failure_count: sourceFailed ? Number(source.fetch_failure_count ?? 0) + sourceFailed : 0,
             fetch_cooldown_until: sourceFailed
-              ? new Date(Date.now() + RETRY_COOLDOWN_MS).toISOString()
+              ? new Date(Date.now() + sourceCooldownMs).toISOString()
               : null,
             updated_at: now,
           })
@@ -1298,7 +2371,7 @@ export async function collectExternalSources(
           .update({
             last_error: message,
             fetch_failure_count: Number(source.fetch_failure_count ?? 0) + 1,
-            fetch_cooldown_until: new Date(Date.now() + RETRY_COOLDOWN_MS).toISOString(),
+            fetch_cooldown_until: new Date(Date.now() + collectorCooldownMs(error)).toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq("id", source.id)
@@ -1387,18 +2460,98 @@ export const OFFICIAL_SOURCE_SCAFFOLDS = [
     },
   },
   {
-    name: "UK and EU procurement entry points",
+    name: "UK Find a Tender OCDS releases",
     sourceType: "procurement_portal",
-    externalKey: "uk-eu-procurement",
+    externalKey: "uk-find-a-tender-ocds",
+    config: {
+      adapter: "uk_find_a_tender_ocds",
+      authority: "official",
+      jurisdiction: "United Kingdom",
+      api_url: FIND_TENDER_API_URL,
+      api_documentation: "https://www.find-tender.service.gov.uk/Developer/Documentation",
+    },
+  },
+  {
+    name: "EU TED defence and security notices",
+    sourceType: "procurement_portal",
+    externalKey: "eu-ted-procurement",
+    config: {
+      adapter: "eu_ted_search_v3",
+      authority: "official",
+      jurisdiction: "European Union",
+      api_url: TED_SEARCH_API_URL,
+      expert_query: TED_DEFAULT_EXPERT_QUERY,
+      api_documentation: "https://docs.ted.europa.eu/api/latest/search.html",
+    },
+  },
+  {
+    name: "Lockheed Martin news releases",
+    sourceType: "website",
+    externalKey: "lockheed-martin-news-releases",
     config: {
       authority: "official",
-      jurisdiction: "United Kingdom and EU",
+      publisher_type: "defence_company",
+      prospective_measurement: true,
+      requires_manual_approval: true,
       discover_links: true,
-      link_path_patterns: ["/Notice/", "/search/"],
-      urls: [
-        "https://www.find-tender.service.gov.uk/Search",
-        "https://ted.europa.eu/en/search/result",
-      ],
+      link_path_patterns: ["/news-releases/"],
+      urls: ["https://news.lockheedmartin.com/news-releases"],
+    },
+  },
+  {
+    name: "BAE Systems newsroom",
+    sourceType: "website",
+    externalKey: "bae-systems-newsroom",
+    config: {
+      authority: "official",
+      publisher_type: "defence_company",
+      prospective_measurement: true,
+      requires_manual_approval: true,
+      discover_links: true,
+      link_path_patterns: ["/newsroom/", "/article/"],
+      urls: ["https://www.baesystems.com/en-uk/newsroom"],
+    },
+  },
+  {
+    name: "Saab press releases",
+    sourceType: "website",
+    externalKey: "saab-press-releases",
+    config: {
+      authority: "official",
+      publisher_type: "defence_company",
+      prospective_measurement: true,
+      requires_manual_approval: true,
+      discover_links: true,
+      link_path_patterns: ["/newsroom/press-releases/"],
+      urls: ["https://www.saab.com/newsroom/press-releases"],
+    },
+  },
+  {
+    name: "Rheinmetall news",
+    sourceType: "website",
+    externalKey: "rheinmetall-news",
+    config: {
+      authority: "official",
+      publisher_type: "defence_company",
+      prospective_measurement: true,
+      requires_manual_approval: true,
+      discover_links: true,
+      link_path_patterns: ["/media/news/", "/media/news-watch/news/"],
+      urls: ["https://www.rheinmetall.com/en/media/news"],
+    },
+  },
+  {
+    name: "Northrop Grumman newsroom",
+    sourceType: "website",
+    externalKey: "northrop-grumman-newsroom",
+    config: {
+      authority: "official",
+      publisher_type: "defence_company",
+      prospective_measurement: true,
+      requires_manual_approval: true,
+      discover_links: true,
+      link_path_patterns: ["/news/", "/news-releases/"],
+      urls: ["https://news.northropgrumman.com/"],
     },
   },
 ] as const;
@@ -1434,4 +2587,9 @@ export const __testables = {
   parseSitemap,
   publicFetchUrl,
   captionText,
+  parseRetryAfter,
+  resetCollectorState: () => {
+    domainQueues.clear();
+    domainNextRequestAt.clear();
+  },
 };

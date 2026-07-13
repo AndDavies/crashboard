@@ -8,7 +8,11 @@ import {
   PromoteSourceButton,
   SourceAutomationActions,
 } from "@/components/dashboard/intelligence/source-automation-actions";
+import { TopicMergeReview } from "@/components/dashboard/intelligence/topic-merge-review";
+import { requireDashboardUser } from "@/lib/blog/data";
 import { getIntelligenceOperations } from "@/lib/intelligence/data";
+import { listTopicMergeSuggestions } from "@/lib/intelligence/topic-merge-reviews";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { IntelligenceRunDiagnostic } from "@/lib/intelligence/types";
 
 export const metadata: Metadata = {
@@ -65,7 +69,11 @@ function sourceType(value: string) {
 }
 
 export default async function SourcesAutomationsPage() {
-  const data = await getIntelligenceOperations();
+  const user = await requireDashboardUser();
+  const [data, topicMergeSuggestions] = await Promise.all([
+    getIntelligenceOperations(),
+    listTopicMergeSuggestions(createAdminClient(), user.id),
+  ]);
   const gmailConnected = data.sources.some((source) => source.source_type === "gmail" || source.source_type === "email_newsletter");
   const latestRun = data.runs[0] ?? null;
   const failedRuns = data.runs.filter((run) => run.status === "failed" || run.isStale).length;
@@ -94,6 +102,8 @@ export default async function SourcesAutomationsPage() {
       </section>
 
       <SourceAutomationActions gmailConnected={gmailConnected} />
+
+      <TopicMergeReview suggestions={topicMergeSuggestions} />
 
       <section>
         <div className="border-b border-foreground pb-3"><p className="editorial-kicker">Automatic schedule</p><h2 className="mt-1 font-heading text-2xl font-semibold">What runs each morning</h2><p className="mt-1 text-sm text-muted-foreground">Times are Halifax local time. Paired server triggers keep the schedule reliable through daylight-saving changes.</p></div>

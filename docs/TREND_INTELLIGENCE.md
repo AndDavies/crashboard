@@ -157,7 +157,9 @@ Register the approved official source candidates without activating them:
 npx tsx scripts/intelligence-collect.ts --seed-official
 ```
 
-This creates concrete CanadaBuys, DND/PSPC, US DoD, NATO/NCIA/NSPA, and UK/EU candidates. CanadaBuys uses the official Open Government contract-history dataset adapter. Review and activate a candidate before its first scheduled collection.
+This creates concrete CanadaBuys, DND/PSPC, US DoD, NATO/NCIA/NSPA, UK Find a Tender, EU TED, and representative defence-company press-room candidates. The company candidates currently cover Lockheed Martin, BAE Systems, Saab, Rheinmetall, and Northrop Grumman. Every seeded row remains inactive, has no measurement activation date, and requires review before promotion; measurement begins prospectively on promotion.
+
+CanadaBuys uses the official Open Government contract-history dataset adapter. UK notices use the anonymous [Find a Tender OCDS release-package API](https://www.find-tender.service.gov.uk/Developer/Documentation), with second-resolution `updatedFrom`/`updatedTo` windows and the API-provided cursor. EU notices use the anonymous [TED v3 Search API](https://docs.ted.europa.eu/api/latest/search.html) in iteration mode so a multi-page result remains a consistent snapshot. The seeded TED source uses the live-verified `main-classification-proc=(35* OR 734* OR 7522*)` defence/security CPV filter; an approved source can set a different `expert_query` when broader coverage and collection capacity have been reviewed. Both adapters pin their official HTTPS host and path and reject replacement endpoints.
 
 ## Trend model
 
@@ -186,8 +188,8 @@ After schema changes, run both Supabase security and performance advisors. Do no
 The `IntelligenceSourceAdapter` contract supports `discover`, checkpointed `backfill`, and incremental `sync`. Add sources in this order:
 
 1. Official government, procurement, defence-agency, company-release, RSS, and source-portfolio pages.
-2. YouTube metadata and officially accessible captions, plus podcast RSS and publisher-provided transcripts.
+2. YouTube metadata and officially accessible captions, plus podcast RSS and publisher-provided transcripts. Podcast transcripts are accepted only when declared in the Podcasting 2.0 RSS namespace, use a supported transcript media type, resolve to a public HTTPS URL, and pass their own robots check. The collector does not use unofficial transcript services.
 3. Reddit through the official API.
 4. Social platforms only through official or licensed APIs.
 
-Respect robots.txt, platform terms, paywalls, rate limits, and copyright. Aggregators are discovery leads; canonical sources should become primary evidence when available.
+Respect robots.txt, platform terms, paywalls, rate limits, and copyright. Collection requests are paced per domain. HTTP 408/425/429/5xx responses and transient network failures receive at most two retries; `Retry-After` is honored (with a bounded in-request wait) and retained as the source cooldown when retries are exhausted. Redirects are followed manually, with every hop checked against the public-network allowlist. Responses are rejected from `Content-Length` or while streaming once they exceed 5 MB. A transient robots failure fails closed for that collection attempt. Aggregators are discovery leads; canonical sources should become primary evidence when available.

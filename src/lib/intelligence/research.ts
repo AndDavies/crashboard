@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSourceAdapter, type CollectionSourceRow } from "@/lib/intelligence/collectors";
 import { halifaxDayBounds } from "@/lib/intelligence/immediate-alerts";
 import { processIntelligenceDocument } from "@/lib/intelligence/pipeline";
+import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
+import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
 import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
 
 export const INTELLIGENCE_RESEARCH_MODEL =
@@ -356,6 +358,26 @@ function automaticResearchReason(signal: {
     lacksExplanation ? "Explanation needs stronger evidence." : "",
   ].filter(Boolean);
   return reasons.length ? { reason: reasons.join(" "), metadata } : null;
+}
+
+function automaticResearchCandidates<Signal extends {
+  signal_kind: unknown;
+  signal_id: unknown;
+  signal_date: unknown;
+  direction: unknown;
+  evidence_strength: unknown;
+}>(signals: Signal[], completeDate: string) {
+  const unique = new Map<string, Signal>();
+  for (const signal of signals) {
+    if (
+      signal.signal_date !== completeDate ||
+      signal.evidence_strength !== "strong" ||
+      (signal.direction !== "new" && signal.direction !== "rising")
+    ) continue;
+    const key = `${String(signal.signal_kind)}:${String(signal.signal_id)}`;
+    if (!unique.has(key)) unique.set(key, signal);
+  }
+  return [...unique.values()];
 }
 
 function estimatedCost(responses: Array<ResponseWithParsed<unknown>>) {
@@ -730,27 +752,23 @@ export async function createAutomaticResearchLeads(
     RESEARCH_LIMITS.automaticLeadsPerDay - Number(existingToday.count ?? 0),
   );
   if (!remainingDailyLeads) return { created: 0 };
+  const completeDate = latestCompleteDateKey(anchor);
   const latest = await admin
     .from("intelligence_signal_daily")
     .select(
       "signal_kind,signal_id,signal_label,direction,evidence_strength,primary_source_count,unique_action_count,metadata,signal_date,hidden_rank_score",
     )
     .eq("owner_id", ownerId)
+    .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+    .eq("signal_date", completeDate)
     .eq("evidence_strength", "strong")
     .in("direction", ["new", "rising"])
-    .lte("signal_date", anchor.toISOString().slice(0, 10))
-    .order("signal_date", { ascending: false })
     .order("hidden_rank_score", { ascending: false })
     .limit(30);
   if (latest.error) throw new Error(latest.error.message);
-  const unique = new Map<string, (typeof latest.data)[number]>();
-  for (const signal of latest.data ?? []) {
-    const key = `${signal.signal_kind}:${signal.signal_id}`;
-    if (!unique.has(key)) unique.set(key, signal);
-  }
 
   let created = 0;
-  for (const signal of unique.values()) {
+  for (const signal of automaticResearchCandidates(latest.data ?? [], completeDate)) {
     if (created >= remainingDailyLeads) break;
     const gap = automaticResearchReason(signal);
     if (!gap) continue;
@@ -959,6 +977,7 @@ export const __testables = {
   verifiedWhyNow,
   completedLeadIsCoolingDown,
   automaticResearchReason,
+  automaticResearchCandidates,
   officialDomainsForLead,
   isPrimaryDomainForLead,
 };

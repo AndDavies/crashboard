@@ -40,6 +40,12 @@ export type TrendAnnotation = {
   label: string;
 };
 
+export type TrendChartActionRow = TrendAnnotation & {
+  id: string;
+  signalId: string;
+  signalLabel: string;
+};
+
 export type RelatedTrendSignal = {
   id: string;
   kind: TrendSignalKind;
@@ -256,4 +262,23 @@ export function chartBucketForDate(bucketDates: string[], eventDate: string) {
     if (eventTime >= start && eventTime < end) return dates[index]!;
   }
   return null;
+}
+
+export function chartActionRows(signals: TrendSignal[]): TrendChartActionRow[] {
+  const unique = new Map<string, TrendChartActionRow>();
+  for (const signal of signals) {
+    for (const annotation of signal.annotations) {
+      const id = `${signal.id}:${annotation.date}:${annotation.type}:${annotation.label}`;
+      if (unique.has(id)) continue;
+      unique.set(id, {
+        ...annotation,
+        id,
+        signalId: signal.id,
+        signalLabel: signal.label,
+      });
+    }
+  }
+  return [...unique.values()].sort((left, right) =>
+    right.date.localeCompare(left.date) || left.signalLabel.localeCompare(right.signalLabel)
+  );
 }

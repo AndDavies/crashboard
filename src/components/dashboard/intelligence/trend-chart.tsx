@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import {
+  chartActionRows,
   chartBucketForDate,
   type TrendSeriesPoint,
   type TrendSignal,
@@ -106,6 +107,7 @@ export function InteractiveTrendChart({
     point: TrendSeriesPoint;
   } | null>(null);
   const data = useMemo(() => mergeSeries(signals), [signals]);
+  const actionRows = useMemo(() => chartActionRows(signals), [signals]);
 
   if (!signals.length || !data.length) {
     return (
@@ -291,16 +293,17 @@ export function InteractiveTrendChart({
         <summary className="cursor-pointer font-semibold">View the same values as a table</summary>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[680px] text-left">
+            <caption className="sr-only">Share of coverage values shown in the interactive chart</caption>
             <thead>
               <tr className="border-b border-foreground">
-                <th className="py-2 pr-4">Date</th>
-                {signals.map((signal) => <th key={signal.id} className="px-3 py-2">{signal.label}</th>)}
+                <th scope="col" className="py-2 pr-4">Date</th>
+                {signals.map((signal) => <th scope="col" key={signal.id} className="px-3 py-2">{signal.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {data.map((row) => (
                 <tr key={row.date} className="border-b border-border">
-                  <td className="py-2 pr-4">{longDate(row.date)}</td>
+                  <th scope="row" className="py-2 pr-4 font-normal">{longDate(row.date)}</th>
                   {signals.map((signal) => {
                     const point = row[`${signal.id}:detail`] as TrendSeriesPoint | undefined;
                     return (
@@ -315,6 +318,35 @@ export function InteractiveTrendChart({
           </table>
         </div>
       </details>
+
+      {actionRows.length ? (
+        <details className="mt-3 border-t border-border pt-3 text-xs">
+          <summary className="cursor-pointer font-semibold">View actions shown on the chart</summary>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[620px] text-left">
+              <caption className="sr-only">Awards, trials, funding, deployments, and policy changes annotated on the chart</caption>
+              <thead>
+                <tr className="border-b border-foreground">
+                  <th scope="col" className="py-2 pr-4">Date</th>
+                  <th scope="col" className="px-3 py-2">Signal</th>
+                  <th scope="col" className="px-3 py-2">What happened</th>
+                  <th scope="col" className="px-3 py-2">Action type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {actionRows.map((action) => (
+                  <tr key={action.id} className="border-b border-border">
+                    <th scope="row" className="py-2 pr-4 font-normal">{longDate(action.date)}</th>
+                    <td className="px-3 py-2">{action.signalLabel}</td>
+                    <td className="px-3 py-2">{action.label}</td>
+                    <td className="px-3 py-2 capitalize">{action.type.replaceAll("_", " ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

@@ -30,4 +30,56 @@ describe("segment-level signal support", () => {
       "support",
     )).toBe(false);
   });
+
+  it("requires event subjects to be supported by measurement evidence documents", () => {
+    const measurementDocumentsByEvent = new Map([
+      ["event", new Set(["measurement-document"])],
+    ]);
+    const subjectsByDocument = new Map([
+      ["measurement-document", new Set(["measurement-programme"])],
+      ["research-document", new Set(["research-programme"])],
+    ]);
+
+    expect(__testables.measurementSupportsEventSubject({
+      eventId: "event",
+      subjectId: "measurement-programme",
+      measurementDocumentsByEvent,
+      subjectsByDocument,
+    })).toBe(true);
+    expect(__testables.measurementSupportsEventSubject({
+      eventId: "event",
+      subjectId: "research-programme",
+      measurementDocumentsByEvent,
+      subjectsByDocument,
+    })).toBe(false);
+  });
+
+  it("accepts only measurement-eligible v2 story clusters for scoring", () => {
+    expect(__testables.isMeasurementStoryCluster({
+      id: "measurement-story",
+      cluster_type: "story",
+      metadata: {
+        dedupe_version: "story-dedup-v2.0.0",
+        measurement_eligible: true,
+      },
+    })).toBe(true);
+    expect(__testables.isMeasurementStoryCluster({
+      id: "research-story",
+      cluster_type: "story",
+      metadata: {
+        dedupe_version: "story-dedup-v2.0.0",
+        measurement_eligible: false,
+      },
+    })).toBe(false);
+    expect(__testables.isMeasurementStoryCluster({
+      id: "legacy-duplicate",
+      cluster_type: "exact_duplicate",
+      metadata: { measurement_eligible: true },
+    })).toBe(false);
+    expect(__testables.isMeasurementStoryCluster({
+      id: "legacy-story",
+      cluster_type: "story",
+      metadata: { measurement_eligible: true },
+    })).toBe(false);
+  });
 });

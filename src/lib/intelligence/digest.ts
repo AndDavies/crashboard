@@ -11,6 +11,7 @@ import {
   digestSignalPassesHistoryGate,
 } from "@/lib/intelligence/digest-v2";
 import { latestCompleteDateKey, shiftDateKey } from "@/lib/intelligence/signal-metrics";
+import { latestSentIntelligenceDigestAt } from "@/lib/intelligence/research-completions";
 import {
   hasCompletedIntelligenceV2Backfill,
   intelligenceSignalsV2Enabled,
@@ -101,6 +102,7 @@ export async function createAndSendIntelligenceDigest(
   const date = digestDate(anchor);
   const since = new Date(anchor);
   since.setUTCDate(since.getUTCDate() - 1);
+  const lastDigestAt = await latestSentIntelligenceDigestAt(admin, ownerId);
 
   const [alertsResult, trendsResult, eventsResult] = await Promise.all([
     admin
@@ -145,7 +147,7 @@ export async function createAndSendIntelligenceDigest(
         "id,signal_id,what_changed,why_now,why_it_matters,what_to_watch,evidence_effect,sources,created_at,intelligence_research_leads(signal_label)",
       )
       .eq("owner_id", ownerId)
-      .gte("created_at", since.toISOString())
+      .gt("created_at", lastDigestAt ?? "1970-01-01T00:00:00.000Z")
       .order("created_at", { ascending: false })
       .limit(8),
     intelligenceSignalsV2Enabled()

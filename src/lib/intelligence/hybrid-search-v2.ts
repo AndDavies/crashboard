@@ -9,6 +9,7 @@ import {
   INTELLIGENCE_EMBEDDING_MODEL,
 } from "@/lib/intelligence/enrichment";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { procurementEventProfileHref } from "@/lib/intelligence/catalog-profile";
 
 export type IntelligenceSearchResult = {
   id: string;
@@ -29,6 +30,7 @@ export type IntelligenceCatalogMatch = {
   kind: "topic" | "keyword" | "organization" | "system" | "programme" | "buying_opportunity";
   label: string;
   whyMatched: string;
+  profileHref?: string;
 };
 
 function vectorLiteral(embedding: number[]) {
@@ -59,7 +61,8 @@ async function catalogMatches(admin: SupabaseClient, ownerId: string, query: str
       .eq("owner_id", ownerId).eq("status", "active").ilike("canonical_name", pattern).limit(12),
     admin.from("intelligence_term_observations").select("normalized_term,display_term")
       .eq("owner_id", ownerId).ilike("display_term", pattern).limit(20),
-    admin.from("intelligence_procurement_cases").select("id,case_key,title")
+    admin.from("intelligence_procurement_cases")
+      .select("id,case_key,title,intelligence_procurement_case_events(event_id,transition_at)")
       .eq("owner_id", ownerId).or(`title.ilike.${pattern},case_key.ilike.${pattern}`).limit(12),
   ]);
   const error = [concepts.error, aliases.error, entities.error, terms.error, procurements.error]
@@ -99,11 +102,14 @@ async function catalogMatches(admin: SupabaseClient, ownerId: string, query: str
     });
   }
   for (const row of procurements.data ?? []) {
+    const profileHref = procurementEventProfileHref(row.intelligence_procurement_case_events);
+    if (!profileHref) continue;
     matches.set(`buying_opportunity:${row.id}`, {
       id: `buying_opportunity:${row.id}`,
       kind: "buying_opportunity",
       label: String(row.title),
       whyMatched: `Matched buying opportunity ${row.case_key}.`,
+      profileHref,
     });
   }
   return [...matches.values()].slice(0, 25);
@@ -212,18 +218,39 @@ export async function searchIntelligenceV2(query: string, options: { limit?: num
 export async function refreshSegmentEmbeddingsBatch(
   admin: SupabaseClient,
   ownerId: string,
-  options: { cursor?: number; limit?: number; concurrency?: number } = {},
+  options: { cursor?: number; limit?: number; concurrency?: number; segmentIds?: string[] } = {},
 ) {
   const cursor = Math.max(0, Math.floor(options.cursor ?? 0));
-  const limit = Math.min(25, Math.max(1, Math.floor(options.limit ?? 10)));
-  const concurrency = Math.min(8, Math.max(1, Math.floor(options.concurrency ?? 5)));
+  const explicitSegmentIds = options.segmentIds === undefined
+    ? null
+    : [...new Set(options.segmentIds.map(String).filter(Boolean))].slice(0, 625);
+  const limit = explicitSegmentIds
+    ? Math.max(1, explicitSegmentIds.length)
+    : Math.min(25, Math.max(1, Math.floor(options.limit ?? 10)));
+  // Segment text can be large and createEmbeddings may expand one segment into
+  // multiple chunks. Keep request groups conservative until batching is token-aware.
+  const concurrency = Math.min(5, Math.max(1, Math.floor(options.concurrency ?? 5)));
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY is required for segment embedding backfill.");
-  const segments = await admin.from("intelligence_document_segments")
+  if (explicitSegmentIds?.length === 0) {
+    return {
+      phase: "embeddings" as const,
+      cursor,
+      processed: 0,
+      embedded: 0,
+      skipped: 0,
+      hasMore: false,
+      nextCursor: null,
+    };
+  }
+  let query = admin.from("intelligence_document_segments")
     .select("id,document_id,content_text,content_hash")
     .eq("owner_id", ownerId).in("segment_type", ["editorial", "unknown"])
-    .is("exclusion_reason", null).order("id", { ascending: true })
-    .range(cursor, cursor + limit - 1);
+    .is("exclusion_reason", null);
+  query = explicitSegmentIds
+    ? query.in("id", explicitSegmentIds).order("id", { ascending: true })
+    : query.order("id", { ascending: true }).range(cursor, cursor + limit - 1);
+  const segments = await query;
   if (segments.error) throw new Error(segments.error.message);
   const segmentIds = (segments.data ?? []).map((row) => String(row.id));
   const existing = segmentIds.length
@@ -302,7 +329,7 @@ export async function refreshSegmentEmbeddingsBatch(
     processed,
     embedded,
     skipped,
-    hasMore: processed === limit,
-    nextCursor: processed === limit ? cursor + processed : null,
+    hasMore: explicitSegmentIds ? false : processed === limit,
+    nextCursor: explicitSegmentIds ? null : processed === limit ? cursor + processed : null,
   };
 }

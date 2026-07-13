@@ -3,10 +3,15 @@ import "server-only";
 import { requireDashboardUser } from "@/lib/blog/data";
 import {
   INTELLIGENCE_SIGNAL_METRIC_VERSION,
-  summarizeCanonicalSignal,
   type CanonicalSignalDailyRow,
 } from "@/lib/intelligence/signal-metrics-v2";
 import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
+import { recentSignalEvidenceIds } from "@/lib/intelligence/signal-evidence";
+import {
+  buildSignalQueryPlan,
+  chunkSignalKeys,
+  parseStoredSignalSummary,
+} from "@/lib/intelligence/signals-v2-query";
 import {
   INTELLIGENCE_SIGNAL_KINDS,
   INTELLIGENCE_SIGNAL_LENSES,
@@ -28,6 +33,24 @@ import {
 
 const PAGE_SIZE = 1_000;
 const DAY_MS = 86_400_000;
+const HISTORY_KEY_CHUNK_SIZE = 20;
+const HISTORY_QUERY_CONCURRENCY = 3;
+const DAILY_COLUMNS = "signal_key,signal_kind,signal_id,signal_label,lens_keys,signal_date,eligible_items,supporting_items,supporting_documents,unique_stories,mention_count,eligible_tokens,independent_source_count,effective_source_count,primary_source_count,unique_action_count,raw_reach,source_balanced_reach,mentions_per_10k,extraction_confidence,metadata";
+const SUMMARY_COLUMNS = "signal_key,signal_kind,signal_id,signal_label,lens_keys,direction,evidence_strength,momentum,acceleration,burst,persistence,novelty,confidence,increase_probability,extraction_confidence,hidden_rank_score,metadata";
+const ACTION_LABELS: Record<string, string> = {
+  procurement_notice: "Buying opportunity",
+  rfi_rfp_challenge: "Information request or challenge",
+  award: "Contract awarded",
+  funding_investment: "Funding announced",
+  partnership: "Partnership announced",
+  acquisition: "Acquisition announced",
+  development: "In development",
+  trial_pilot: "Being tested",
+  deployment: "Entering use",
+  policy_regulation: "Policy change",
+  capacity_expansion: "Capacity expanding",
+  cancellation: "Cancelled",
+};
 type DbRow = Record<string, unknown>;
 
 export type GetIntelligenceSignalsOptions = {
@@ -84,6 +107,166 @@ async function fetchPages<T>(
   }
 }
 
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  mapper: (value: T) => Promise<R>,
+) {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index]);
+    }
+  };
+  await Promise.all(Array.from(
+    { length: Math.min(Math.max(1, concurrency), values.length) },
+    () => worker(),
+  ));
+  return results;
+}
+
+async function fetchSelectedSignalHistory(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  ownerId: string;
+  signalKeys: string[];
+  start: string;
+  end: string;
+}) {
+  if (!input.signalKeys.length) return { data: [] as DbRow[], error: null };
+  const chunks = chunkSignalKeys(input.signalKeys, HISTORY_KEY_CHUNK_SIZE);
+  const results = await mapWithConcurrency(chunks, HISTORY_QUERY_CONCURRENCY, (keys) =>
+    fetchPages<DbRow>((from, to) => input.admin
+      .from("intelligence_signal_daily")
+      .select(DAILY_COLUMNS)
+      .eq("owner_id", input.ownerId)
+      .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+      .in("signal_key", keys)
+      .gte("signal_date", input.start)
+      .lte("signal_date", input.end)
+      .order("signal_date", { ascending: true })
+      .order("signal_key", { ascending: true })
+      .range(from, to))
+  );
+  const error = results.find((result) => result.error)?.error ?? null;
+  return { data: results.flatMap((result) => result.data ?? []), error };
+}
+
+function totalsFromRows(rows: DbRow[]) {
+  const totals = new Map<string, { items: number; tokens: number }>();
+  for (const row of rows) {
+    const date = String(row.signal_date ?? "");
+    if (!date) continue;
+    const items = number(row.eligible_items);
+    const tokens = number(row.eligible_tokens);
+    const current = totals.get(date);
+    if (!current || items > current.items) totals.set(date, { items, tokens });
+  }
+  return totals;
+}
+
+function missingTotalsFunction(error: { code?: string; message?: string } | null) {
+  return Boolean(error && (
+    error.code === "PGRST202" || error.code === "42883" ||
+    error.message?.includes("get_intelligence_signal_daily_totals")
+  ));
+}
+
+async function fetchSignalDailyTotals(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  ownerId: string;
+  start: string;
+  end: string;
+}) {
+  const aggregated = await input.admin.rpc("get_intelligence_signal_daily_totals", {
+    query_owner: input.ownerId,
+    query_metric_version: INTELLIGENCE_SIGNAL_METRIC_VERSION,
+    query_start: input.start,
+    query_end: input.end,
+  });
+  if (!aggregated.error) {
+    return totalsFromRows(Array.isArray(aggregated.data) ? aggregated.data as DbRow[] : []);
+  }
+  if (!missingTotalsFunction(aggregated.error)) throw new Error(aggregated.error.message);
+
+  // Safe rolling-deploy fallback. The RPC removes this duplicate transfer once
+  // its ordinary migration is present, but old deployments remain readable.
+  const fallback = await fetchPages<DbRow>((from, to) => input.admin
+    .from("intelligence_signal_daily")
+    .select("signal_date,eligible_items,eligible_tokens")
+    .eq("owner_id", input.ownerId)
+    .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+    .gte("signal_date", input.start)
+    .lte("signal_date", input.end)
+    .order("signal_date", { ascending: true })
+    .order("signal_key", { ascending: true })
+    .range(from, to));
+  if (fallback.error) throw new Error(fallback.error.message);
+  return totalsFromRows(fallback.data ?? []);
+}
+
+async function fetchSignalScopedRows(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  ownerId: string;
+  table: "intelligence_research_leads" | "intelligence_research_results";
+  columns: string;
+  signalIds: string[];
+}) {
+  if (!input.signalIds.length) return { data: [] as DbRow[], error: null };
+  const chunks = chunkSignalKeys(input.signalIds, 50);
+  const results = await mapWithConcurrency(chunks, HISTORY_QUERY_CONCURRENCY, async (ids) => {
+    const result = await input.admin.from(input.table)
+      .select(input.columns)
+      .eq("owner_id", input.ownerId)
+      .in("signal_id", ids)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    return { data: (result.data ?? []) as unknown as DbRow[], error: result.error };
+  });
+  const error = results.find((result) => result.error)?.error ?? null;
+  return {
+    data: results.flatMap((result) => result.data)
+      .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))),
+    error,
+  };
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+    .test(value);
+}
+
+async function fetchSelectedRelatedRows(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  ownerId: string;
+  signalIds: string[];
+}) {
+  const uuidIds = [...new Set(input.signalIds.filter(isUuid))];
+  if (!uuidIds.length) return { data: [] as DbRow[], error: null };
+  const chunks = chunkSignalKeys(uuidIds, 25);
+  const results = await mapWithConcurrency(chunks, HISTORY_QUERY_CONCURRENCY, (ids) =>
+    fetchPages<DbRow>((from, to) => input.admin.from("intelligence_cooccurrence_snapshots")
+      .select("subject_a_id,subject_b_id,support_count,npmi,period_end")
+      .eq("owner_id", input.ownerId)
+      .eq("qualified", true)
+      .or(`subject_a_id.in.(${ids.join(",")}),subject_b_id.in.(${ids.join(",")})`)
+      .order("period_end", { ascending: false })
+      .order("npmi", { ascending: false })
+      .order("subject_a_id", { ascending: true })
+      .order("subject_b_id", { ascending: true })
+      .range(from, to))
+  );
+  const error = results.find((result) => result.error)?.error ?? null;
+  const deduplicated = new Map<string, DbRow>();
+  for (const row of results.flatMap((result) => result.data ?? [])) {
+    const key = `${row.subject_a_id}:${row.subject_b_id}:${row.period_end}`;
+    if (!deduplicated.has(key)) deduplicated.set(key, row);
+  }
+  return { data: [...deduplicated.values()], error };
+}
+
 function parseDailyRow(row: DbRow): CanonicalSignalDailyRow {
   const metadata = object(row.metadata);
   return {
@@ -115,12 +298,6 @@ function parseDailyRow(row: DbRow): CanonicalSignalDailyRow {
       sourceCounts: object(metadata.sourceCounts ?? metadata.source_counts) as Record<string, number>,
     },
   };
-}
-
-function percentile75(values: number[]) {
-  if (!values.length) return Infinity;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor((sorted.length - 1) * 0.75)] ?? Infinity;
 }
 
 function explanation(input: {
@@ -180,20 +357,21 @@ function seriesForRange(input: {
     total.tokens += dayTotal?.tokens ?? 0;
     eligibleByBucket.set(bucket, total);
   }
-  return [...eligibleByBucket.entries()].map(([date, total]): IntelligenceSignalSeriesPoint => {
-    const rows = buckets.get(date) ?? [];
-    const support = rows.reduce((sum, row) => sum + row.supportingItems, 0);
-    const mentions = rows.reduce((sum, row) => sum + row.mentionCount, 0);
-    return {
-      date,
-      shareOfCoverage: 100 * support / Math.max(1, total.items),
-      items: support,
-      stories: new Set(rows.flatMap((row) => row.metadata.storyIds)).size,
-      sources: new Set(rows.flatMap((row) => row.metadata.sourceFamilies)).size,
-      actions: new Set(rows.flatMap((row) => row.metadata.actionIds)).size,
-      mentionsPer10k: 10_000 * mentions / Math.max(1, total.tokens),
-    };
-  });
+  return [...eligibleByBucket.entries()].filter(([, total]) => total.items > 0)
+    .map(([date, total]): IntelligenceSignalSeriesPoint => {
+      const rows = buckets.get(date) ?? [];
+      const support = rows.reduce((sum, row) => sum + row.supportingItems, 0);
+      const mentions = rows.reduce((sum, row) => sum + row.mentionCount, 0);
+      return {
+        date,
+        shareOfCoverage: 100 * support / Math.max(1, total.items),
+        items: support,
+        stories: new Set(rows.flatMap((row) => row.metadata.storyIds)).size,
+        sources: new Set(rows.flatMap((row) => row.metadata.sourceFamilies)).size,
+        actions: new Set(rows.flatMap((row) => row.metadata.actionIds)).size,
+        mentionsPer10k: 10_000 * mentions / Math.max(1, total.tokens),
+      };
+    });
 }
 
 async function supportingEvidence(
@@ -202,29 +380,36 @@ async function supportingEvidence(
   selectedKeys: string[],
 ) {
   const admin = createAdminClient();
-  const documentIds = [...new Set(selectedKeys.flatMap((key) =>
-    (signalRows.get(key) ?? []).slice(-28).flatMap((row) => row.metadata.documentIds)
-  ))].slice(0, 400);
-  const actionIds = [...new Set(selectedKeys.flatMap((key) =>
-    (signalRows.get(key) ?? []).slice(-28).flatMap((row) => row.metadata.actionIds)
-  ))].slice(0, 300);
-  const [documents, actionsById, actionsByCluster] = await Promise.all([
-    documentIds.length ? admin.from("documents")
+  const documentIdsByKey = recentSignalEvidenceIds(
+    signalRows,
+    selectedKeys,
+    "documentIds",
+  );
+  const actionIdsByKey = recentSignalEvidenceIds(signalRows, selectedKeys, "actionIds");
+  const documentIds = [...new Set([...documentIdsByKey.values()].flat())];
+  const actionIds = [...new Set([...actionIdsByKey.values()].flat())];
+  const batches = <T,>(values: T[]) => Array.from(
+    { length: Math.ceil(values.length / 100) },
+    (_, index) => values.slice(index * 100, index * 100 + 100),
+  );
+  const [documentResults, actionIdResults, actionClusterResults] = await Promise.all([
+    Promise.all(batches(documentIds).map((ids) => admin.from("documents")
       .select("id,title,summary_short,content_text,original_url,canonical_url,publisher_name,published_at,source_identity_id,metadata,intelligence_source_identities(source_family,authority_tier)")
-      .eq("owner_id", ownerId).in("id", documentIds) : Promise.resolve({ data: [], error: null }),
-    actionIds.length ? admin.from("intelligence_events")
+      .eq("owner_id", ownerId).in("id", ids))),
+    Promise.all(batches(actionIds).map((ids) => admin.from("intelligence_events")
       .select("id,cluster_id,title,event_type,announced_at,occurred_at")
-      .eq("owner_id", ownerId).in("id", actionIds) : Promise.resolve({ data: [], error: null }),
-    actionIds.length ? admin.from("intelligence_events")
+      .eq("owner_id", ownerId).in("id", ids))),
+    Promise.all(batches(actionIds).map((ids) => admin.from("intelligence_events")
       .select("id,cluster_id,title,event_type,announced_at,occurred_at")
-      .eq("owner_id", ownerId).in("cluster_id", actionIds) : Promise.resolve({ data: [], error: null }),
+      .eq("owner_id", ownerId).in("cluster_id", ids))),
   ]);
-  if (documents.error) throw new Error(documents.error.message);
-  if (actionsById.error) throw new Error(actionsById.error.message);
-  if (actionsByCluster.error) throw new Error(actionsByCluster.error.message);
-  const documentById = new Map((documents.data ?? []).map((row) => [String(row.id), row as DbRow]));
+  const queryError = [...documentResults, ...actionIdResults, ...actionClusterResults]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(queryError.message);
+  const documentById = new Map(documentResults.flatMap((result) => result.data ?? [])
+    .map((row) => [String(row.id), row as DbRow]));
   const actionById = new Map<string, DbRow>();
-  for (const row of [...(actionsById.data ?? []), ...(actionsByCluster.data ?? [])]) {
+  for (const row of [...actionIdResults, ...actionClusterResults].flatMap((result) => result.data ?? [])) {
     actionById.set(String(row.id), row as DbRow);
     if (row.cluster_id) actionById.set(String(row.cluster_id), row as DbRow);
   }
@@ -232,7 +417,7 @@ async function supportingEvidence(
   const annotationsByKey = new Map<string, IntelligenceSignalAnnotation[]>();
   for (const key of selectedKeys) {
     const rows = signalRows.get(key) ?? [];
-    const documentsForSignal = [...new Set(rows.slice(-28).flatMap((row) => row.metadata.documentIds))];
+    const documentsForSignal = documentIdsByKey.get(key) ?? [];
     evidenceByKey.set(key, documentsForSignal.flatMap((id) => {
       const document = documentById.get(id);
       if (!document) return [];
@@ -253,7 +438,7 @@ async function supportingEvidence(
         isResearch: metadata.source_cohort === "research",
       } satisfies IntelligenceSignalEvidence];
     }).sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt))).slice(0, 8));
-    const actionsForSignal = [...new Set(rows.flatMap((row) => row.metadata.actionIds))];
+    const actionsForSignal = actionIdsByKey.get(key) ?? [];
     annotationsByKey.set(key, actionsForSignal.flatMap((id) => {
       const action = actionById.get(id);
       if (!action) return [];
@@ -261,7 +446,7 @@ async function supportingEvidence(
       return [{
         id: eventId,
         date: String(action.announced_at ?? action.occurred_at ?? "").slice(0, 10),
-        label: String(action.event_type ?? "action").replaceAll("_", " "),
+        label: ACTION_LABELS[String(action.event_type)] ?? "Important action",
         actionType: String(action.event_type ?? "action"),
         title: String(action.title ?? "Announcement"),
         url: `/dashboard/intelligence/events/${eventId}`,
@@ -295,85 +480,87 @@ export async function getIntelligenceSignals(
     };
   }
   const chartStart = addDays(completeThrough, -(rangeDays(range) - 1));
-  const analysisStart = chartStart < addDays(completeThrough, -111)
-    ? chartStart
-    : addDays(completeThrough, -111);
-  const result = await fetchPages<DbRow>((from, to) => admin
+  const latestResult = await fetchPages<DbRow>((from, to) => admin
     .from("intelligence_signal_daily")
-    .select("signal_key,signal_kind,signal_id,signal_label,lens_keys,signal_date,eligible_items,supporting_items,supporting_documents,unique_stories,mention_count,eligible_tokens,independent_source_count,effective_source_count,primary_source_count,unique_action_count,raw_reach,source_balanced_reach,mentions_per_10k,extraction_confidence,metadata")
+    .select(SUMMARY_COLUMNS)
     .eq("owner_id", ownerId)
     .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
-    .gte("signal_date", analysisStart)
-    .lte("signal_date", completeThrough)
-    .order("signal_date", { ascending: true })
+    .eq("signal_date", completeThrough)
+    .order("hidden_rank_score", { ascending: false })
+    .order("signal_key", { ascending: true })
     .range(from, to));
-  if (missingSchema(result.error)) {
+  if (missingSchema(latestResult.error)) {
     return {
       generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
       total: 0, signals: [], comparison: [], dataStatus: "schema_missing",
     };
   }
-  if (result.error) throw new Error(result.error.message);
-  const rows = (result.data ?? []).map(parseDailyRow);
-  if (!rows.length || !rows.some((row) => row.signalDate === completeThrough)) {
+  if (latestResult.error) throw new Error(latestResult.error.message);
+  if (!(latestResult.data ?? []).length) {
     return {
       generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
       total: 0, signals: [], comparison: [], dataStatus: "building",
     };
   }
-  const totals = new Map<string, { items: number; tokens: number }>();
+  const summaries = (latestResult.data ?? [])
+    .flatMap((row) => parseStoredSignalSummary(row) ?? []);
+  if (!summaries.length) {
+    return {
+      generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
+      total: 0, signals: [], comparison: [], dataStatus: "building",
+    };
+  }
+  const limit = Math.min(250, Math.max(1, options.limit ?? 120));
+  const plan = buildSignalQueryPlan({
+    summaries,
+    lens,
+    kind,
+    query: options.q,
+    compare: options.compare,
+    limit,
+  });
+  const [historyResult, totals] = await Promise.all([
+    fetchSelectedSignalHistory({
+      admin,
+      ownerId,
+      signalKeys: plan.historyKeys,
+      start: chartStart,
+      end: completeThrough,
+    }),
+    plan.historyKeys.length
+      ? fetchSignalDailyTotals({ admin, ownerId, start: chartStart, end: completeThrough })
+      : Promise.resolve(new Map<string, { items: number; tokens: number }>()),
+  ]);
+  if (historyResult.error) throw new Error(historyResult.error.message);
   const groups = new Map<string, CanonicalSignalDailyRow[]>();
-  for (const row of rows) {
-    const total = totals.get(row.signalDate);
-    if (!total || row.eligibleItems > total.items) {
-      totals.set(row.signalDate, { items: row.eligibleItems, tokens: row.eligibleTokens });
-    }
+  for (const row of historyResult.data.map(parseDailyRow)) {
     const group = groups.get(row.signalKey) ?? [];
     group.push(row);
     groups.set(row.signalKey, group);
   }
-  const summaries = [...groups.entries()].flatMap(([key, signalRows]) => {
-    const summary = summarizeCanonicalSignal({ rows: signalRows, dailyTotals: totals, completeThrough });
-    return summary ? [{ key, signalRows, summary }] : [];
-  });
-  const quartiles = new Map<IntelligenceSignalKind, number>();
-  for (const signalKind of INTELLIGENCE_SIGNAL_KINDS) {
-    quartiles.set(signalKind, percentile75(
-      summaries.filter((item) => item.summary.signalKind === signalKind && item.summary.hasTwelveCompleteWeeks)
-        .map((item) => item.summary.currentReach),
-    ));
-  }
-  const query = options.q?.replace(/\s+/gu, " ").trim().toLocaleLowerCase("en-CA") ?? "";
-  const filtered = summaries.filter(({ summary }) => {
-    if (lens !== "all" && !summary.lensKeys.includes(lens)) return false;
-    if (kind !== "all" && summary.signalKind !== kind) return false;
-    if (query && !summary.signalLabel.toLocaleLowerCase("en-CA").includes(query)) return false;
-    if (summary.direction === "sustained") {
-      return summary.hasTwelveCompleteWeeks && summary.activeLastFourWeeks >= 3 &&
-        summary.currentReach >= (quartiles.get(summary.signalKind) ?? Infinity) &&
-        summary.currentItems >= 3;
-    }
-    if (summary.direction === "cooling") return summary.previousItems >= 3;
-    return summary.currentItems >= 3;
-  }).sort((a, b) => b.summary.hiddenRankScore - a.summary.hiddenRankScore);
-  const limit = Math.min(250, Math.max(1, options.limit ?? 120));
-  const compareKeys = [...new Set(options.compare ?? [])].slice(0, 5);
-  const selected = filtered.slice(0, limit);
-  const selectedKeys = [...new Set([...selected.slice(0, 30).map((item) => item.key), ...compareKeys])];
-  const { evidenceByKey, annotationsByKey } = await supportingEvidence(ownerId, groups, selectedKeys);
-
-  const [leadResult, researchResult, relatedResult] = await Promise.all([
-    admin.from("intelligence_research_leads")
-      .select("signal_kind,signal_id,status,completed_at")
-      .eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(500),
-    admin.from("intelligence_research_results")
-      .select("id,signal_kind,signal_id,what_changed,why_now,why_it_matters,what_to_watch,sources,created_at")
-      .eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(500),
-    admin.from("intelligence_cooccurrence_snapshots")
-      .select("subject_a_id,subject_b_id,support_count,npmi,period_end")
-      .eq("owner_id", ownerId).eq("qualified", true)
-      .order("period_end", { ascending: false }).order("npmi", { ascending: false }).limit(1_000),
+  const summaryByKey = new Map(summaries.map((item) => [item.key, item.summary]));
+  const selectedSignalIds = [...new Set(plan.historyKeys.flatMap((key) =>
+    summaryByKey.get(key)?.signalId ?? []
+  ))];
+  const [supporting, leadResult, researchResult, relatedResult] = await Promise.all([
+    supportingEvidence(ownerId, groups, plan.historyKeys),
+    fetchSignalScopedRows({
+      admin,
+      ownerId,
+      table: "intelligence_research_leads",
+      columns: "signal_kind,signal_id,status,completed_at,created_at",
+      signalIds: selectedSignalIds,
+    }),
+    fetchSignalScopedRows({
+      admin,
+      ownerId,
+      table: "intelligence_research_results",
+      columns: "id,signal_kind,signal_id,what_changed,why_now,why_it_matters,what_to_watch,sources,created_at",
+      signalIds: selectedSignalIds,
+    }),
+    fetchSelectedRelatedRows({ admin, ownerId, signalIds: selectedSignalIds }),
   ]);
+  const { evidenceByKey, annotationsByKey } = supporting;
   const leadBySignal = new Map<string, DbRow>();
   if (!leadResult.error) {
     for (const row of leadResult.data ?? []) {
@@ -414,10 +601,11 @@ export async function getIntelligenceSignals(
   }
 
   const mappedItems = [...new Map(
-    [...selected, ...summaries.filter((item) => compareKeys.includes(item.key))]
+    [...plan.selected, ...summaries.filter((item) => plan.compareKeys.includes(item.key))]
       .map((item) => [item.key, item]),
   ).values()];
-  const mapped = mappedItems.map(({ key, signalRows, summary }): IntelligenceSignalSummary => {
+  const mapped = mappedItems.map(({ key, summary }): IntelligenceSignalSummary => {
+    const signalRows = groups.get(key) ?? [];
     const currentReach = summary.currentReach * 100;
     const previousReach = summary.previousReach * 100;
     const explanations = explanation({
@@ -502,16 +690,16 @@ export async function getIntelligenceSignals(
     };
   });
   const byKey = new Map(mapped.map((signal) => [signal.key, signal]));
-  const selectedKeySet = new Set(selected.map((item) => item.key));
+  const selectedKeySet = new Set(plan.selected.map((item) => item.key));
   return {
     generatedAt: new Date().toISOString(),
     completeThrough,
     range,
     lens,
     kind,
-    total: filtered.length,
+    total: plan.filtered.length,
     signals: mapped.filter((signal) => selectedKeySet.has(signal.key)),
-    comparison: compareKeys.flatMap((key) => byKey.get(key) ?? []),
+    comparison: plan.compareKeys.flatMap((key) => byKey.get(key) ?? []),
     dataStatus: "ready",
   };
 }
@@ -520,6 +708,8 @@ export async function getIntelligenceSignal(
   id: string,
   options: Pick<GetIntelligenceSignalsOptions, "range"> = {},
 ) {
-  const response = await getIntelligenceSignals({ ...options, limit: 250 });
-  return response.signals.find((signal) => signal.key === id || signal.id === id) ?? null;
+  const response = await getIntelligenceSignals({ ...options, compare: [id], limit: 1 });
+  return response.comparison[0] ??
+    response.signals.find((signal) => signal.key === id || signal.id === id) ??
+    null;
 }

@@ -221,6 +221,7 @@ type TermBackfillRow = {
   document_id: string;
   title: string | null;
   content_text: string;
+  content_hash: string;
   token_count: number;
   document: {
     published_at: string | null;
@@ -238,22 +239,47 @@ function nestedDocument(value: unknown): TermBackfillRow["document"] | null {
 export async function refreshTermObservationsBatch(
   admin: SupabaseClient,
   ownerId: string,
-  options: { cursor?: number; limit?: number } = {},
+  options: { cursor?: number; limit?: number; segmentIds?: string[] } = {},
 ) {
   const cursor = Math.max(0, Math.floor(options.cursor ?? 0));
-  const limit = Math.min(250, Math.max(1, Math.floor(options.limit ?? 100)));
-  const result = await admin
+  const explicitSegmentIds = options.segmentIds === undefined
+    ? null
+    : [...new Set(options.segmentIds.map(String).filter(Boolean))].slice(0, 625);
+  const limit = explicitSegmentIds
+    ? Math.max(1, explicitSegmentIds.length)
+    : Math.min(250, Math.max(1, Math.floor(options.limit ?? 100)));
+  if (explicitSegmentIds?.length === 0) {
+    return {
+      cursor,
+      processed: 0,
+      observationCount: 0,
+      nextCursor: null,
+      complete: true,
+    };
+  }
+  let query = admin
     .from("intelligence_document_segments")
-    .select("id,document_id,title,content_text,token_count,documents!inner(published_at,created_at,source_identity_id)")
+    .select("id,document_id,title,content_text,content_hash,token_count,documents!inner(published_at,created_at,source_identity_id)")
     .eq("owner_id", ownerId)
     .in("segment_type", ["editorial", "unknown"])
-    .is("exclusion_reason", null)
-    .order("id", { ascending: true })
-    .range(cursor, cursor + limit - 1);
+    .is("exclusion_reason", null);
+  query = explicitSegmentIds
+    ? query.in("id", explicitSegmentIds).order("id", { ascending: true })
+    : query.order("id", { ascending: true }).range(cursor, cursor + limit - 1);
+  const result = await query;
   if (result.error) throw new Error(result.error.message);
 
   const segmentIds = (result.data ?? []).map((row) => String(row.id));
   if (segmentIds.length) {
+    // Clear every prior completion marker for these segments before changing
+    // observations. A failed or partial write therefore cannot look complete.
+    const clearState = await admin
+      .from("intelligence_term_processing_state")
+      .delete()
+      .eq("owner_id", ownerId)
+      .eq("extraction_version", INTELLIGENCE_TERM_EXTRACTION_VERSION)
+      .in("segment_id", segmentIds);
+    if (clearState.error) throw new Error(clearState.error.message);
     const remove = await admin
       .from("intelligence_term_observations")
       .delete()
@@ -315,13 +341,45 @@ export async function refreshTermObservationsBatch(
     }
   }
 
+  // A completion marker is written only after every observation write above
+  // succeeds. Zero-term segments are represented reliably as completed too.
+  const completedAt = new Date().toISOString();
+  const observationCountBySegment = new Map<string, number>();
+  for (const row of rows) {
+    observationCountBySegment.set(
+      row.segment_id,
+      (observationCountBySegment.get(row.segment_id) ?? 0) + 1,
+    );
+  }
+  const stateRows = (result.data ?? []).flatMap((raw) => {
+    const document = nestedDocument(raw.documents);
+    if (!document) return [];
+    return [{
+      owner_id: ownerId,
+      document_id: String(raw.document_id),
+      segment_id: String(raw.id),
+      content_hash: String(raw.content_hash),
+      extraction_version: INTELLIGENCE_TERM_EXTRACTION_VERSION,
+      observation_count: observationCountBySegment.get(String(raw.id)) ?? 0,
+      completed_at: completedAt,
+      updated_at: completedAt,
+    }];
+  });
+  if (stateRows.length) {
+    const stateWrite = await admin.from("intelligence_term_processing_state").upsert(
+      stateRows,
+      { onConflict: "segment_id,content_hash,extraction_version" },
+    );
+    if (stateWrite.error) throw new Error(stateWrite.error.message);
+  }
+
   const processed = result.data?.length ?? 0;
   return {
     cursor,
     processed,
     observationCount: rows.length,
-    nextCursor: processed === limit ? cursor + processed : null,
-    complete: processed < limit,
+    nextCursor: explicitSegmentIds ? null : processed === limit ? cursor + processed : null,
+    complete: explicitSegmentIds ? true : processed < limit,
   };
 }
 

@@ -8,6 +8,7 @@ import {
   type TrendSignal,
 } from "./trend-ui-model";
 import { searchIntelligenceDocuments } from "@/lib/intelligence/data";
+import { requireDashboardUser } from "@/lib/blog/data";
 import {
   searchIntelligenceV2,
   type IntelligenceCatalogMatch,
@@ -18,11 +19,15 @@ import {
   type GetIntelligenceSignalsOptions,
 } from "@/lib/intelligence/signals-v2";
 import { getTrendingAnalysis } from "@/lib/intelligence/trending-data";
+import { catalogMatchHref } from "@/lib/intelligence/catalog-profile";
+import { loadResearchCompletedSinceLastBrief } from "@/lib/intelligence/research-completions";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type IntelligenceUiData = {
   completeThrough: string;
   signals: TrendSignal[];
   listedSignalIds: string[];
+  resolvedSignalIds: string[];
   searchResults: ExploreSearchResult[];
   completedResearch: CompletedResearchItem[];
   dataStatus: "ready" | "disabled" | "building" | "schema_missing";
@@ -42,9 +47,9 @@ function normalizeV2SearchResults(input: {
     id: match.id,
     title: match.label,
     date: "",
-    source: "Tracked signal",
+    source: match.kind === "buying_opportunity" ? "Buying opportunity" : "Tracked signal",
     sourceType: match.kind.replaceAll("_", " "),
-    href: `/dashboard/intelligence/explore?q=${encodeURIComponent(input.query)}&signal=${encodeURIComponent(match.id)}`,
+    href: catalogMatchHref(match, input.query),
     passage: match.whyMatched,
     matchReason: "Signal name or alias",
     signalLabel: match.label,
@@ -84,24 +89,6 @@ function normalizeLegacySearchResults(rows: Record<string, unknown>[]): ExploreS
   });
 }
 
-function recentCompletedResearch(
-  response: Awaited<ReturnType<typeof getIntelligenceSignals>>,
-): CompletedResearchItem[] {
-  const cutoff = Date.now() - 36 * 60 * 60 * 1_000;
-  return response.signals
-    .filter((signal) => signal.researchStatus === "completed" && signal.researchCompletedAt)
-    .filter((signal) => Date.parse(signal.researchCompletedAt!) >= cutoff)
-    .sort((a, b) => String(b.researchCompletedAt).localeCompare(String(a.researchCompletedAt)))
-    .slice(0, 8)
-    .map((signal) => ({
-      id: `research:${signal.key}`,
-      signalLabel: signal.label,
-      completedAt: signal.researchCompletedAt!,
-      summary: `${signal.whyNow} ${signal.whyItMatters}`,
-      href: `/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.key)}`,
-    }));
-}
-
 /**
  * One UI-facing loader for Overview and Explore. V2 is authoritative as soon as
  * its daily series is ready; legacy analysis is used only while the V2 schema or
@@ -115,16 +102,21 @@ export async function getIntelligenceUiData(
   // intact here so a natural-language question cannot erase the chart.
   const response = await getIntelligenceSignals({ ...options, q: undefined });
   if (response.dataStatus === "ready") {
-    const search = query
-      ? await searchIntelligenceV2(query)
-      : { query: "", catalog: [], results: [] };
+    const ownerId = (await requireDashboardUser()).id;
+    const [search, completedResearch] = await Promise.all([
+      query
+        ? searchIntelligenceV2(query)
+        : Promise.resolve({ query: "", catalog: [], results: [] }),
+      loadResearchCompletedSinceLastBrief(createAdminClient(), ownerId),
+    ]);
     const mapped = v2SignalsToUi([...response.signals, ...response.comparison]);
     return {
       completeThrough: response.completeThrough,
       signals: uniqueSignals(mapped),
       listedSignalIds: response.signals.map((signal) => signal.key || signal.id),
+      resolvedSignalIds: response.comparison.map((signal) => signal.key || signal.id),
       searchResults: query ? normalizeV2SearchResults(search) : [],
-      completedResearch: recentCompletedResearch(response),
+      completedResearch,
       dataStatus: "ready",
       usesLegacyFallback: false,
     };
@@ -138,6 +130,7 @@ export async function getIntelligenceUiData(
     completeThrough: legacy.completeThrough,
     signals: toTrendSignals(legacy),
     listedSignalIds: legacy.topics.map((topic) => topic.key),
+    resolvedSignalIds: options.compare ?? [],
     searchResults: normalizeLegacySearchResults(legacySearch as Record<string, unknown>[]),
     completedResearch: [],
     dataStatus: response.dataStatus,

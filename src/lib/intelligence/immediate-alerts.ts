@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendGmailMessage } from "@/lib/intelligence/gmail";
 import { getGmailSource, gmailAccessTokenForSource } from "@/lib/intelligence/jobs";
 import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
+import { latestCompleteDateKey, shiftDateKey } from "@/lib/intelligence/signal-metrics";
+import { intelligenceSignalsV2DataStatus } from "@/lib/intelligence/v2-readiness";
 
 export const MAX_IMMEDIATE_ALERTS_PER_DAY = 2;
 
@@ -24,6 +26,7 @@ type ImmediateAlertDependencies = {
   getSource?: typeof getGmailSource;
   getAccessToken?: typeof gmailAccessTokenForSource;
   enabled?: boolean;
+  getDataStatus?: typeof intelligenceSignalsV2DataStatus;
 };
 
 function enabledByEnvironment() {
@@ -99,6 +102,10 @@ function actionCount(signal: ImmediateAlertSignal) {
   return summaryNumber(signal, "actions", Number(signal.unique_action_count ?? 0));
 }
 
+function primarySourceCount(signal: ImmediateAlertSignal) {
+  return summaryNumber(signal, "primary_sources", Number(signal.primary_source_count ?? 0));
+}
+
 function currentReach(signal: ImmediateAlertSignal) {
   return summaryNumber(signal, "current_reach", Number(signal.raw_reach ?? 0));
 }
@@ -110,7 +117,7 @@ function previousReach(signal: ImmediateAlertSignal) {
 function qualifies(signal: ImmediateAlertSignal) {
   return signal.evidence_strength === "strong" &&
     (signal.direction === "new" || signal.direction === "rising") &&
-    (Number(signal.primary_source_count ?? 0) > 0 || actionCount(signal) > 0);
+    (primarySourceCount(signal) > 0 || actionCount(signal) > 0);
 }
 
 export function selectImmediateAlertSignals(
@@ -206,6 +213,18 @@ export async function sendImmediateIntelligenceAlerts(
   const enabled = dependencies.enabled ?? enabledByEnvironment();
   if (!enabled) return { skipped: true, reason: "Immediate alerts are disabled.", sent: 0 };
 
+  const dataStatus = await (dependencies.getDataStatus ?? intelligenceSignalsV2DataStatus)(
+    admin,
+    ownerId,
+  );
+  if (dataStatus !== "ready") {
+    return {
+      skipped: true,
+      reason: `Canonical v2 signals are ${dataStatus}; immediate alerts stayed off.`,
+      sent: 0,
+    };
+  }
+
   const latest = await admin
     .from("intelligence_signal_daily")
     .select("signal_date")
@@ -216,6 +235,13 @@ export async function sendImmediateIntelligenceAlerts(
     .maybeSingle();
   if (latest.error) throw new Error(latest.error.message);
   if (!latest.data?.signal_date) return { skipped: true, reason: "No v2 signals are available.", sent: 0 };
+  if (latest.data.signal_date !== latestCompleteDateKey(anchor)) {
+    return {
+      skipped: true,
+      reason: "The current complete-day v2 signal series is not ready.",
+      sent: 0,
+    };
+  }
 
   const signals = await admin
     .from("intelligence_signal_daily")
@@ -229,6 +255,41 @@ export async function sendImmediateIntelligenceAlerts(
     .order("signal_key", { ascending: true })
     .limit(50);
   if (signals.error) throw new Error(signals.error.message);
+
+  const signalRows = (signals.data ?? []) as ImmediateAlertSignal[];
+  const signalKeys = [...new Set(signalRows.map((signal) => signal.signal_key))];
+  const primarySupport = signalKeys.length
+    ? await admin
+      .from("intelligence_signal_daily")
+      .select("signal_key,primary_source_count")
+      .eq("owner_id", ownerId)
+      .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+      .gte("signal_date", shiftDateKey(latest.data.signal_date, -27))
+      .lte("signal_date", latest.data.signal_date)
+      .in("signal_key", signalKeys)
+    : { data: [], error: null };
+  if (primarySupport.error) throw new Error(primarySupport.error.message);
+  const currentPeriodPrimarySources = new Map<string, number>();
+  for (const row of primarySupport.data ?? []) {
+    const key = String(row.signal_key);
+    currentPeriodPrimarySources.set(
+      key,
+      Math.max(currentPeriodPrimarySources.get(key) ?? 0, Number(row.primary_source_count ?? 0)),
+    );
+  }
+  const signalsWithPeriodSupport = signalRows.map((signal) => ({
+    ...signal,
+    metadata: {
+      ...(signal.metadata ?? {}),
+      summary: {
+        ...(signal.metadata?.summary && typeof signal.metadata.summary === "object" &&
+          !Array.isArray(signal.metadata.summary)
+          ? signal.metadata.summary as Record<string, unknown>
+          : {}),
+        primary_sources: currentPeriodPrimarySources.get(signal.signal_key) ?? 0,
+      },
+    },
+  }));
 
   const day = halifaxDayBounds(anchor);
   const keyPrefix = `immediate-v2:${day.dateKey}:`;
@@ -246,7 +307,7 @@ export async function sendImmediateIntelligenceAlerts(
   );
   const remaining = MAX_IMMEDIATE_ALERTS_PER_DAY - claimedKeys.length;
   const candidates = selectImmediateAlertSignals(
-    (signals.data ?? []) as ImmediateAlertSignal[],
+    signalsWithPeriodSupport,
     claimedKeys,
     remaining,
   );
@@ -304,6 +365,7 @@ export async function sendImmediateIntelligenceAlerts(
 
 export const __testables = {
   actionCount,
+  primarySourceCount,
   currentReach,
   explanation,
   messageFor,

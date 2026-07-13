@@ -391,7 +391,7 @@ export function summarizeCanonicalSignal(input: {
   let evidenceStrength: IntelligenceEvidenceStrength = "early";
   if (
     current.support >= 5 && current.sources.size >= 3 && concentration <= 0.6 &&
-    current.extractionConfidence >= 0.65 && (statisticallySupported || persistence >= 3)
+    current.extractionConfidence >= 0.65 && statisticallySupported
   ) {
     evidenceStrength = "strong";
   } else if (

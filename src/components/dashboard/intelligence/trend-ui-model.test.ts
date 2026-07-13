@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chartActionRows,
   chartBucketForDate,
   evidenceForChartPeriod,
   v2SignalToUi,
@@ -85,5 +86,30 @@ describe("interactive chart periods", () => {
       ["2026-07-10", "2026-07-11", "2026-07-12"],
       "2026-07-13",
     )).toBeNull();
+  });
+
+  it("exposes every chart annotation as an accessible action-table row", () => {
+    const signal = {
+      id: "system:c-uas",
+      label: "C-UAS",
+      annotations: [
+        { date: "2026-07-10", type: "award", label: "Contract awarded" },
+        { date: "2026-07-12", type: "trial_pilot", label: "Being tested" },
+      ],
+    } as never;
+    expect(chartActionRows([signal])).toEqual([
+      expect.objectContaining({
+        signalLabel: "C-UAS",
+        date: "2026-07-12",
+        type: "trial_pilot",
+        label: "Being tested",
+      }),
+      expect.objectContaining({
+        signalLabel: "C-UAS",
+        date: "2026-07-10",
+        type: "award",
+        label: "Contract awarded",
+      }),
+    ]);
   });
 });
