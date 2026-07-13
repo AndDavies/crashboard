@@ -23,3 +23,17 @@ export function analysisPhasePrecedesCheckpoint(
   return requestedIndex !== undefined && checkpointIndex !== undefined &&
     requestedIndex < checkpointIndex;
 }
+
+export function analysisProcessedCount(
+  result: Record<string, unknown>,
+  phase: IntelligenceAnalysisPhase,
+) {
+  const nested = result[phase];
+  const phaseResult = nested && typeof nested === "object"
+    ? nested as Record<string, unknown>
+    : {};
+  const value = result.processed ?? result.scanned ??
+    phaseResult.processed ?? phaseResult.scanned ?? 0;
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}

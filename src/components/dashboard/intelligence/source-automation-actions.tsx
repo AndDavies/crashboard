@@ -11,6 +11,7 @@ import {
 } from "@/lib/intelligence/full-backfill";
 import {
   INTELLIGENCE_ANALYSIS_PHASES,
+  analysisProcessedCount,
   type IntelligenceAnalysisPhase,
 } from "@/lib/intelligence/analysis-refresh";
 import { cn } from "@/lib/utils";
@@ -55,7 +56,7 @@ async function refreshSignals(onProgress?: (progress: AnalysisProgress) => void)
         phase: definition.phase,
       });
       batches += 1;
-      processed += Number(result.processed ?? result.scanned ?? 0);
+      processed += analysisProcessedCount(result, definition.phase);
       const signals = result.signals && typeof result.signals === "object"
         ? result.signals as Record<string, unknown>
         : {};

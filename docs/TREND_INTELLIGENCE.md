@@ -24,6 +24,11 @@ The migration set is:
 - `20260710220147_intelligence_pipeline_reliability.sql`
 - `20260713201137_intelligence_signals_v2_foundation.sql`
 - `20260713203600_intelligence_signals_v2_fk_indexes.sql`
+- `20260713213000_intelligence_v2_search_quality.sql`
+- `20260713214500_intelligence_story_review_clusters.sql`
+- `20260713221651_intelligence_term_processing_state.sql`
+- `20260713223000_intelligence_topic_merge_review.sql`
+- `20260713224702_intelligence_signal_daily_totals.sql`
 
 The first migration is compatible with both the legacy production `documents` shape and the newer checked-in ingestion snapshot. It adds the intelligence document fields without removing legacy `url`, `content`, `summary`, or source behavior.
 
@@ -59,6 +64,10 @@ Bounded-research defaults (no extra configuration required):
 Required to enable the v2 delivery surfaces after migration and backfill verification:
 
 - `INTELLIGENCE_SIGNALS_V2=true`
+
+Required to enable automatic trend-triggered research after source-cohort isolation is verified:
+
+- `INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED=true`
 
 Required to enable immediate delivery after the v2 series is verified:
 
