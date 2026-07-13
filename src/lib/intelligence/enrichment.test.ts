@@ -2,6 +2,7 @@ import type OpenAI from "openai";
 import { describe, expect, it, vi } from "vitest";
 import {
   createEmbedding,
+  createEmbeddings,
   INTELLIGENCE_EMBEDDING_CHUNK_BYTES,
   INTELLIGENCE_EMBEDDING_MAX_CHUNKS,
   INTELLIGENCE_EMBEDDING_TIMEOUT_MS,
@@ -78,5 +79,20 @@ describe("shouldDeeplyEnrich", () => {
     expect(INTELLIGENCE_OPENAI_MAX_RETRIES).toBe(0);
     expect(result[0]).toBeCloseTo(0.992278, 5);
     expect(result[1]).toBeCloseTo(0.124035, 5);
+  });
+
+  it("embeds several editorial segments in one request without mixing their vectors", async () => {
+    const create = vi.fn(async () => ({
+      data: [
+        { index: 1, embedding: [0, 1] },
+        { index: 0, embedding: [1, 0] },
+      ],
+    }));
+    const client = { embeddings: { create } } as unknown as OpenAI;
+
+    const result = await createEmbeddings(["first segment", "second segment"], { client });
+
+    expect(create).toHaveBeenCalledOnce();
+    expect(result).toEqual([[1, 0], [0, 1]]);
   });
 });

@@ -3,7 +3,10 @@ import { zodTextFormat } from "openai/helpers/zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { sha256Hex } from "@/lib/ingestion/hash";
-import { createEmbedding, INTELLIGENCE_EMBEDDING_MODEL } from "@/lib/intelligence/enrichment";
+import {
+  createEmbeddings,
+  INTELLIGENCE_EMBEDDING_MODEL,
+} from "@/lib/intelligence/enrichment";
 import { normalizeConceptKey } from "@/lib/intelligence/concepts";
 import { INTELLIGENCE_TERM_EXTRACTION_VERSION } from "@/lib/intelligence/term-observations";
 
@@ -429,19 +432,28 @@ export async function refreshConceptEmbeddingsBatch(
   let embedded = 0;
   let skipped = 0;
   const conceptRows = concepts.data ?? [];
-  for (let from = 0; from < conceptRows.length; from += 5) {
-    await Promise.all(conceptRows.slice(from, from + 5).map(async (concept) => {
+  const pending = conceptRows.filter((concept) => {
+    const taxonomyVersion = String(concept.taxonomy_version);
+    if (existingKeys.has(`${concept.id}|${taxonomyVersion}`)) {
+      skipped += 1;
+      return false;
+    }
+    return true;
+  });
+  for (let from = 0; from < pending.length; from += 5) {
+    const group = pending.slice(from, from + 5);
+    const embeddings = await createEmbeddings(
+      group.map((concept) =>
+        [concept.canonical_label, concept.description, concept.domain, concept.subdomain]
+          .filter(Boolean).join(". ")
+      ),
+      { client },
+    );
+    await Promise.all(group.map(async (concept, groupIndex) => {
       try {
         const taxonomyVersion = String(concept.taxonomy_version);
-        if (existingKeys.has(`${concept.id}|${taxonomyVersion}`)) {
-          skipped += 1;
-          return;
-        }
-        const embedding = await createEmbedding(
-          [concept.canonical_label, concept.description, concept.domain, concept.subdomain]
-            .filter(Boolean).join(". "),
-          { client },
-        );
+        const embedding = embeddings[groupIndex];
+        if (!embedding?.length) throw new Error("Embedding batch did not return this concept.");
         const write = await admin.from("intelligence_concept_embeddings").upsert({
           owner_id: ownerId,
           concept_id: concept.id,

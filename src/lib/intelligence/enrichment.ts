@@ -277,7 +277,16 @@ export async function createEmbedding(
   content: string,
   options: { client: OpenAI; model?: string },
 ) {
-  const inputs = prepareEmbeddingInputs(content);
+  return (await createEmbeddings([content], options))[0];
+}
+
+export async function createEmbeddings(
+  contents: string[],
+  options: { client: OpenAI; model?: string },
+) {
+  if (!contents.length) return [];
+  const prepared = contents.map(prepareEmbeddingInputs);
+  const inputs = prepared.flat();
   const response = await options.client.embeddings.create(
     {
       model: options.model ?? INTELLIGENCE_EMBEDDING_MODEL,
@@ -289,5 +298,16 @@ export async function createEmbedding(
       maxRetries: INTELLIGENCE_OPENAI_MAX_RETRIES,
     },
   );
-  return combineEmbeddings(inputs, response.data);
+  const vectors: number[][] = [];
+  const responseByIndex = new Map(response.data.map((item) => [item.index, item.embedding]));
+  let offset = 0;
+  for (const chunks of prepared) {
+    const data = chunks.map((_, index) => ({
+      index,
+      embedding: responseByIndex.get(offset + index) ?? [],
+    }));
+    vectors.push(combineEmbeddings(chunks, data));
+    offset += chunks.length;
+  }
+  return vectors;
 }

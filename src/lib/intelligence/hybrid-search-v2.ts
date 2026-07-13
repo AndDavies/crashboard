@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireDashboardUser } from "@/lib/blog/data";
 import {
   createEmbedding,
+  createEmbeddings,
   INTELLIGENCE_EMBEDDING_MODEL,
 } from "@/lib/intelligence/enrichment";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -249,8 +250,20 @@ export async function refreshSegmentEmbeddingsBatch(
   const failures: string[] = [];
   for (let offset = 0; offset < pending.length; offset += concurrency) {
     const group = pending.slice(offset, offset + concurrency);
-    const outcomes = await Promise.allSettled(group.map(async (segment) => {
-      const embedding = await createEmbedding(String(segment.content_text), { client });
+    let groupEmbeddings: number[][];
+    try {
+      groupEmbeddings = await createEmbeddings(
+        group.map((segment) => String(segment.content_text)),
+        { client },
+      );
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      failures.push(...group.map((segment) => `${segment.id}: ${reason}`));
+      continue;
+    }
+    const outcomes = await Promise.allSettled(group.map(async (segment, groupIndex) => {
+      const embedding = groupEmbeddings[groupIndex];
+      if (!embedding?.length) throw new Error("Embedding batch did not return this segment.");
       const write = await admin.from("intelligence_segment_embeddings").upsert({
         owner_id: ownerId,
         document_id: segment.document_id,
