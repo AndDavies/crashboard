@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { InteractiveTrendChart } from "./trend-chart";
 import {
   DIRECTION_LABELS,
+  evidenceForChartPeriod,
   KIND_LABELS,
   signalChange,
   type TrendEvidence,
@@ -73,16 +74,6 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(`${value.slice(0, 10)}T12:00:00Z`));
-}
-
-function evidenceInPeriod(evidence: TrendEvidence[], period: string | null) {
-  if (!period) return evidence;
-  const start = Date.parse(`${period}T00:00:00Z`);
-  const end = start + 7 * 24 * 60 * 60 * 1000;
-  return evidence.filter((item) => {
-    const date = Date.parse(item.date);
-    return date >= start && date < end;
-  });
 }
 
 function matchesLens(signal: TrendSignal, lens: Lens) {
@@ -170,6 +161,7 @@ function ResearchButton({ signal }: { signal: TrendSignal }) {
 
 export function ExploreWorkspace({
   signals,
+  listedSignalIds,
   searchResults,
   initialLens = "all",
   initialKind = "all",
@@ -181,6 +173,7 @@ export function ExploreWorkspace({
   usesLegacyFallback = false,
 }: {
   signals: TrendSignal[];
+  listedSignalIds: string[];
   searchResults: ExploreSearchResult[];
   initialLens?: Lens;
   initialKind?: KindFilter;
@@ -188,18 +181,20 @@ export function ExploreWorkspace({
   initialQuery?: string;
   initialSignalId?: string;
   initialCompare?: string[];
-  dataStatus?: "ready" | "building" | "schema_missing";
+  dataStatus?: "ready" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback?: boolean;
 }) {
   const query = initialQuery.trim();
   const visibleSignals = useMemo(() => signals
-    .filter((signal) => matchesLens(signal, initialLens))
-    .filter((signal) => initialKind === "all" || signal.kind === initialKind || (initialKind === "system" && signal.kind === "programme"))
-    .filter((signal) => matchesQuery(signal, query))
+    .filter((signal) => usesLegacyFallback
+      ? matchesLens(signal, initialLens)
+      : listedSignalIds.includes(signal.id))
+    .filter((signal) => !usesLegacyFallback || initialKind === "all" || signal.kind === initialKind || (initialKind === "system" && signal.kind === "programme"))
+    .filter((signal) => !usesLegacyFallback || matchesQuery(signal, query))
     .sort((a, b) => {
       const direction = { new: 4, rising: 3, sustained: 2, cooling: 1 };
       return direction[b.direction] - direction[a.direction] || signalChange(b) - signalChange(a);
-    }), [initialKind, initialLens, query, signals]);
+    }), [initialKind, initialLens, listedSignalIds, query, signals, usesLegacyFallback]);
   const firstSignal = signals.find((signal) => signal.id === initialSignalId)
     ?? visibleSignals[0]
     ?? signals[0]
@@ -216,7 +211,10 @@ export function ExploreWorkspace({
     .map((id) => signals.find((signal) => signal.id === id))
     .filter((signal): signal is TrendSignal => Boolean(signal))
     .map((signal) => filteredSeries(signal, initialRange));
-  const selectedEvidence = selected ? evidenceInPeriod(selected.evidence, selectedPeriod) : [];
+  const cadence = initialRange === "30d" ? "daily" : "weekly";
+  const selectedEvidence = selected
+    ? evidenceForChartPeriod(selected.evidence, selectedPeriod, cadence)
+    : [];
   const current = {
     lens: initialLens,
     kind: initialKind,
@@ -245,7 +243,7 @@ export function ExploreWorkspace({
       {usesLegacyFallback ? (
         <div className="border border-border bg-muted/20 p-4 text-sm leading-6">
           <p className="font-semibold">Detailed signal history is being prepared.</p>
-          <p className="mt-1 text-muted-foreground">Search and comparison are using the existing archive view while the new daily series {dataStatus === "schema_missing" ? "is installed" : "finishes its first refresh"}.</p>
+          <p className="mt-1 text-muted-foreground">Search and comparison are using the existing archive view while the new daily series {dataStatus === "schema_missing" ? "is installed" : dataStatus === "disabled" ? "waits for the production switch" : "finishes its complete archive backfill"}. Partial v2 results stay hidden.</p>
         </div>
       ) : null}
 
@@ -355,8 +353,26 @@ export function ExploreWorkspace({
                 <div><p className="text-xs font-semibold uppercase tracking-[0.12em]">What is happening</p><p className="mt-1 text-sm leading-6 text-muted-foreground">{selected.actions ? `${selected.actions} distinct buying, funding, testing, award, deployment, or policy actions are linked to this signal.` : "No distinct buying, funding, testing, award, deployment, or policy action has been confirmed yet."}</p></div>
               </div>
 
+              {selected.related.length ? (
+                <div className="mt-7 border-t border-border pt-5">
+                  <p className="editorial-kicker">Related signals and terms</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selected.related.map((related) => (
+                      <Link
+                        key={`${related.kind}:${related.id}`}
+                        href={hrefWith(current, { signal: related.id })}
+                        className="border border-border bg-background px-3 py-2 text-sm hover:border-foreground"
+                      >
+                        <span className="font-semibold">{related.label}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{KIND_LABELS[related.kind]}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="mt-7 border-t border-border pt-5">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="editorial-kicker">Evidence</p><h3 className="mt-1 font-heading text-xl font-semibold">{selectedPeriod ? `Week of ${formatDate(selectedPeriod)}` : "Important announcements and sources"}</h3></div>{selectedPeriod ? <Button variant="ghost" size="sm" onClick={() => setSelectedPeriod(null)}><X className="size-3" /> Clear period</Button> : null}</div>
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="editorial-kicker">Evidence</p><h3 className="mt-1 font-heading text-xl font-semibold">{selectedPeriod ? `${cadence === "daily" ? "Day" : "Week"} of ${formatDate(selectedPeriod)}` : "Important announcements and sources"}</h3></div>{selectedPeriod ? <Button variant="ghost" size="sm" onClick={() => setSelectedPeriod(null)}><X className="size-3" /> Clear period</Button> : null}</div>
                 {selectedEvidence.length ? (
                   <ul className="mt-3 divide-y divide-border border-t border-border">
                     {selectedEvidence.map((item) => (
@@ -369,7 +385,7 @@ export function ExploreWorkspace({
                       </li>
                     ))}
                   </ul>
-                ) : <p className="mt-4 text-sm text-muted-foreground">No retained evidence is dated in this selected period. Clear the period to see the signal’s strongest evidence.</p>}
+                ) : <p className="mt-4 text-sm text-muted-foreground">No retained evidence is dated in this selected {cadence === "daily" ? "day" : "week"}. Clear the period to see the signal’s strongest evidence.</p>}
               </div>
             </article>
           ) : <div className="border border-dashed border-border px-6 py-20 text-center text-sm text-muted-foreground">Choose a signal to see its explanation and evidence.</div>}

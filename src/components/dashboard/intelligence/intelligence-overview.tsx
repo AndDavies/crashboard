@@ -112,7 +112,7 @@ export function IntelligenceOverview({
   signals: TrendSignal[];
   completeThrough: string;
   completedResearch?: CompletedResearchItem[];
-  dataStatus?: "ready" | "building" | "schema_missing";
+  dataStatus?: "ready" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback?: boolean;
 }) {
   const sorted = [...signals].sort((a, b) => {
@@ -145,7 +145,7 @@ export function IntelligenceOverview({
       {usesLegacyFallback ? (
         <section className="border border-border bg-muted/20 p-4 text-sm leading-6">
           <p className="font-semibold">Detailed signal history is being prepared.</p>
-          <p className="mt-1 text-muted-foreground">The existing archive view remains visible while the new daily measurement series {dataStatus === "schema_missing" ? "is installed" : "finishes its first refresh"}. It will switch automatically when ready.</p>
+          <p className="mt-1 text-muted-foreground">The existing archive view remains visible while the new daily measurement series {dataStatus === "schema_missing" ? "is installed" : dataStatus === "disabled" ? "waits for the production switch" : "finishes its complete archive backfill"}. Partial v2 results stay hidden.</p>
         </section>
       ) : null}
 

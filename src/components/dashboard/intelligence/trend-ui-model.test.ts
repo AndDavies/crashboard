@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { v2SignalToUi } from "./trend-ui-model";
+import {
+  chartBucketForDate,
+  evidenceForChartPeriod,
+  v2SignalToUi,
+} from "./trend-ui-model";
 import type { IntelligenceSignalSummary } from "@/lib/intelligence/signals-v2-types";
 
 describe("v2 intelligence UI mapping", () => {
@@ -29,7 +33,7 @@ describe("v2 intelligence UI mapping", () => {
       whatToWatch: "Watch award dates and deployment milestones.",
       lensKeys: ["defence"],
       series: [{ date: "2026-07-12", shareOfCoverage: 23.9, items: 12, stories: 10, sources: 5, actions: 2, mentionsPer10k: 18 }],
-      related: [],
+      related: [{ id: "keyword:c-uas", kind: "keyword", label: "C-UAS" }],
       evidence: [{
         id: "research-source-1",
         documentId: "document-1",
@@ -55,5 +59,31 @@ describe("v2 intelligence UI mapping", () => {
     expect(result.evidenceStrength).toBe("Strong");
     expect(result.series[0]?.reach).toBe(23.9);
     expect(result.evidence[0]?.href).toBe("https://example.gov/official-release");
+    expect(result.related).toEqual([
+      { id: "keyword:c-uas", kind: "keyword", label: "C-UAS" },
+    ]);
+  });
+});
+
+describe("interactive chart periods", () => {
+  const evidence = [
+    { id: "a", title: "Day one", date: "2026-07-06T12:00:00Z", source: "A", href: "/a" },
+    { id: "b", title: "Day two", date: "2026-07-07T12:00:00Z", source: "B", href: "/b" },
+  ];
+
+  it("filters a daily point to one day and a weekly point to seven days", () => {
+    expect(evidenceForChartPeriod(evidence, "2026-07-06", "daily").map((item) => item.id)).toEqual(["a"]);
+    expect(evidenceForChartPeriod(evidence, "2026-07-06", "weekly").map((item) => item.id)).toEqual(["a", "b"]);
+  });
+
+  it("places an announcement on its containing weekly chart bucket", () => {
+    expect(chartBucketForDate(
+      ["2026-07-01", "2026-07-08", "2026-07-15"],
+      "2026-07-12",
+    )).toBe("2026-07-08");
+    expect(chartBucketForDate(
+      ["2026-07-10", "2026-07-11", "2026-07-12"],
+      "2026-07-13",
+    )).toBeNull();
   });
 });

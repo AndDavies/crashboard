@@ -21,6 +21,10 @@ import {
   type IntelligenceSignalSummary,
 } from "@/lib/intelligence/signals-v2-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  hasCompletedIntelligenceV2Backfill,
+  intelligenceSignalsV2Enabled,
+} from "@/lib/intelligence/v2-readiness";
 
 const PAGE_SIZE = 1_000;
 const DAY_MS = 86_400_000;
@@ -278,6 +282,18 @@ export async function getIntelligenceSignals(
     ? options.kind ?? "all"
     : "all";
   const completeThrough = latestCompleteDateKey();
+  if (!intelligenceSignalsV2Enabled()) {
+    return {
+      generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
+      total: 0, signals: [], comparison: [], dataStatus: "disabled",
+    };
+  }
+  if (!(await hasCompletedIntelligenceV2Backfill(admin, ownerId))) {
+    return {
+      generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
+      total: 0, signals: [], comparison: [], dataStatus: "building",
+    };
+  }
   const chartStart = addDays(completeThrough, -(rangeDays(range) - 1));
   const analysisStart = chartStart < addDays(completeThrough, -111)
     ? chartStart
@@ -299,7 +315,7 @@ export async function getIntelligenceSignals(
   }
   if (result.error) throw new Error(result.error.message);
   const rows = (result.data ?? []).map(parseDailyRow);
-  if (!rows.length) {
+  if (!rows.length || !rows.some((row) => row.signalDate === completeThrough)) {
     return {
       generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
       total: 0, signals: [], comparison: [], dataStatus: "building",

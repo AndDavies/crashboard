@@ -13,7 +13,7 @@ Private, evidence-backed trend analysis inside the authenticated Crashboard dash
 - Daily incremental sync, six-month backfill, newsletter-sender discovery, and a separate email digest.
 - Structured OpenAI extraction, embeddings, event/source clustering, entity aliases, evidence lineage, trend snapshots, and watchlist alerts.
 
-The Gmail integration requests `gmail.readonly` and `gmail.send`. It never archives, labels, deletes, moves, or changes the read state of a message. Send access is used only for the configured intelligence digest.
+The Gmail integration requests `gmail.readonly` and `gmail.send`. It never archives, labels, deletes, moves, or changes the read state of a message. Send access is used only for the configured intelligence digest and the bounded immediate-signal delivery described below.
 
 ## Database
 
@@ -60,6 +60,12 @@ Required to enable the v2 delivery surfaces after migration and backfill verific
 
 - `INTELLIGENCE_SIGNALS_V2=true`
 
+Required to enable immediate delivery after the v2 series is verified:
+
+- `INTELLIGENCE_IMMEDIATE_ALERTS_ENABLED=true`
+
+Immediate delivery selects only **Strong** signals classified as **New** or **Rising** with at least one distinct real-world action or primary-source item. It uses a deterministic daily claim and sends no more than two messages per Halifax calendar day, including when both daylight-saving cron triggers invoke the route.
+
 Research runs at low reasoning with medium search context, a maximum of four web searches per lead, five retained URLs per search, 100 fetched pages per day, and a seven-day per-signal cooldown. Research sources enter the `research` cohort and cannot affect a trend. Selecting **Approve as regular source** starts measurement prospectively; it does not rewrite historical scores.
 
 Optional:
@@ -67,6 +73,29 @@ Optional:
 - `INTELLIGENCE_DIGEST_TO` — otherwise the connected Gmail address receives the digest
 - `GOOGLE_GMAIL_REDIRECT_URI` — otherwise derived from `NEXT_PUBLIC_SITE_URL`
 - `INTELLIGENCE_JOB_SECRET` — local non-Vercel bearer fallback
+
+## Approved YouTube, Reddit, and social APIs
+
+These adapters never scrape unofficial transcripts or social webpages. Every collected document retains its source cohort and prospective measurement activation date, so a research-only source cannot change a trend score.
+
+For a YouTube source:
+
+1. Enable the [YouTube Data API](https://developers.google.com/youtube/v3/docs) in an approved Google Cloud project.
+2. Set `YOUTUBE_DATA_API_KEY`.
+3. Configure the source with one of `channel_id`, `playlist_id`, or `video_ids`.
+4. To include captions, set `include_captions: true` and provide `YOUTUBE_OAUTH_CLIENT_ID`, `YOUTUBE_OAUTH_CLIENT_SECRET`, and `YOUTUBE_OAUTH_REFRESH_TOKEN` authorized for `youtube.force-ssl`. The official [`captions.list`](https://developers.google.com/youtube/v3/docs/captions/list) and [`captions.download`](https://developers.google.com/youtube/v3/docs/captions/download) methods can return `403` when the account lacks permission; in that case Crashboard keeps the official video metadata and description and records that captions were not permitted.
+
+For a Reddit source:
+
+1. Obtain explicit Reddit API approval and an OAuth application.
+2. Set `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET`.
+3. Configure the source with `source_type: reddit` and a `subreddit` value. Crashboard reads the subreddit's `new` listing through `oauth.reddit.com`; the result is always classified as community evidence.
+
+For an X source:
+
+1. Use an approved X developer project and set `X_API_BEARER_TOKEN`.
+2. Configure `source_type: social`, `adapter: x_api_v2`, `x_user_id`, and `x_username`.
+3. Crashboard reads the official user-post timeline and classifies the result as community evidence.
 
 ## Google Cloud setup
 

@@ -5,6 +5,21 @@ import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
 type DbRow = Record<string, unknown>;
 const DAY_MS = 86_400_000;
 
+async function fetchPages<T>(
+  query: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>,
+) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += 1_000) {
+    const result = await query(from, from + 999);
+    if (result.error) throw new Error(result.error.message);
+    rows.push(...(result.data ?? []));
+    if ((result.data ?? []).length < 1_000) return rows;
+  }
+}
+
 function normalizedWords(value: unknown) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -106,23 +121,32 @@ function groupsFromSet(rows: DbRow[], set: DisjointSet) {
 }
 
 async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
-  const [segmentsResult, embeddingsResult, existingResult] = await Promise.all([
-    admin.from("intelligence_document_segments")
+  const [segmentRows, embeddingRows, existingRows, documentEntityRows, entityRows,
+    eventEvidenceRows, eventRows] = await Promise.all([
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_document_segments")
       .select("id,document_id,title,outbound_url,content_hash,confidence,documents!inner(title,published_at)")
       .eq("owner_id", ownerId).in("segment_type", ["editorial", "unknown"])
-      .is("exclusion_reason", null).order("id", { ascending: true }).limit(20_000),
-    admin.from("intelligence_segment_embeddings")
-      .select("segment_id,embedding").eq("owner_id", ownerId).limit(20_000),
-    admin.from("intelligence_clusters").select("id,metadata")
-      .eq("owner_id", ownerId).eq("cluster_type", "story").limit(20_000),
+      .is("exclusion_reason", null).order("id", { ascending: true }).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_segment_embeddings")
+      .select("segment_id,embedding").eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_clusters").select("id,metadata")
+      .eq("owner_id", ownerId).in("cluster_type", ["story", "story_review"]).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_document_entities")
+      .select("document_id,entity_id,confidence").eq("owner_id", ownerId)
+      .gte("confidence", 0.65).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_entities")
+      .select("id,entity_type").eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_event_evidence")
+      .select("event_id,document_id").eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_events")
+      .select("id,event_type,review_status").eq("owner_id", ownerId)
+      .neq("event_type", "other").neq("review_status", "rejected").range(from, to)),
   ]);
-  const error = [segmentsResult.error, embeddingsResult.error, existingResult.error].find(Boolean);
-  if (error) throw new Error(error.message);
-  const staleV2Ids = (existingResult.data ?? []).filter((row) => {
+  const staleV2Ids = existingRows.filter((row) => {
     const metadata = row.metadata && typeof row.metadata === "object"
       ? row.metadata as Record<string, unknown>
       : {};
-    return metadata.dedupe_version === "story-dedup-v2.0.0";
+    return ["story-dedup-v2.0.0", "story-review-v2.0.0"].includes(String(metadata.dedupe_version));
   }).map((row) => String(row.id));
   if (staleV2Ids.length) {
     const remove = await admin.from("intelligence_clusters").delete()
@@ -130,9 +154,31 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
     if (remove.error) throw new Error(remove.error.message);
   }
   const vectors = new Map(
-    (embeddingsResult.data ?? []).map((row) => [String(row.segment_id), embeddingVector(row.embedding)]),
+    embeddingRows.map((row) => [String(row.segment_id), embeddingVector(row.embedding)]),
   );
-  const segments = ((segmentsResult.data ?? []) as DbRow[]).map((segment) => {
+  const principalEntityTypes = new Set([
+    "organization", "government_agency", "program", "product_system", "capability_technology",
+  ]);
+  const entityTypeById = new Map(entityRows.map((row) => [String(row.id), String(row.entity_type)]));
+  const principalsByDocument = new Map<string, Set<string>>();
+  for (const row of documentEntityRows) {
+    if (!principalEntityTypes.has(entityTypeById.get(String(row.entity_id)) ?? "")) continue;
+    const documentId = String(row.document_id);
+    const values = principalsByDocument.get(documentId) ?? new Set<string>();
+    values.add(String(row.entity_id));
+    principalsByDocument.set(documentId, values);
+  }
+  const eventTypeById = new Map(eventRows.map((row) => [String(row.id), String(row.event_type)]));
+  const eventTypesByDocument = new Map<string, Set<string>>();
+  for (const row of eventEvidenceRows) {
+    const eventType = eventTypeById.get(String(row.event_id));
+    if (!eventType) continue;
+    const documentId = String(row.document_id);
+    const values = eventTypesByDocument.get(documentId) ?? new Set<string>();
+    values.add(eventType);
+    eventTypesByDocument.set(documentId, values);
+  }
+  const segments = segmentRows.map((segment) => {
     const document = Array.isArray(segment.documents) ? segment.documents[0] : segment.documents;
     const value = document && typeof document === "object" ? document as DbRow : {};
     return {
@@ -144,6 +190,12 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
   }).filter((segment) => Boolean(segment.published_at))
     .sort((a, b) => String(a.published_at).localeCompare(String(b.published_at)));
   const set = new DisjointSet();
+  const reviewCandidates: Array<{
+    left: DbRow;
+    right: DbRow;
+    titleScore: number;
+    embeddingScore: number;
+  }> = [];
   const exactOwner = new Map<string, string>();
   for (const segment of segments) {
     const id = String(segment.id);
@@ -161,11 +213,31 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
         if (rightDate > leftDate) break;
         continue;
       }
-      if (titleSimilarity(segments[left].story_title, segments[right].story_title) < 0.5) continue;
+      const leftPrincipals = principalsByDocument.get(String(segments[left].document_id)) ?? new Set<string>();
+      const rightPrincipals = principalsByDocument.get(String(segments[right].document_id)) ?? new Set<string>();
+      const sharesPrincipal = [...leftPrincipals].some((id) => rightPrincipals.has(id));
+      const leftEventTypes = eventTypesByDocument.get(String(segments[left].document_id)) ?? new Set<string>();
+      const rightEventTypes = eventTypesByDocument.get(String(segments[right].document_id)) ?? new Set<string>();
+      const hasCompatibleEvent = [...leftEventTypes].some((eventType) => rightEventTypes.has(eventType));
+      if (sharesPrincipal && hasCompatibleEvent) {
+        set.union(String(segments[left].id), String(segments[right].id));
+        continue;
+      }
+      const titleScore = titleSimilarity(segments[left].story_title, segments[right].story_title);
+      if (titleScore < 0.5) continue;
       const leftVector = vectors.get(String(segments[left].id)) ?? [];
       const rightVector = vectors.get(String(segments[right].id)) ?? [];
-      if (cosineSimilarity(leftVector, rightVector) < 0.86) continue;
-      set.union(String(segments[left].id), String(segments[right].id));
+      const embeddingScore = cosineSimilarity(leftVector, rightVector);
+      if (embeddingScore >= 0.86) {
+        set.union(String(segments[left].id), String(segments[right].id));
+      } else if (embeddingScore >= 0.8) {
+        reviewCandidates.push({
+          left: segments[left],
+          right: segments[right],
+          titleScore,
+          embeddingScore,
+        });
+      }
     }
   }
   const groups = groupsFromSet(segments, set);
@@ -221,7 +293,7 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
     );
     if (write.error) throw new Error(write.error.message);
   }
-  const segmentRows = clusterRows.flatMap((cluster) => {
+  const segmentMembershipRows = clusterRows.flatMap((cluster) => {
     const clusterId = clusterByFingerprint.get(cluster.fingerprint)!;
     const canonicalSegmentId = String((cluster.metadata as { canonical_segment_id: unknown }).canonical_segment_id);
     return cluster.group.map((segment) => ({
@@ -231,70 +303,123 @@ async function rebuildStoryClusters(admin: SupabaseClient, ownerId: string) {
       relationship: String(segment.id) === canonicalSegmentId ? "canonical" : "member",
     }));
   });
-  for (let index = 0; index < segmentRows.length; index += 500) {
+  for (let index = 0; index < segmentMembershipRows.length; index += 500) {
     const write = await admin.from("intelligence_cluster_segments").upsert(
-      segmentRows.slice(index, index + 500),
+      segmentMembershipRows.slice(index, index + 500),
+      { onConflict: "cluster_id,segment_id" },
+    );
+    if (write.error) throw new Error(write.error.message);
+  }
+  const unresolvedCandidates = reviewCandidates.filter((candidate) =>
+    set.find(String(candidate.left.id)) !== set.find(String(candidate.right.id))
+  );
+  const reviewClusterRows = unresolvedCandidates.map((candidate) => {
+    const segmentIds = [String(candidate.left.id), String(candidate.right.id)].sort();
+    return {
+      owner_id: ownerId,
+      cluster_type: "story_review",
+      canonical_document_id: candidate.left.document_id,
+      fingerprint: sha256Hex(`story-review|${segmentIds.join("|")}`),
+      title: candidate.left.story_title,
+      metadata: {
+        member_count: 2,
+        segment_ids: segmentIds,
+        title_similarity: candidate.titleScore,
+        embedding_similarity: candidate.embeddingScore,
+        dedupe_version: "story-review-v2.0.0",
+      },
+      updated_at: new Date().toISOString(),
+      candidate,
+    };
+  });
+  const reviewClusterByFingerprint = new Map<string, string>();
+  for (let index = 0; index < reviewClusterRows.length; index += 500) {
+    const write = await admin.from("intelligence_clusters").upsert(
+      reviewClusterRows.slice(index, index + 500).map(({ candidate, ...row }) => {
+        if (!candidate.left.id || !candidate.right.id) throw new Error("Review pair cannot be empty.");
+        return row;
+      }),
+      { onConflict: "owner_id,cluster_type,fingerprint" },
+    ).select("id,fingerprint");
+    if (write.error) throw new Error(write.error.message);
+    for (const row of write.data ?? []) {
+      reviewClusterByFingerprint.set(String(row.fingerprint), String(row.id));
+    }
+  }
+  const reviewSegmentRows = reviewClusterRows.flatMap((cluster) => {
+    const clusterId = reviewClusterByFingerprint.get(cluster.fingerprint)!;
+    return [cluster.candidate.left, cluster.candidate.right].map((segment) => ({
+      owner_id: ownerId,
+      cluster_id: clusterId,
+      segment_id: segment.id,
+      relationship: "review_candidate",
+    }));
+  });
+  for (let index = 0; index < reviewSegmentRows.length; index += 500) {
+    const write = await admin.from("intelligence_cluster_segments").upsert(
+      reviewSegmentRows.slice(index, index + 500),
       { onConflict: "cluster_id,segment_id" },
     );
     if (write.error) throw new Error(write.error.message);
   }
   return {
     storyClusters: clusterRows.length,
-    storySegmentMemberships: segmentRows.length,
+    storySegmentMemberships: segmentMembershipRows.length,
     storyDocumentMemberships: documentRows.length,
+    storyReviewCandidates: reviewClusterRows.length,
   };
 }
 
 async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, completeThrough: string) {
-  const [eventsResult, evidenceResult, eventEntitiesResult, entitiesResult,
-    conceptsResult, allEventEntitiesResult, documentConceptsResult,
-    documentEntitiesResult] = await Promise.all([
-    admin.from("intelligence_events")
+  const [eventRows, evidenceRowsInput, eventEntityPrincipalRows, entityRows,
+    conceptRowsInput, allEventEntityRows, documentConceptRows,
+    documentEntityRows] = await Promise.all([
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_events")
       .select("id,title,event_type,announced_at,occurred_at,confidence,cluster_id,review_status,metadata")
       .eq("owner_id", ownerId).neq("event_type", "other").neq("review_status", "rejected")
-      .limit(10_000),
-    admin.from("intelligence_event_evidence").select("*").eq("owner_id", ownerId).limit(20_000),
-    admin.from("intelligence_event_entities").select("event_id,entity_id,role")
-      .eq("owner_id", ownerId).limit(20_000),
-    admin.from("intelligence_entities").select("id,entity_type").eq("owner_id", ownerId).limit(10_000),
-    admin.from("intelligence_event_concepts").select("*").eq("owner_id", ownerId).limit(20_000),
-    admin.from("intelligence_event_entities").select("*").eq("owner_id", ownerId).limit(20_000),
-    admin.from("intelligence_document_concepts")
+      .range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_event_evidence").select("*")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_event_entities")
+      .select("event_id,entity_id,role").eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_entities").select("id,entity_type")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_event_concepts").select("*")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_event_entities").select("*")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_document_concepts")
       .select("document_id,concept_id,confidence,evidence_text")
-      .eq("owner_id", ownerId).gte("confidence", 0.65).limit(50_000),
-    admin.from("intelligence_document_entities")
+      .eq("owner_id", ownerId).gte("confidence", 0.65).range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_document_entities")
       .select("document_id,entity_id,role,confidence,evidence_text")
-      .eq("owner_id", ownerId).gte("confidence", 0.65).limit(50_000),
+      .eq("owner_id", ownerId).gte("confidence", 0.65).range(from, to)),
   ]);
-  const error = [eventsResult.error, evidenceResult.error, eventEntitiesResult.error,
-    entitiesResult.error, conceptsResult.error, allEventEntitiesResult.error,
-    documentConceptsResult.error, documentEntitiesResult.error].find(Boolean);
-  if (error) throw new Error(error.message);
   const evidenceByEvent = new Map<string, DbRow[]>();
-  for (const row of evidenceResult.data ?? []) {
+  for (const row of evidenceRowsInput) {
     const values = evidenceByEvent.get(String(row.event_id)) ?? [];
-    values.push(row as DbRow);
+    values.push(row);
     evidenceByEvent.set(String(row.event_id), values);
   }
   const documentConcepts = new Map<string, DbRow[]>();
-  for (const row of documentConceptsResult.data ?? []) {
+  for (const row of documentConceptRows) {
     const values = documentConcepts.get(String(row.document_id)) ?? [];
     values.push(row as DbRow);
     documentConcepts.set(String(row.document_id), values);
   }
   const documentEntities = new Map<string, DbRow[]>();
-  for (const row of documentEntitiesResult.data ?? []) {
+  for (const row of documentEntityRows) {
     const values = documentEntities.get(String(row.document_id)) ?? [];
     values.push(row as DbRow);
     documentEntities.set(String(row.document_id), values);
   }
-  const eventConceptRows: DbRow[] = [...(conceptsResult.data ?? [])] as DbRow[];
-  const eventEntityRowsAll: DbRow[] = [...(allEventEntitiesResult.data ?? [])] as DbRow[];
+  const eventConceptRows: DbRow[] = [...conceptRowsInput];
+  const eventEntityRowsAll: DbRow[] = [...allEventEntityRows];
   const conceptLinked = new Set(eventConceptRows.map((row) => String(row.event_id)));
   const entityLinked = new Set(eventEntityRowsAll.map((row) => String(row.event_id)));
   const inferredConceptRows: DbRow[] = [];
   const inferredEntityRows: DbRow[] = [];
-  for (const event of eventsResult.data ?? []) {
+  for (const event of eventRows) {
     const eventId = String(event.id);
     const evidenceDocuments = (evidenceByEvent.get(eventId) ?? []).map((row) => String(row.document_id));
     if (!conceptLinked.has(eventId)) {
@@ -350,9 +475,9 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
   }
   eventConceptRows.push(...inferredConceptRows);
   eventEntityRowsAll.push(...inferredEntityRows);
-  const entityType = new Map((entitiesResult.data ?? []).map((row) => [String(row.id), String(row.entity_type)]));
+  const entityType = new Map(entityRows.map((row) => [String(row.id), String(row.entity_type)]));
   const entitiesByEvent = new Map<string, Array<{ id: string; type: string; role: string }>>();
-  for (const row of eventEntityRowsAll) {
+  for (const row of eventEntityRowsAll.length ? eventEntityRowsAll : eventEntityPrincipalRows) {
     const eventId = String(row.event_id);
     const values = entitiesByEvent.get(eventId) ?? [];
     values.push({ id: String(row.entity_id), type: entityType.get(String(row.entity_id)) ?? "", role: String(row.role) });
@@ -369,15 +494,24 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
           /buyer|customer|agency|operator|subject/iu.test(value.role) ? 2 : 1;
       return score(b) - score(a);
     })[0]?.id ?? null;
-  const genericIds = ((eventsResult.data ?? []) as DbRow[]).filter((event) =>
+  const genericIds = eventRows.filter((event) =>
     /\b(?:daily|weekly) (?:brief|roundup)|\bnews digest\b|\btop stories\b/iu.test(String(event.title))
   ).map((event) => String(event.id));
-  if (genericIds.length) {
+  const futureIds = eventRows.filter((event) => {
+    const announced = String(event.announced_at ?? "").slice(0, 10);
+    const occurred = String(event.occurred_at ?? "").slice(0, 10);
+    return announced > completeThrough || occurred > completeThrough;
+  }).map((event) => String(event.id));
+  const invalidProcurementIds = eventRows.filter((event) =>
+    event.event_type === "procurement_notice" && !principal(String(event.id))
+  ).map((event) => String(event.id));
+  const rejectedIds = [...new Set([...genericIds, ...futureIds, ...invalidProcurementIds])];
+  if (rejectedIds.length) {
     const exclude = await admin.from("intelligence_events").update({ review_status: "rejected" })
-      .eq("owner_id", ownerId).in("id", genericIds).eq("review_status", "unreviewed");
+      .eq("owner_id", ownerId).in("id", rejectedIds);
     if (exclude.error) throw new Error(exclude.error.message);
   }
-  const events = ((eventsResult.data ?? []) as DbRow[]).filter((event) => {
+  const events = eventRows.filter((event) => {
     const date = eventDay(event);
     const announced = String(event.announced_at ?? "").slice(0, 10);
     const occurred = String(event.occurred_at ?? "").slice(0, 10);
@@ -405,7 +539,7 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
     }
   }
   const groups = groupsFromSet(events, set);
-  let duplicateEventsRemoved = 0;
+  let duplicateEventsCollapsed = 0;
   for (const group of groups) {
     // Existing ingestion already creates one event cluster per event. Only
     // write when two or more extracted events resolve to the same story.
@@ -483,10 +617,13 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
         });
         if (write.error) throw new Error(write.error.message);
       }
-      const remove = await admin.from("intelligence_events").delete()
-        .eq("owner_id", ownerId).in("id", duplicateIds);
-      if (remove.error) throw new Error(remove.error.message);
-      duplicateEventsRemoved += duplicateIds.length;
+      const collapse = await admin.from("intelligence_events").update({
+        cluster_id: clusterId,
+        review_status: "rejected",
+        updated_at: new Date().toISOString(),
+      }).eq("owner_id", ownerId).in("id", duplicateIds);
+      if (collapse.error) throw new Error(collapse.error.message);
+      duplicateEventsCollapsed += duplicateIds.length;
     }
   }
   const linkedEventIds = new Set([
@@ -495,12 +632,15 @@ async function rebuildEventClusters(admin: SupabaseClient, ownerId: string, comp
   ]);
   return {
     eventClusters: groups.length,
-    duplicateEventsRemoved,
+    duplicateEventsRemoved: 0,
+    duplicateEventsCollapsed,
     usableEvents: events.length,
     linkedUsableEvents: events.filter((event) => linkedEventIds.has(String(event.id))).length,
     inferredConceptLinks: inferredConceptRows.length,
     inferredEntityLinks: inferredEntityRows.length,
     genericEventsExcluded: genericIds.length,
+    futureEventsExcluded: futureIds.length,
+    invalidProcurementsExcluded: invalidProcurementIds.length,
   };
 }
 

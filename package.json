@@ -15,6 +15,7 @@
     "intelligence:collect": "tsx scripts/intelligence-collect.ts",
     "intelligence:research": "tsx scripts/intelligence-research.ts",
     "intelligence:v2-backfill": "NODE_OPTIONS=--conditions=react-server tsx scripts/intelligence-v2-backfill.ts",
+    "intelligence:v2-evaluate": "tsx scripts/intelligence-v2-evaluate.ts",
     "intelligence:reprocess": "tsx scripts/intelligence-reprocess.ts",
     "intelligence:rebuild-relationships": "tsx scripts/intelligence-rebuild-relationships.ts",
     "intelligence:import-connector": "tsx scripts/intelligence-import-connector.ts",

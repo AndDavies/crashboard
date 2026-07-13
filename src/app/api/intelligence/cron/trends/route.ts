@@ -7,6 +7,7 @@ import {
 } from "@/lib/intelligence/cron";
 import { refreshTrendSnapshots } from "@/lib/intelligence/trends";
 import { refreshSignalsV2 } from "@/lib/intelligence/signal-refresh-v2";
+import { sendImmediateIntelligenceAlerts } from "@/lib/intelligence/immediate-alerts";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -46,6 +47,14 @@ export async function GET(request: NextRequest) {
       }),
       refreshSignalsV2(admin, ownerId),
     ]);
+    let immediateAlerts: Awaited<ReturnType<typeof sendImmediateIntelligenceAlerts>> | { skipped: true; reason: string; sent: 0 };
+    try {
+      immediateAlerts = await sendImmediateIntelligenceAlerts(admin, ownerId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Immediate alert delivery failed.";
+      console.error("[intelligence] Immediate alerts failed after signal refresh.", error);
+      immediateAlerts = { skipped: true, reason: message, sent: 0 };
+    }
     const completedAt = new Date().toISOString();
     const finish = await admin
       .from("intelligence_runs")
@@ -57,13 +66,14 @@ export async function GET(request: NextRequest) {
           v2_signal_count: v2.signalCount,
           v2_daily_row_count: v2.dailyRowCount,
           metric_version: v2.metricVersion,
+          immediate_alerts: immediateAlerts,
         },
         heartbeat_at: completedAt,
         completed_at: completedAt,
       })
       .eq("id", runId);
     if (finish.error) throw new Error(finish.error.message);
-    return NextResponse.json({ result: { legacy, v2 } });
+    return NextResponse.json({ result: { legacy, v2, immediateAlerts } });
   } catch (error) {
     if (runId) {
       const completedAt = new Date().toISOString();

@@ -2,12 +2,68 @@ import { describe, expect, it } from "vitest";
 import {
   buildNearestNeighbourGraph,
   classBasedTfidf,
+  decideSegmentTopicAssignment,
   decideTopicAssignment,
   meanEmbedding,
   qualifyingTopicComponents,
+  TOPIC_ASSIGNMENT_SIMILARITY,
   type TopicGraphNode,
   type TopicTermEvidence,
 } from "@/lib/intelligence/topic-maintenance-v2";
+
+describe("segment topic assignment order", () => {
+  const concepts = [
+    { conceptId: "defence-near", domain: "Defence", embedding: [1, 0] },
+    { conceptId: "cyber-nearer", domain: "Cybersecurity", embedding: [0.999, 0.001] },
+  ];
+
+  it("uses an exact canonical or alias term before a stronger semantic match", () => {
+    const decision = decideSegmentTopicAssignment({
+      terms: [
+        { normalizedTerm: "C-UAS", displayTerm: "C-UAS", count: 2, salience: 0.8 },
+      ],
+      exactAliases: new Map([["c uas", "exact-counter-uas"]]),
+      segmentDomain: "Defence",
+      segmentEmbedding: [1, 0],
+      concepts,
+    });
+    expect(decision).toEqual({
+      action: "exact_alias",
+      conceptId: "exact-counter-uas",
+      similarity: 1,
+      matchedTerm: "c uas",
+    });
+  });
+
+  it("selects only a same-domain concept at the inclusive 0.84 gate", () => {
+    const thresholdVector = [
+      TOPIC_ASSIGNMENT_SIMILARITY,
+      Math.sqrt(1 - TOPIC_ASSIGNMENT_SIMILARITY ** 2),
+    ];
+    const decision = decideSegmentTopicAssignment({
+      terms: [],
+      exactAliases: new Map(),
+      segmentDomain: "Defence",
+      segmentEmbedding: thresholdVector,
+      concepts,
+    });
+    expect(decision.action).toBe("semantic");
+    expect(decision.conceptId).toBe("defence-near");
+    expect(decision.similarity).toBeCloseTo(TOPIC_ASSIGNMENT_SIMILARITY, 8);
+  });
+
+  it("leaves sub-threshold segments for the candidate graph", () => {
+    const decision = decideSegmentTopicAssignment({
+      terms: [{ normalizedTerm: "novel distributed sensing" }],
+      exactAliases: new Map(),
+      segmentDomain: "Defence",
+      segmentEmbedding: [0.83, Math.sqrt(1 - 0.83 ** 2)],
+      concepts,
+    });
+    expect(decision.action).toBe("unassigned");
+    expect(decision.similarity).toBeCloseTo(0.83, 8);
+  });
+});
 
 describe("topic maintenance assignment guards", () => {
   it("prefers exact aliases and only auto-merges at 0.92 or above", () => {

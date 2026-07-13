@@ -16,7 +16,11 @@ import {
   type TooltipContentProps,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import type { TrendSeriesPoint, TrendSignal } from "./trend-ui-model";
+import {
+  chartBucketForDate,
+  type TrendSeriesPoint,
+  type TrendSignal,
+} from "./trend-ui-model";
 
 const SERIES_STYLES = [
   { colour: "#8fb51f", dash: undefined },
@@ -190,10 +194,16 @@ export function InteractiveTrendChart({
               )}
             />
             {signals.flatMap((signal) =>
-              signal.annotations.map((annotation) => (
+              signal.annotations.flatMap((annotation) => {
+                const chartDate = chartBucketForDate(
+                  signal.series.map((point) => point.date),
+                  annotation.date,
+                );
+                if (!chartDate) return [];
+                return [(
                 <ReferenceLine
                   key={`${signal.id}:${annotation.date}:${annotation.type}`}
-                  x={annotation.date}
+                  x={chartDate}
                   stroke="var(--muted-foreground)"
                   strokeDasharray="2 4"
                   label={{
@@ -203,7 +213,8 @@ export function InteractiveTrendChart({
                     fill: "var(--muted-foreground)",
                   }}
                 />
-              )),
+                )];
+              }),
             )}
             {selectedPeriod ? (
               <ReferenceLine x={selectedPeriod} stroke="var(--foreground)" strokeWidth={2} />
@@ -294,7 +305,7 @@ export function InteractiveTrendChart({
                     const point = row[`${signal.id}:detail`] as TrendSeriesPoint | undefined;
                     return (
                       <td key={signal.id} className="px-3 py-2">
-                        {point ? `${point.reach.toFixed(1)}% · ${point.stories} stories · ${point.sources} sources` : "—"}
+                        {point ? `${point.reach.toFixed(1)}% · ${point.change >= 0 ? "+" : ""}${point.change.toFixed(1)} points · ${point.stories} stories · ${point.sources} sources · ${point.actions} actions` : "—"}
                       </td>
                     );
                   })}

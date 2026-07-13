@@ -58,6 +58,22 @@ function object(value: unknown): DbRow {
   return candidate && typeof candidate === "object" ? candidate as DbRow : {};
 }
 
+function normalizedSearchText(value: unknown) {
+  return ` ${String(value ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-CA")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()} `;
+}
+
+function segmentSupportsLabel(content: string, label: unknown, evidence: unknown) {
+  const haystack = normalizedSearchText(content);
+  const labelText = normalizedSearchText(label).trim();
+  if (labelText.length >= 3 && haystack.includes(` ${labelText} `)) return true;
+  const evidenceText = normalizedSearchText(evidence).trim();
+  return evidenceText.length >= 12 && haystack.includes(` ${evidenceText} `);
+}
+
 function lensKeys(label: string, domain = ""): IntelligenceSignalLens[] {
   const value = `${label} ${domain}`.toLocaleLowerCase("en-CA");
   const lenses: IntelligenceSignalLens[] = ["all"];
@@ -137,7 +153,7 @@ export async function refreshSignalsV2(
     eventEvidence, eventConcepts, eventEntities] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin
       .from("intelligence_document_segments")
-      .select("id,document_id,segment_type,token_count,confidence,metadata,exclusion_reason,documents!inner(id,title,publisher_name,published_at,created_at,source_identity_id,metadata)")
+      .select("id,document_id,content_text,segment_type,token_count,confidence,metadata,exclusion_reason,documents!inner(id,title,publisher_name,published_at,created_at,source_identity_id,metadata)")
       .eq("owner_id", ownerId)
       .in("segment_type", ["editorial", "unknown"])
       .is("exclusion_reason", null)
@@ -171,13 +187,13 @@ export async function refreshSignalsV2(
       .select("id,concept_type,canonical_label,domain,status")
       .eq("owner_id", ownerId).in("status", ["active", "candidate"]).range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_concepts")
-      .select("document_id,segment_id,concept_id,mention_count,confidence")
+      .select("document_id,segment_id,concept_id,mention_count,confidence,evidence_text")
       .eq("owner_id", ownerId).gte("confidence", 0.6).range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_entities")
       .select("id,entity_type,canonical_name,status")
       .eq("owner_id", ownerId).eq("status", "active").range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_entities")
-      .select("document_id,entity_id,mention_count,confidence")
+      .select("document_id,entity_id,mention_count,confidence,evidence_text")
       .eq("owner_id", ownerId).gte("confidence", 0.6).range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_events")
       .select("id,cluster_id,event_type,announced_at,occurred_at,confidence,review_status")
@@ -209,7 +225,8 @@ export async function refreshSignalsV2(
 
   const items: SignalMeasurementItem[] = [];
   const itemBySegment = new Map<string, SignalMeasurementItem>();
-  const firstItemByDocument = new Map<string, SignalMeasurementItem>();
+  const itemsByDocument = new Map<string, SignalMeasurementItem[]>();
+  const contentByItem = new Map<string, string>();
   for (const row of segments) {
     const document = object(row.documents);
     const publishedAt = String(document.published_at ?? document.created_at ?? "");
@@ -225,13 +242,21 @@ export async function refreshSignalsV2(
       documentId,
       date,
       tokenCount: Number(row.token_count ?? 0),
-      sourceFamily: String(identity.normalized_family ?? identity.source_family ?? document.publisher_name ?? `document:${documentId}`),
+      sourceFamily: String(
+        identity.normalized_family
+          ?? identity.source_family
+          ?? document.publisher_name
+          ?? "unknown source",
+      ),
       authorityTier: String(identity.authority_tier ?? "unknown"),
       storyId: storyBySegment.get(segmentId) ?? storyByDocument.get(documentId) ?? `document:${documentId}`,
     };
     items.push(item);
     itemBySegment.set(segmentId, item);
-    if (!firstItemByDocument.has(documentId)) firstItemByDocument.set(documentId, item);
+    contentByItem.set(segmentId, String(row.content_text ?? ""));
+    const documentItems = itemsByDocument.get(documentId) ?? [];
+    documentItems.push(item);
+    itemsByDocument.set(documentId, documentItems);
   }
 
   const entityCountByEvent = new Map<string, number>();
@@ -316,23 +341,36 @@ export async function refreshSignalsV2(
   for (const row of documentConcepts) {
     const concept = conceptById.get(String(row.concept_id));
     if (!concept) continue;
-    const item = (row.segment_id ? itemBySegment.get(String(row.segment_id)) : null) ??
-      firstItemByDocument.get(String(row.document_id));
-    if (!item) continue;
     const kind = conceptSignalKind(concept.concept_type);
     const id = String(concept.id);
     const label = String(concept.canonical_label);
-    observations.push({
-      itemId: item.id,
-      signalKey: `${kind}:${id}`,
-      signalId: id,
-      signalKind: kind,
-      signalLabel: label,
-      mentions: Number(row.mention_count ?? 1),
-      extractionConfidence: Number(row.confidence ?? 0.6),
-      lensKeys: lensKeys(label, String(concept.domain ?? "")),
-      actionIds: actions(item.documentId, eventIdsByConcept.get(id)),
-    });
+    const documentItems = itemsByDocument.get(String(row.document_id)) ?? [];
+    const directItem = row.segment_id ? itemBySegment.get(String(row.segment_id)) : null;
+    const matchedItems = directItem ? [directItem] : documentItems.filter((item) =>
+      segmentSupportsLabel(
+        contentByItem.get(item.id) ?? "",
+        label,
+        row.evidence_text,
+      )
+    );
+    const supportedItems = matchedItems.length
+      ? matchedItems
+      : documentItems.length === 1
+        ? documentItems
+        : [];
+    for (const item of supportedItems) {
+      observations.push({
+        itemId: item.id,
+        signalKey: `${kind}:${id}`,
+        signalId: id,
+        signalKind: kind,
+        signalLabel: label,
+        mentions: Number(row.mention_count ?? 1),
+        extractionConfidence: Number(row.confidence ?? 0.6),
+        lensKeys: lensKeys(label, String(concept.domain ?? "")),
+        actionIds: actions(item.documentId, eventIdsByConcept.get(id)),
+      });
+    }
   }
 
   const entityById = new Map(entities.map((row) => [String(row.id), row]));
@@ -340,21 +378,32 @@ export async function refreshSignalsV2(
     const entity = entityById.get(String(row.entity_id));
     const kind = entity ? entitySignalKind(entity.entity_type) : null;
     if (!entity || !kind) continue;
-    const item = firstItemByDocument.get(String(row.document_id));
-    if (!item) continue;
     const id = String(entity.id);
     const label = String(entity.canonical_name);
-    observations.push({
-      itemId: item.id,
-      signalKey: `${kind}:${id}`,
-      signalId: id,
-      signalKind: kind,
-      signalLabel: label,
-      mentions: Number(row.mention_count ?? 1),
-      extractionConfidence: Number(row.confidence ?? 0.6),
-      lensKeys: lensKeys(label),
-      actionIds: actions(item.documentId, eventIdsByEntity.get(id)),
-    });
+    const documentItems = itemsByDocument.get(String(row.document_id)) ?? [];
+    const matchedItems = documentItems.filter((item) => segmentSupportsLabel(
+      contentByItem.get(item.id) ?? "",
+      label,
+      row.evidence_text,
+    ));
+    const supportedItems = matchedItems.length
+      ? matchedItems
+      : documentItems.length === 1
+        ? documentItems
+        : [];
+    for (const item of supportedItems) {
+      observations.push({
+        itemId: item.id,
+        signalKey: `${kind}:${id}`,
+        signalId: id,
+        signalKind: kind,
+        signalLabel: label,
+        mentions: Number(row.mention_count ?? 1),
+        extractionConfidence: Number(row.confidence ?? 0.6),
+        lensKeys: lensKeys(label),
+        actionIds: actions(item.documentId, eventIdsByEntity.get(id)),
+      });
+    }
   }
 
   const dailyRows = buildCanonicalSignalDailyRows({ items, observations });
@@ -583,4 +632,5 @@ export const __testables = {
   entitySignalKind,
   isMeasurementDocument,
   lensKeys,
+  segmentSupportsLabel,
 };

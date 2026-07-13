@@ -27,20 +27,30 @@ export default async function ExplorePage({
   const kindValue = first(params.kind) ?? "all";
   const rangeValue = first(params.range) ?? "90d";
   const compare = (first(params.compare) ?? "").split(",").map((id) => id.trim()).filter(Boolean).slice(0, 5);
+  const requestedSignal = (first(params.signal) ?? "").trim();
   const lens = (LENSES.has(lensValue) ? lensValue : "all") as "all" | "defence" | "ai" | "cyber" | "canada-allies";
   const kind = (KINDS.has(kindValue) ? kindValue : "all") as "all" | "topic" | "keyword" | "organization" | "system";
   const range = (RANGES.has(rangeValue) ? rangeValue : "90d") as "30d" | "90d" | "180d" | "365d";
-  const data = await getIntelligenceUiData({ range, lens, kind, q: q || undefined, compare });
+  const loadComparison = [...new Set([requestedSignal, ...compare].filter(Boolean))].slice(0, 5);
+  const data = await getIntelligenceUiData({
+    range,
+    lens,
+    kind,
+    q: q || undefined,
+    compare: loadComparison,
+  });
 
   return (
     <ExploreWorkspace
+      key={[lens, kind, range, q, requestedSignal, compare.join(",")].join(":")}
       signals={data.signals}
+      listedSignalIds={data.listedSignalIds}
       searchResults={data.searchResults}
       initialLens={lens}
       initialKind={kind}
       initialRange={range}
       initialQuery={q}
-      initialSignalId={first(params.signal)}
+      initialSignalId={requestedSignal || undefined}
       initialCompare={compare}
       dataStatus={data.dataStatus}
       usesLegacyFallback={data.usesLegacyFallback}

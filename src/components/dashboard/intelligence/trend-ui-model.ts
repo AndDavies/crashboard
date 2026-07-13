@@ -40,6 +40,12 @@ export type TrendAnnotation = {
   label: string;
 };
 
+export type RelatedTrendSignal = {
+  id: string;
+  kind: TrendSignalKind;
+  label: string;
+};
+
 export type TrendSignal = {
   id: string;
   label: string;
@@ -55,6 +61,7 @@ export type TrendSignal = {
   whyNow: string;
   whyItMatters: string;
   whatToWatch: string;
+  related: RelatedTrendSignal[];
   series: TrendSeriesPoint[];
   evidence: TrendEvidence[];
   annotations: TrendAnnotation[];
@@ -143,6 +150,7 @@ export function toTrendSignals(data: TrendingAnalysis): TrendSignal[] {
       whyNow: topic.why,
       whyItMatters: topic.soWhat,
       whatToWatch: watchPrompt(topic),
+      related: [],
       series,
       evidence: topic.evidence.map((item) => ({
         id: item.id,
@@ -180,6 +188,7 @@ export function v2SignalToUi(signal: IntelligenceSignalSummary): TrendSignal {
     whyNow: signal.whyNow,
     whyItMatters: signal.whyItMatters,
     whatToWatch: signal.whatToWatch,
+    related: signal.related,
     series: signal.series.map((point, index, points) => ({
       date: point.date,
       reach: point.shareOfCoverage,
@@ -212,4 +221,39 @@ export function v2SignalsToUi(signals: IntelligenceSignalSummary[]) {
 
 export function signalChange(signal: TrendSignal) {
   return signal.currentReach - signal.previousReach;
+}
+
+export function evidenceForChartPeriod(
+  evidence: TrendEvidence[],
+  period: string | null,
+  cadence: "daily" | "weekly",
+) {
+  if (!period) return evidence;
+  const start = Date.parse(`${period}T00:00:00Z`);
+  const duration = cadence === "daily" ? 1 : 7;
+  const end = start + duration * 24 * 60 * 60 * 1_000;
+  return evidence.filter((item) => {
+    const date = Date.parse(item.date);
+    return Number.isFinite(date) && date >= start && date < end;
+  });
+}
+
+export function chartBucketForDate(bucketDates: string[], eventDate: string) {
+  const dates = [...new Set(bucketDates)].sort();
+  if (!dates.length || eventDate < dates[0]!) return null;
+  if (dates.includes(eventDate)) return eventDate;
+  const timestamps = dates.map((date) => Date.parse(`${date}T00:00:00Z`));
+  const cadenceDays = timestamps.length > 1
+    ? Math.round((timestamps[1]! - timestamps[0]!) / (24 * 60 * 60 * 1_000))
+    : 1;
+  // Daily axes can only show an event on its exact date. Weekly axes place an
+  // event on the start of the seven-day bucket that contains it.
+  if (cadenceDays <= 2) return null;
+  const eventTime = Date.parse(`${eventDate}T00:00:00Z`);
+  for (let index = dates.length - 1; index >= 0; index -= 1) {
+    const start = timestamps[index]!;
+    const end = timestamps[index + 1] ?? start + 7 * 24 * 60 * 60 * 1_000;
+    if (eventTime >= start && eventTime < end) return dates[index]!;
+  }
+  return null;
 }

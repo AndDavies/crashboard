@@ -27,35 +27,47 @@ function flag(name: string) {
   return process.argv.includes(name);
 }
 
+async function fetchPages<T>(
+  query: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>,
+) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += 1_000) {
+    const result = await query(from, from + 999);
+    if (result.error) throw new Error(result.error.message);
+    rows.push(...(result.data ?? []));
+    if ((result.data ?? []).length < 1_000) return rows;
+  }
+}
+
 async function coverage(admin: ReturnType<typeof createAdminClient>, ownerId: string) {
   const [documents, v2Segments, eligibleSegments, observedSegments, embeddedSegments,
     concepts, embeddedConcepts] = await Promise.all([
     admin.from("documents").select("id", { count: "exact", head: true })
       .eq("owner_id", ownerId).eq("source_type", "email_newsletter"),
-    admin.from("intelligence_document_segments").select("document_id")
-      .eq("owner_id", ownerId).eq("parser_version", "newsletter-segments-v2").limit(20_000),
-    admin.from("intelligence_document_segments").select("id")
+    fetchPages((from, to) => admin.from("intelligence_document_segments").select("document_id")
+      .eq("owner_id", ownerId).eq("parser_version", "newsletter-segments-v2").range(from, to)),
+    fetchPages((from, to) => admin.from("intelligence_document_segments").select("id")
       .eq("owner_id", ownerId).in("segment_type", ["editorial", "unknown"])
-      .is("exclusion_reason", null).limit(20_000),
-    admin.from("intelligence_term_observations").select("segment_id")
-      .eq("owner_id", ownerId).limit(50_000),
-    admin.from("intelligence_segment_embeddings").select("segment_id")
-      .eq("owner_id", ownerId).limit(20_000),
-    admin.from("intelligence_concepts").select("id")
-      .eq("owner_id", ownerId).in("status", ["active", "candidate"]).limit(10_000),
-    admin.from("intelligence_concept_embeddings").select("concept_id")
-      .eq("owner_id", ownerId).limit(10_000),
+      .is("exclusion_reason", null).range(from, to)),
+    fetchPages((from, to) => admin.from("intelligence_term_observations").select("segment_id")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages((from, to) => admin.from("intelligence_segment_embeddings").select("segment_id")
+      .eq("owner_id", ownerId).range(from, to)),
+    fetchPages((from, to) => admin.from("intelligence_concepts").select("id")
+      .eq("owner_id", ownerId).in("status", ["active", "candidate"]).range(from, to)),
+    fetchPages((from, to) => admin.from("intelligence_concept_embeddings").select("concept_id")
+      .eq("owner_id", ownerId).range(from, to)),
   ]);
-  const error = [documents.error, v2Segments.error, eligibleSegments.error,
-    observedSegments.error, embeddedSegments.error, concepts.error, embeddedConcepts.error]
-    .find(Boolean);
-  if (error) throw new Error(error.message);
-  const eligible = new Set((eligibleSegments.data ?? []).map((row) => String(row.id)));
-  const v2DocumentIds = new Set((v2Segments.data ?? []).map((row) => String(row.document_id)));
-  const observed = new Set((observedSegments.data ?? []).map((row) => String(row.segment_id)));
-  const embedded = new Set((embeddedSegments.data ?? []).map((row) => String(row.segment_id)));
-  const conceptIds = new Set((concepts.data ?? []).map((row) => String(row.id)));
-  const embeddedConceptIds = new Set((embeddedConcepts.data ?? []).map((row) => String(row.concept_id)));
+  if (documents.error) throw new Error(documents.error.message);
+  const eligible = new Set(eligibleSegments.map((row) => String(row.id)));
+  const v2DocumentIds = new Set(v2Segments.map((row) => String(row.document_id)));
+  const observed = new Set(observedSegments.map((row) => String(row.segment_id)));
+  const embedded = new Set(embeddedSegments.map((row) => String(row.segment_id)));
+  const conceptIds = new Set(concepts.map((row) => String(row.id)));
+  const embeddedConceptIds = new Set(embeddedConcepts.map((row) => String(row.concept_id)));
   return {
     newsletterDocuments: documents.count ?? 0,
     parserV2Documents: v2DocumentIds.size,
@@ -140,7 +152,7 @@ async function main() {
       }
       if (phase === "terms") {
         const current = await coverage(admin, ownerId);
-        if (flag("--skip-terms") || (cursor === 0 && current.termCoverage >= 0.95)) {
+        if (flag("--skip-terms") || (cursor === 0 && current.termCoverage >= 1)) {
           await save("embeddings", 0, { skipped: "terms", termCoverage: current.termCoverage });
           continue;
         }
@@ -151,7 +163,7 @@ async function main() {
       }
       if (phase === "embeddings") {
         const current = await coverage(admin, ownerId);
-        if (flag("--skip-embeddings") || (cursor === 0 && current.embeddingCoverage >= 0.95)) {
+        if (flag("--skip-embeddings") || (cursor === 0 && current.embeddingCoverage >= 1)) {
           await save("concept_embeddings", 0, { skipped: "embeddings", embeddingCoverage: current.embeddingCoverage });
           continue;
         }
@@ -165,7 +177,7 @@ async function main() {
       }
       if (phase === "concept_embeddings") {
         const current = await coverage(admin, ownerId);
-        if (flag("--skip-embeddings") || (cursor === 0 && current.conceptEmbeddingCoverage >= 0.95)) {
+        if (flag("--skip-embeddings") || (cursor === 0 && current.conceptEmbeddingCoverage >= 1)) {
           await save("topic_maintenance", 0, { skipped: "concept_embeddings", conceptEmbeddingCoverage: current.conceptEmbeddingCoverage });
           continue;
         }
@@ -184,7 +196,8 @@ async function main() {
         }
         const result = await runTopicMaintenance(admin, ownerId, {
           cursor,
-          segmentLimit: Number(argument("--topic-batch") ?? 400),
+          lookbackDays: 180,
+          segmentLimit: Number(argument("--topic-batch") ?? 10_000),
         });
         console.log("Topic maintenance", result);
         await save(result.hasMore ? "topic_maintenance" : "dedupe", result.nextCursor ?? 0, { topicMaintenance: result });

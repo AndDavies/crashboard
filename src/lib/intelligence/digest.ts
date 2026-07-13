@@ -4,6 +4,17 @@ import {
   getGmailSource,
   gmailAccessTokenForSource,
 } from "@/lib/intelligence/jobs";
+import {
+  digestCurrentReach,
+  digestPreviousReach,
+  digestSignalNarrative,
+  digestSignalPassesHistoryGate,
+} from "@/lib/intelligence/digest-v2";
+import { latestCompleteDateKey, shiftDateKey } from "@/lib/intelligence/signal-metrics";
+import {
+  hasCompletedIntelligenceV2Backfill,
+  intelligenceSignalsV2Enabled,
+} from "@/lib/intelligence/v2-readiness";
 
 function escapeHtml(value: string) {
   return value
@@ -20,6 +31,7 @@ function digestDate(anchor = new Date()) {
 
 type DigestSignal = {
   signal_key: string;
+  signal_id: string;
   signal_kind: string;
   signal_label: string;
   direction: "new" | "rising" | "sustained" | "cooling";
@@ -37,6 +49,7 @@ type DigestSignal = {
 type DigestResearchResult = {
   id: string;
   signal_id: string;
+  signal_kind: string;
   what_changed: string;
   why_now: string;
   why_it_matters: string;
@@ -50,40 +63,10 @@ type DigestResearchResult = {
     | null;
 };
 
-function metadataText(signal: DigestSignal, key: string, fallback: string) {
-  const value = signal.metadata?.[key];
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
-
-function summaryNumber(signal: DigestSignal, key: string, fallback: number) {
-  const summary = signal.metadata?.summary;
-  const value = summary && typeof summary === "object" && !Array.isArray(summary)
-    ? Number((summary as Record<string, unknown>)[key])
-    : Number.NaN;
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function currentReach(signal: DigestSignal) {
-  return summaryNumber(signal, "current_reach", Number(signal.raw_reach));
-}
-
-function previousReach(signal: DigestSignal) {
-  return summaryNumber(
-    signal,
-    "previous_reach",
-    Number(signal.metadata?.previous_reach ?? signal.metadata?.baseline_reach ?? 0),
-  );
-}
-
 function percent(value: number) {
   return `${(Math.max(0, value) * 100).toFixed(1)}%`;
 }
 
-function signalsV2Enabled() {
-  return ["1", "true", "on", "yes"].includes(
-    process.env.INTELLIGENCE_SIGNALS_V2?.trim().toLowerCase() ?? "",
-  );
-}
 
 function resultLabel(result: DigestResearchResult) {
   const lead = Array.isArray(result.intelligence_research_leads)
@@ -146,11 +129,11 @@ export async function createAndSendIntelligenceDigest(
     if (result.error) throw new Error(result.error.message);
   }
 
-  const [signalsResult, researchResult] = await Promise.all([
+  const [signalsResult, researchResult, v2BackfillReady] = await Promise.all([
     admin
       .from("intelligence_signal_daily")
       .select(
-        "signal_key,signal_kind,signal_label,direction,evidence_strength,raw_reach,supporting_items,unique_stories,independent_source_count,unique_action_count,hidden_rank_score,signal_date,metadata",
+        "signal_key,signal_id,signal_kind,signal_label,direction,evidence_strength,raw_reach,supporting_items,unique_stories,independent_source_count,unique_action_count,hidden_rank_score,signal_date,metadata",
       )
       .eq("owner_id", ownerId)
       .order("signal_date", { ascending: false })
@@ -165,6 +148,9 @@ export async function createAndSendIntelligenceDigest(
       .gte("created_at", since.toISOString())
       .order("created_at", { ascending: false })
       .limit(8),
+    intelligenceSignalsV2Enabled()
+      ? hasCompletedIntelligenceV2Backfill(admin, ownerId)
+      : Promise.resolve(false),
   ]);
 
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000").replace(
@@ -181,15 +167,99 @@ export async function createAndSendIntelligenceDigest(
     : [];
   const topSignals = latestSignals
     .filter((signal) => signal.evidence_strength !== "early")
+    .filter(digestSignalPassesHistoryGate)
     .slice(0, 3);
-  const newSignals = latestSignals.filter((signal) => signal.direction === "new").slice(0, 5);
+  const newSignals = latestSignals
+    .filter((signal) => signal.direction === "new")
+    .filter(digestSignalPassesHistoryGate)
+    .slice(0, 5);
   const coolingSignals = latestSignals
     .filter((signal) => signal.direction === "cooling")
+    .filter(digestSignalPassesHistoryGate)
     .slice(0, 5);
   const research = researchResult.error
     ? []
     : ((researchResult.data ?? []) as unknown as DigestResearchResult[]);
-  const useV2 = signalsV2Enabled() && topSignals.length > 0;
+  const useV2 = intelligenceSignalsV2Enabled() &&
+    v2BackfillReady &&
+    latestSignalDate === latestCompleteDateKey(anchor) &&
+    topSignals.length > 0;
+  const signalIds = [...new Set(topSignals.map((signal) => signal.signal_id))];
+  const signalKeys = [...new Set(topSignals.map((signal) => signal.signal_key))];
+  const [signalResearchResult, supportingRowsResult] = useV2
+    ? await Promise.all([
+        admin
+          .from("intelligence_research_results")
+          .select("id,signal_id,signal_kind,why_now,why_it_matters,what_to_watch,sources,created_at")
+          .eq("owner_id", ownerId)
+          .in("signal_id", signalIds)
+          .order("created_at", { ascending: false })
+          .limit(100),
+        admin
+          .from("intelligence_signal_daily")
+          .select("signal_key,metadata,signal_date")
+          .eq("owner_id", ownerId)
+          .in("signal_key", signalKeys)
+          .gte("signal_date", shiftDateKey(latestSignalDate!, -27))
+          .lte("signal_date", latestSignalDate!)
+          .order("signal_date", { ascending: false })
+          .limit(500),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }];
+  const latestResearchBySignal = new Map<string, DigestResearchResult>();
+  if (!signalResearchResult.error) {
+    for (const row of signalResearchResult.data ?? []) {
+      const typed = row as unknown as DigestResearchResult;
+      const key = `${typed.signal_kind}:${typed.signal_id}`;
+      if (!latestResearchBySignal.has(key)) latestResearchBySignal.set(key, typed);
+    }
+  }
+  const documentIdsBySignal = new Map<string, string[]>();
+  if (!supportingRowsResult.error) {
+    for (const row of supportingRowsResult.data ?? []) {
+      const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? row.metadata as Record<string, unknown>
+        : {};
+      const ids = Array.isArray(metadata.documentIds)
+        ? metadata.documentIds.filter((id): id is string => typeof id === "string")
+        : [];
+      const key = String(row.signal_key);
+      documentIdsBySignal.set(key, [...new Set([...(documentIdsBySignal.get(key) ?? []), ...ids])]);
+    }
+  }
+  const allDocumentIds = [...new Set([...documentIdsBySignal.values()].flat())].slice(0, 100);
+  const documentsResult = useV2 && allDocumentIds.length
+    ? await admin
+        .from("documents")
+        .select("id,title,canonical_url,original_url")
+        .eq("owner_id", ownerId)
+        .in("id", allDocumentIds)
+    : { data: [], error: null };
+  const documentsById = new Map((documentsResult.data ?? []).map((document) => [
+    String(document.id),
+    {
+      title: String(document.title ?? "Supporting source"),
+      url: String(document.canonical_url ?? document.original_url ?? "") ||
+        `${baseUrl}/dashboard/intelligence/documents/${document.id}`,
+    },
+  ]));
+  const signalUrl = (signal: DigestSignal) =>
+    `${baseUrl}/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.signal_key)}`;
+  const evidenceForSignal = (signal: DigestSignal) => {
+    const researchResultForSignal = latestResearchBySignal.get(
+      `${signal.signal_kind}:${signal.signal_id}`,
+    );
+    const researchEvidence = sourceLinks(researchResultForSignal?.sources);
+    const documentEvidence = (documentIdsBySignal.get(signal.signal_key) ?? [])
+      .flatMap((id) => documentsById.get(id) ?? []);
+    return [...new Map(
+      [...researchEvidence, ...documentEvidence].map((source) => [source.url, source]),
+    ).values()].slice(0, 3);
+  };
+  const narrativeForSignal = (signal: DigestSignal) => digestSignalNarrative(
+    signal,
+    latestResearchBySignal.get(`${signal.signal_kind}:${signal.signal_id}`),
+  );
   const subject = `Trend Intelligence · ${date}`;
   const legacyTextLines = [
     subject,
@@ -208,12 +278,18 @@ export async function createAndSendIntelligenceDigest(
     "",
     `${baseUrl}/dashboard/intelligence`,
   ];
-  const signalText = (signal: DigestSignal) => [
-    `- ${signal.signal_label} · ${signal.direction} · ${signal.evidence_strength}`,
-    `  Now ${percent(currentReach(signal))} of coverage, previously ${percent(previousReach(signal))}.`,
-    `  Why it matters: ${metadataText(signal, "why_it_matters", "The evidence is material, but its wider implication still needs confirmation.")}`,
-    `  What to watch: ${metadataText(signal, "what_to_watch", "Watch for a primary-source announcement or another independent source family.")}`,
-  ];
+  const signalText = (signal: DigestSignal) => {
+    const narrative = narrativeForSignal(signal);
+    return [
+      `- ${signal.signal_label} · ${signal.direction} · ${signal.evidence_strength}`,
+      `  Now ${percent(digestCurrentReach(signal))} of coverage, previously ${percent(digestPreviousReach(signal))}.`,
+      `  Why now: ${narrative.whyNow}`,
+      `  Why it matters: ${narrative.whyItMatters}`,
+      `  What to watch: ${narrative.whatToWatch}`,
+      `  Open signal: ${signalUrl(signal)}`,
+      ...evidenceForSignal(signal).map((source) => `  Evidence: ${source.title} — ${source.url}`),
+    ];
+  };
   const textLines = useV2
     ? [
         subject,
@@ -241,7 +317,11 @@ export async function createAndSendIntelligenceDigest(
       ]
     : legacyTextLines;
   const text = textLines.join("\n");
-  const signalHtml = (signal: DigestSignal) => `<article style="border-top:1px solid #d6d4cc;padding:16px 0"><p style="margin:0 0 6px;color:#666;font-size:12px;text-transform:uppercase">${escapeHtml(signal.direction)} · ${escapeHtml(signal.evidence_strength)}</p><strong style="font-size:18px">${escapeHtml(signal.signal_label)}</strong><p style="line-height:1.55;color:#555">Now ${percent(currentReach(signal))} of coverage, previously ${percent(previousReach(signal))}.</p><p style="line-height:1.55"><strong>Why it matters:</strong> ${escapeHtml(metadataText(signal, "why_it_matters", "The wider implication still needs confirmation."))}</p><p style="line-height:1.55"><strong>What to watch:</strong> ${escapeHtml(metadataText(signal, "what_to_watch", "Watch for another independent source or a primary announcement."))}</p></article>`;
+  const signalHtml = (signal: DigestSignal) => {
+    const narrative = narrativeForSignal(signal);
+    const evidence = evidenceForSignal(signal);
+    return `<article style="border-top:1px solid #d6d4cc;padding:16px 0"><p style="margin:0 0 6px;color:#666;font-size:12px;text-transform:uppercase">${escapeHtml(signal.direction)} · ${escapeHtml(signal.evidence_strength)}</p><a href="${escapeHtml(signalUrl(signal))}" style="color:#171719;font-size:18px;font-weight:700">${escapeHtml(signal.signal_label)}</a><p style="line-height:1.55;color:#555">Now ${percent(digestCurrentReach(signal))} of coverage, previously ${percent(digestPreviousReach(signal))}.</p><p style="line-height:1.55"><strong>Why now:</strong> ${escapeHtml(narrative.whyNow)}</p><p style="line-height:1.55"><strong>Why it matters:</strong> ${escapeHtml(narrative.whyItMatters)}</p><p style="line-height:1.55"><strong>What to watch:</strong> ${escapeHtml(narrative.whatToWatch)}</p>${evidence.length ? `<p style="margin:12px 0 4px;font-size:12px;font-weight:700;text-transform:uppercase;color:#666">Evidence</p>${evidence.map((source) => `<p style="margin:6px 0"><a href="${escapeHtml(source.url)}" style="color:#2457d6">${escapeHtml(source.title)}</a></p>`).join("")}` : ""}</article>`;
+  };
   const researchHtml = (result: DigestResearchResult) => `<article style="border-top:1px solid #d6d4cc;padding:16px 0"><strong>${escapeHtml(resultLabel(result))}</strong><p style="line-height:1.55;color:#555">${escapeHtml(result.what_changed)}</p><p style="line-height:1.55"><strong>Why it matters:</strong> ${escapeHtml(result.why_it_matters)}</p><p style="line-height:1.55"><strong>What to watch:</strong> ${escapeHtml(result.what_to_watch)}</p>${sourceLinks(result.sources)
     .slice(0, 3)
     .map((source) => `<p style="margin:6px 0"><a href="${escapeHtml(source.url)}" style="color:#2457d6">${escapeHtml(source.title)}</a></p>`)
@@ -263,7 +343,7 @@ export async function createAndSendIntelligenceDigest(
       (event) => `<article style="border-top:1px solid #d6d4cc;padding:14px 0"><strong>${escapeHtml(event.title)}</strong><p style="line-height:1.55;color:#555">${escapeHtml(event.summary)}</p></article>`,
     )
     .join("")}`;
-  const v2Html = `<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px">Three things worth attention</h2>${topSignals.map(signalHtml).join("")}<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px;margin-top:28px">New this week</h2>${newSignals.length ? newSignals.map((signal) => `<p>${escapeHtml(signal.signal_label)}</p>`).join("") : '<p style="color:#666">No new signal has enough evidence today.</p>'}<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px;margin-top:28px">Cooling</h2>${coolingSignals.length ? coolingSignals.map((signal) => `<p>${escapeHtml(signal.signal_label)}</p>`).join("") : '<p style="color:#666">No cooling signal has enough evidence today.</p>'}<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px;margin-top:28px">Research completed</h2>${research.length ? research.map(researchHtml).join("") : '<p style="color:#666">No research completed since the last brief.</p>'}`;
+  const v2Html = `<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px">Three things worth attention</h2>${topSignals.map(signalHtml).join("")}<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px;margin-top:28px">New this week</h2>${newSignals.length ? newSignals.map((signal) => `<p><a href="${escapeHtml(signalUrl(signal))}" style="color:#2457d6">${escapeHtml(signal.signal_label)}</a></p>`).join("") : '<p style="color:#666">No new signal has enough evidence today.</p>'}<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px;margin-top:28px">Cooling</h2>${coolingSignals.length ? coolingSignals.map((signal) => `<p><a href="${escapeHtml(signalUrl(signal))}" style="color:#2457d6">${escapeHtml(signal.signal_label)}</a></p>`).join("") : '<p style="color:#666">No cooling signal has enough evidence today.</p>'}<h2 style="font-size:14px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #222;padding-top:16px;margin-top:28px">Research completed</h2>${research.length ? research.map(researchHtml).join("") : '<p style="color:#666">No research completed since the last brief.</p>'}`;
   const html = `<!doctype html><html><body style="margin:0;background:#f7f6f1;color:#171719;font-family:Arial,sans-serif"><main style="max-width:680px;margin:0 auto;padding:36px 24px"><div style="height:6px;width:92px;background:#2457d6;margin-bottom:28px"></div><p style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666">Crashboard intelligence</p><h1 style="font-family:Georgia,serif;font-size:32px;line-height:1.05;margin:8px 0 24px">${escapeHtml(subject)}</h1>${useV2 ? v2Html : legacyHtml}<a href="${baseUrl}/dashboard/intelligence" style="display:inline-block;margin-top:28px;background:#171719;color:#fff;padding:12px 16px;text-decoration:none">Open Intelligence</a></main></body></html>`;
 
   const source = await getGmailSource(admin, ownerId);

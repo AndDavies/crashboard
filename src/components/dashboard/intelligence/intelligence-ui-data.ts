@@ -22,9 +22,10 @@ import { getTrendingAnalysis } from "@/lib/intelligence/trending-data";
 export type IntelligenceUiData = {
   completeThrough: string;
   signals: TrendSignal[];
+  listedSignalIds: string[];
   searchResults: ExploreSearchResult[];
   completedResearch: CompletedResearchItem[];
-  dataStatus: "ready" | "building" | "schema_missing";
+  dataStatus: "ready" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback: boolean;
 };
 
@@ -110,19 +111,18 @@ export async function getIntelligenceUiData(
   options: GetIntelligenceSignalsOptions = {},
 ): Promise<IntelligenceUiData> {
   const query = options.q?.trim() ?? "";
-  const [response, search] = await Promise.all([
-    // Search has its own lexical/semantic ranking. Keep the trend collection
-    // intact here so a natural-language question cannot erase the chart.
-    getIntelligenceSignals({ ...options, q: undefined }),
-    query
-      ? searchIntelligenceV2(query)
-      : Promise.resolve({ query: "", catalog: [], results: [] }),
-  ]);
+  // Search has its own lexical/semantic ranking. Keep the trend collection
+  // intact here so a natural-language question cannot erase the chart.
+  const response = await getIntelligenceSignals({ ...options, q: undefined });
   if (response.dataStatus === "ready") {
+    const search = query
+      ? await searchIntelligenceV2(query)
+      : { query: "", catalog: [], results: [] };
     const mapped = v2SignalsToUi([...response.signals, ...response.comparison]);
     return {
       completeThrough: response.completeThrough,
       signals: uniqueSignals(mapped),
+      listedSignalIds: response.signals.map((signal) => signal.key || signal.id),
       searchResults: query ? normalizeV2SearchResults(search) : [],
       completedResearch: recentCompletedResearch(response),
       dataStatus: "ready",
@@ -137,6 +137,7 @@ export async function getIntelligenceUiData(
   return {
     completeThrough: legacy.completeThrough,
     signals: toTrendSignals(legacy),
+    listedSignalIds: legacy.topics.map((topic) => topic.key),
     searchResults: normalizeLegacySearchResults(legacySearch as Record<string, unknown>[]),
     completedResearch: [],
     dataStatus: response.dataStatus,

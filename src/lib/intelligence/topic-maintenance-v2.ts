@@ -7,14 +7,18 @@ import { createEmbedding, INTELLIGENCE_EMBEDDING_MODEL } from "@/lib/intelligenc
 import { normalizeConceptKey } from "@/lib/intelligence/concepts";
 import { INTELLIGENCE_TERM_EXTRACTION_VERSION } from "@/lib/intelligence/term-observations";
 
-export const INTELLIGENCE_TOPIC_MAINTENANCE_VERSION = "topic-maintenance-v2.1.0";
+export const INTELLIGENCE_TOPIC_MAINTENANCE_VERSION = "topic-maintenance-v2.2.0";
 export const TOPIC_ASSIGNMENT_SIMILARITY = 0.84;
 export const TOPIC_REVIEW_SIMILARITY = 0.80;
 export const TOPIC_AUTO_MERGE_SIMILARITY = 0.92;
 export const TOPIC_GRAPH_SIMILARITY = 0.80;
 
-const DEFAULT_SEGMENT_LIMIT = 400;
-const MAX_SEGMENT_LIMIT = 800;
+// The current six-month corpus is comfortably below this bound. Loading one
+// complete window keeps connected components from changing at arbitrary page
+// boundaries; the cursor remains as a safety valve for a future larger corpus.
+const DEFAULT_SEGMENT_LIMIT = 10_000;
+const MAX_SEGMENT_LIMIT = 10_000;
+const INPUT_PAGE_SIZE = 1_000;
 const DEFAULT_NEIGHBOURS = 6;
 const TOPIC_NAMING_TIMEOUT_MS = 45_000;
 const TOPIC_MODEL = process.env.OPENAI_INTELLIGENCE_TOPIC_MODEL?.trim() ||
@@ -76,6 +80,40 @@ export type TopicAssignmentDecision =
   | { action: "candidate_with_suggestion"; conceptId: string; similarity: number }
   | { action: "new_candidate"; conceptId: null; similarity: number };
 
+export type SegmentTopicTerm = {
+  normalizedTerm: string;
+  displayTerm?: string;
+  count?: number;
+  titleCount?: number;
+  salience?: number;
+};
+
+export type ExistingTopicVector = {
+  conceptId: string;
+  domain: string;
+  embedding: number[];
+};
+
+export type SegmentTopicAssignmentDecision =
+  | {
+      action: "exact_alias";
+      conceptId: string;
+      similarity: 1;
+      matchedTerm: string;
+    }
+  | {
+      action: "semantic";
+      conceptId: string;
+      similarity: number;
+      matchedTerm: null;
+    }
+  | {
+      action: "unassigned";
+      conceptId: null;
+      similarity: number;
+      matchedTerm: null;
+    };
+
 export function cosineSimilarity(a: number[], b: number[]) {
   if (!a.length || a.length !== b.length) return 0;
   let dot = 0;
@@ -104,6 +142,73 @@ export function decideTopicAssignment(input: {
     return { action: "candidate_with_suggestion", ...nearest };
   }
   return { action: "new_candidate", conceptId: null, similarity: nearest?.similarity ?? 0 };
+}
+
+/**
+ * Assigns one previously unassigned editorial segment before topic discovery.
+ * Exact canonical labels/aliases always win. Semantic assignment is restricted
+ * to the segment's inferred domain and must clear the explicit 0.84 gate.
+ */
+export function decideSegmentTopicAssignment(input: {
+  terms: SegmentTopicTerm[];
+  exactAliases: Map<string, string>;
+  segmentDomain: string;
+  segmentEmbedding: number[];
+  concepts: ExistingTopicVector[];
+}): SegmentTopicAssignmentDecision {
+  const exactMatches = input.terms.flatMap((term) => {
+    const normalizedTerm = normalizeConceptKey(term.normalizedTerm);
+    const conceptId = input.exactAliases.get(normalizedTerm);
+    return conceptId
+      ? [{
+          conceptId,
+          normalizedTerm,
+          titleCount: Math.max(0, Number(term.titleCount ?? 0)),
+          salience: Math.max(0, Math.min(1, Number(term.salience ?? 0))),
+          count: Math.max(0, Number(term.count ?? 0)),
+        }]
+      : [];
+  }).sort((left, right) =>
+    right.titleCount - left.titleCount ||
+    right.salience - left.salience ||
+    right.count - left.count ||
+    right.normalizedTerm.length - left.normalizedTerm.length ||
+    left.normalizedTerm.localeCompare(right.normalizedTerm) ||
+    left.conceptId.localeCompare(right.conceptId)
+  );
+  const exact = exactMatches[0];
+  if (exact) {
+    return {
+      action: "exact_alias",
+      conceptId: exact.conceptId,
+      similarity: 1,
+      matchedTerm: exact.normalizedTerm,
+    };
+  }
+
+  let nearest: { conceptId: string; similarity: number } | null = null;
+  for (const concept of input.concepts) {
+    if (domainKey(concept.domain) !== domainKey(input.segmentDomain)) continue;
+    const similarity = cosineSimilarity(input.segmentEmbedding, concept.embedding);
+    if (!nearest || similarity > nearest.similarity ||
+      (similarity === nearest.similarity && concept.conceptId < nearest.conceptId)) {
+      nearest = { conceptId: concept.conceptId, similarity };
+    }
+  }
+  if (nearest && nearest.similarity >= TOPIC_ASSIGNMENT_SIMILARITY) {
+    return {
+      action: "semantic",
+      conceptId: nearest.conceptId,
+      similarity: nearest.similarity,
+      matchedTerm: null,
+    };
+  }
+  return {
+    action: "unassigned",
+    conceptId: null,
+    similarity: nearest?.similarity ?? 0,
+    matchedTerm: null,
+  };
 }
 
 class DisjointSet {
@@ -390,6 +495,48 @@ function chunks<T>(values: T[], size = 100) {
   return result;
 }
 
+async function fetchAllRows<T>(
+  query: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>,
+) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += INPUT_PAGE_SIZE) {
+    const result = await query(from, from + INPUT_PAGE_SIZE - 1);
+    if (result.error) throw new Error(result.error.message);
+    const page = result.data ?? [];
+    rows.push(...page);
+    if (page.length < INPUT_PAGE_SIZE) return rows;
+  }
+}
+
+async function fetchBoundedRows<T>(
+  query: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>,
+  cursor: number,
+  limit: number,
+) {
+  const rows: T[] = [];
+  const target = limit + 1;
+  let offset = cursor;
+  while (rows.length < target) {
+    const requested = Math.min(INPUT_PAGE_SIZE, target - rows.length);
+    const result = await query(offset, offset + requested - 1);
+    if (result.error) throw new Error(result.error.message);
+    const page = result.data ?? [];
+    rows.push(...page);
+    offset += page.length;
+    if (page.length < requested) break;
+  }
+  return {
+    rows: rows.slice(0, limit),
+    hasMore: rows.length > limit,
+  };
+}
+
 function nested(value: unknown): DbRow {
   const candidate = Array.isArray(value) ? value[0] : value;
   return candidate && typeof candidate === "object" ? candidate as DbRow : {};
@@ -468,48 +615,62 @@ async function fetchTopicInputs(
   ownerId: string,
   input: { cursor: number; limit: number; since: string },
 ) {
-  const embeddingResult = await admin.from("intelligence_segment_embeddings")
-    .select("segment_id,embedding")
-    .eq("owner_id", ownerId)
-    .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
-    .order("segment_id", { ascending: true })
-    .range(input.cursor, input.cursor + input.limit - 1);
-  if (embeddingResult.error) throw new Error(embeddingResult.error.message);
-  const embeddingRows = (embeddingResult.data ?? []) as DbRow[];
+  const embeddingPage = await fetchBoundedRows<DbRow>(
+    (from, to) => admin.from("intelligence_segment_embeddings")
+      .select("segment_id,embedding")
+      .eq("owner_id", ownerId)
+      .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
+      .order("segment_id", { ascending: true })
+      .range(from, to),
+    input.cursor,
+    input.limit,
+  );
+  const embeddingRows = embeddingPage.rows;
   const segmentIds = embeddingRows.map((row) => String(row.segment_id));
   if (!segmentIds.length) {
-    return { scanned: 0, nodes: [] as TopicGraphNode[], segmentById: new Map<string, DbRow>(), terms: [] as DbRow[] };
+    return {
+      scanned: 0,
+      hasMore: false,
+      nodes: [] as TopicGraphNode[],
+      segmentById: new Map<string, DbRow>(),
+      terms: [] as DbRow[],
+    };
   }
 
-  const segmentRows: DbRow[] = [];
   const assignedRows: DbRow[] = [];
-  const termRows: DbRow[] = [];
   for (const segmentIdChunk of chunks(segmentIds)) {
-    const [segments, assigned, terms] = await Promise.all([
-      admin.from("intelligence_document_segments")
-        .select("id,document_id,title,content_text,segment_type,exclusion_reason,documents!inner(published_at,created_at,source_identity_id)")
-        .eq("owner_id", ownerId)
-        .in("id", segmentIdChunk)
-        .in("segment_type", ["editorial", "unknown"])
-        .is("exclusion_reason", null),
+    assignedRows.push(...await fetchAllRows<DbRow>((from, to) =>
       admin.from("intelligence_document_concepts")
         .select("segment_id")
         .eq("owner_id", ownerId)
         .in("segment_id", segmentIdChunk)
-        .gte("confidence", 0.6),
-      admin.from("intelligence_term_observations")
+        .gte("confidence", 0.6)
+        .range(from, to)
+    ));
+  }
+  const assignedIds = new Set(assignedRows.map((row) => String(row.segment_id)));
+  const unassignedIds = segmentIds.filter((segmentId) => !assignedIds.has(segmentId));
+  const segmentRows: DbRow[] = [];
+  const termRows: DbRow[] = [];
+  for (const segmentIdChunk of chunks(unassignedIds)) {
+    const [segments, terms] = await Promise.all([
+      fetchAllRows<DbRow>((from, to) => admin.from("intelligence_document_segments")
+        .select("id,document_id,title,content_text,segment_type,exclusion_reason,documents!inner(published_at,created_at,source_identity_id)")
+        .eq("owner_id", ownerId)
+        .in("id", segmentIdChunk)
+        .in("segment_type", ["editorial", "unknown"])
+        .is("exclusion_reason", null)
+        .range(from, to)),
+      fetchAllRows<DbRow>((from, to) => admin.from("intelligence_term_observations")
         .select("segment_id,normalized_term,display_term,term_kind,occurrence_count,title_count,salience")
         .eq("owner_id", ownerId)
         .eq("extraction_version", INTELLIGENCE_TERM_EXTRACTION_VERSION)
-        .in("segment_id", segmentIdChunk),
+        .in("segment_id", segmentIdChunk)
+        .range(from, to)),
     ]);
-    const error = [segments.error, assigned.error, terms.error].find(Boolean);
-    if (error) throw new Error(error.message);
-    segmentRows.push(...((segments.data ?? []) as DbRow[]));
-    assignedRows.push(...((assigned.data ?? []) as DbRow[]));
-    termRows.push(...((terms.data ?? []) as DbRow[]));
+    segmentRows.push(...segments);
+    termRows.push(...terms);
   }
-  const assignedIds = new Set(assignedRows.map((row) => String(row.segment_id)));
   const eligibleSegments = segmentRows.filter((row) => {
     const document = nested(row.documents);
     const publishedAt = String(document.published_at ?? document.created_at ?? "").slice(0, 10);
@@ -520,12 +681,14 @@ async function fetchTopicInputs(
   ).filter(Boolean))];
   const identityFamilies = new Map<string, string>();
   for (const identityChunk of chunks(identityIds)) {
-    const identities = await admin.from("intelligence_source_identities")
-      .select("id,normalized_family,source_family")
-      .eq("owner_id", ownerId)
-      .in("id", identityChunk);
-    if (identities.error) throw new Error(identities.error.message);
-    for (const row of identities.data ?? []) {
+    const identities = await fetchAllRows<DbRow>((from, to) =>
+      admin.from("intelligence_source_identities")
+        .select("id,normalized_family,source_family")
+        .eq("owner_id", ownerId)
+        .in("id", identityChunk)
+        .range(from, to)
+    );
+    for (const row of identities) {
       identityFamilies.set(
         String(row.id),
         String(row.normalized_family ?? row.source_family ?? row.id),
@@ -551,6 +714,7 @@ async function fetchTopicInputs(
   const eligibleIds = new Set(nodes.map((node) => node.id));
   return {
     scanned: embeddingRows.length,
+    hasMore: embeddingPage.hasMore,
     nodes,
     segmentById,
     terms: termRows.filter((row) => eligibleIds.has(String(row.segment_id))),
@@ -584,6 +748,79 @@ async function writeAliases(
     onConflict: "concept_id,normalized_alias",
   });
   if (result.error) throw new Error(result.error.message);
+}
+
+function segmentTerms(rows: DbRow[]): SegmentTopicTerm[] {
+  return rows.map((row) => ({
+    normalizedTerm: String(row.normalized_term ?? ""),
+    displayTerm: String(row.display_term ?? row.normalized_term ?? ""),
+    count: Math.min(5, Math.max(0, Number(row.occurrence_count ?? 0))),
+    titleCount: Math.max(0, Number(row.title_count ?? 0)),
+    salience: Math.max(0, Math.min(1, Number(row.salience ?? 0))),
+  })).filter((term) => Boolean(term.normalizedTerm));
+}
+
+function inferSegmentDomain(segment: DbRow, terms: SegmentTopicTerm[]) {
+  return domainFor([
+    String(segment.title ?? ""),
+    terms.slice(0, 20).map((term) => term.displayTerm ?? term.normalizedTerm).join(" "),
+    String(segment.content_text ?? "").slice(0, 2_000),
+  ].join(" "));
+}
+
+async function linkDirectSegmentAssignments(
+  admin: SupabaseClient,
+  ownerId: string,
+  assignments: Array<{
+    node: TopicGraphNode;
+    segment: DbRow;
+    domain: string;
+    terms: SegmentTopicTerm[];
+    decision: Exclude<SegmentTopicAssignmentDecision, { action: "unassigned" }>;
+  }>,
+) {
+  const rows = assignments.map(({ node, segment, domain, terms, decision }) => {
+    const matched = decision.matchedTerm
+      ? terms.find((term) => normalizeConceptKey(term.normalizedTerm) === decision.matchedTerm)
+      : null;
+    const surfaceForms = decision.action === "exact_alias"
+      ? [matched?.displayTerm ?? decision.matchedTerm]
+      : terms.slice(0, 8).map((term) => term.displayTerm ?? term.normalizedTerm);
+    return {
+      owner_id: ownerId,
+      association_key:
+        `${node.documentId}:${node.id}:${decision.conceptId}:topic_maintenance:${decision.action}`,
+      document_id: node.documentId,
+      segment_id: node.id,
+      concept_id: decision.conceptId,
+      scope: "segment_body",
+      source: decision.action === "exact_alias" ? "rule" : "model",
+      mention_count: decision.action === "exact_alias"
+        ? Math.max(1, Math.min(5, Number(matched?.count ?? 1)))
+        : 1,
+      confidence: decision.action === "exact_alias" ? 0.98 : decision.similarity,
+      evidence_text:
+        String(segment.content_text ?? "").replace(/\s+/gu, " ").slice(0, 500) || null,
+      surface_forms: [...new Set(surfaceForms.filter(Boolean))],
+      extraction_version: INTELLIGENCE_TOPIC_MAINTENANCE_VERSION,
+      metadata: {
+        assignment_method: decision.action,
+        assignment_similarity: decision.similarity,
+        assignment_threshold: decision.action === "semantic"
+          ? TOPIC_ASSIGNMENT_SIMILARITY
+          : 1,
+        segment_domain: domain,
+      },
+      updated_at: new Date().toISOString(),
+    };
+  });
+  for (const rowChunk of chunks(rows, 250)) {
+    const result = await admin.from("intelligence_document_concepts").upsert(rowChunk, {
+      onConflict: "owner_id,association_key",
+    });
+    if (result.error) throw new Error(result.error.message);
+  }
+  return rows.length;
 }
 
 async function linkComponentSegments(
@@ -647,34 +884,97 @@ export async function runTopicMaintenance(
     Math.max(25, Math.floor(options.segmentLimit ?? DEFAULT_SEGMENT_LIMIT)),
   );
   const since = new Date(Date.now() - lookbackDays * 86_400_000).toISOString().slice(0, 10);
-  const [input, conceptsResult, aliasesResult, conceptEmbeddingsResult] = await Promise.all([
+  const [input, concepts, aliases, conceptEmbeddingRows] = await Promise.all([
     fetchTopicInputs(admin, ownerId, { cursor, limit: segmentLimit, since }),
-    admin.from("intelligence_concepts")
+    fetchAllRows<DbRow>((from, to) => admin.from("intelligence_concepts")
       .select("id,concept_type,canonical_label,normalized_key,domain,status,metadata")
-      .eq("owner_id", ownerId).in("status", ["active", "candidate"]).limit(5_000),
-    admin.from("intelligence_concept_aliases")
-      .select("concept_id,normalized_alias").eq("owner_id", ownerId).limit(15_000),
-    admin.from("intelligence_concept_embeddings")
-      .select("concept_id,embedding").eq("owner_id", ownerId)
-      .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL).limit(5_000),
+      .eq("owner_id", ownerId)
+      .in("status", ["active", "candidate"])
+      .order("status", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)),
+    fetchAllRows<DbRow>((from, to) => admin.from("intelligence_concept_aliases")
+      .select("concept_id,normalized_alias")
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
+    fetchAllRows<DbRow>((from, to) => admin.from("intelligence_concept_embeddings")
+      .select("concept_id,embedding")
+      .eq("owner_id", ownerId)
+      .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
+      .order("id", { ascending: true })
+      .range(from, to)),
   ]);
-  const error = [conceptsResult.error, aliasesResult.error, conceptEmbeddingsResult.error]
-    .find(Boolean);
-  if (error) throw new Error(error.message);
 
-  const concepts = (conceptsResult.data ?? []) as DbRow[];
   const exactAliases = new Map<string, string>();
   for (const concept of concepts) {
-    exactAliases.set(normalizeConceptKey(String(concept.canonical_label)), String(concept.id));
-    exactAliases.set(String(concept.normalized_key), String(concept.id));
+    const normalizedLabels = [
+      normalizeConceptKey(String(concept.canonical_label ?? "")),
+      normalizeConceptKey(String(concept.normalized_key ?? "")),
+    ].filter(Boolean);
+    for (const normalized of normalizedLabels) {
+      if (!exactAliases.has(normalized)) exactAliases.set(normalized, String(concept.id));
+    }
   }
-  for (const alias of aliasesResult.data ?? []) {
-    exactAliases.set(String(alias.normalized_alias), String(alias.concept_id));
+  for (const alias of aliases) {
+    const normalized = normalizeConceptKey(String(alias.normalized_alias ?? ""));
+    if (normalized && !exactAliases.has(normalized)) {
+      exactAliases.set(normalized, String(alias.concept_id));
+    }
   }
   const embeddingByConcept = new Map(
-    (conceptEmbeddingsResult.data ?? []).map((row) => [String(row.concept_id), vector(row.embedding)]),
+    conceptEmbeddingRows.map((row) => [String(row.concept_id), vector(row.embedding)]),
   );
-  const graph = buildNearestNeighbourGraph(input.nodes, {
+  const topicVectors = concepts.flatMap((concept): ExistingTopicVector[] => {
+    const embedding = embeddingByConcept.get(String(concept.id)) ?? [];
+    return embedding.length
+      ? [{
+          conceptId: String(concept.id),
+          domain: String(concept.domain ?? "General"),
+          embedding,
+        }]
+      : [];
+  });
+  const termsBySegment = new Map<string, DbRow[]>();
+  for (const row of input.terms) {
+    const segmentId = String(row.segment_id);
+    const group = termsBySegment.get(segmentId) ?? [];
+    group.push(row);
+    termsBySegment.set(segmentId, group);
+  }
+  const directAssignments: Array<{
+    node: TopicGraphNode;
+    segment: DbRow;
+    domain: string;
+    terms: SegmentTopicTerm[];
+    decision: Exclude<SegmentTopicAssignmentDecision, { action: "unassigned" }>;
+  }> = [];
+  const discoveryNodes: TopicGraphNode[] = [];
+  let belowAssignmentThreshold = 0;
+  for (const node of input.nodes) {
+    const segment = input.segmentById.get(node.id) ?? {};
+    const terms = segmentTerms(termsBySegment.get(node.id) ?? []);
+    const domain = inferSegmentDomain(segment, terms);
+    const decision = decideSegmentTopicAssignment({
+      terms,
+      exactAliases,
+      segmentDomain: domain,
+      segmentEmbedding: node.embedding,
+      concepts: topicVectors,
+    });
+    if (decision.action === "unassigned") {
+      belowAssignmentThreshold += decision.similarity > 0 ? 1 : 0;
+      discoveryNodes.push(node);
+      continue;
+    }
+    directAssignments.push({ node, segment, domain, terms, decision });
+  }
+  const directlyLinkedSegments = await linkDirectSegmentAssignments(
+    admin,
+    ownerId,
+    directAssignments,
+  );
+  const graph = buildNearestNeighbourGraph(discoveryNodes, {
     similarity: options.graphSimilarity,
     neighbours: options.neighbours,
   });
@@ -704,7 +1004,7 @@ export async function runTopicMaintenance(
   const autoMerged: string[] = [];
   const suggested: Array<{ label: string; conceptId: string; similarity: number }> = [];
   const namingErrors: string[] = [];
-  let linkedSegments = 0;
+  let linkedSegments = directlyLinkedSegments;
 
   for (const component of components) {
     const phrases = representatives.get(component.id) ?? [];
@@ -782,6 +1082,9 @@ export async function runTopicMaintenance(
         throw new Error(concept.error?.message ?? "Failed to create stable topic candidate.");
       }
       conceptId = String(concept.data.id);
+      if (!concepts.some((candidate) => String(candidate.id) === conceptId)) {
+        concepts.push({ id: conceptId, ...payload });
+      }
       assignmentConfidence = decision.action === "candidate_with_suggestion" ? 0.72 : 0.68;
       created.push(topicName.label);
       exactAliases.set(normalizedLabel, conceptId);
@@ -824,12 +1127,18 @@ export async function runTopicMaintenance(
     );
   }
 
-  const hasMore = input.scanned === segmentLimit;
+  const hasMore = input.hasMore;
   return {
     version: INTELLIGENCE_TOPIC_MAINTENANCE_VERSION,
     considered: components.length,
     scannedSegments: input.scanned,
     unassignedSegments: input.nodes.length,
+    exactAssignments: directAssignments.filter(({ decision }) =>
+      decision.action === "exact_alias").length,
+    semanticAssignments: directAssignments.filter(({ decision }) =>
+      decision.action === "semantic").length,
+    candidateGraphSegments: discoveryNodes.length,
+    belowAssignmentThreshold,
     graphEdges: graph.edges.length,
     connectedComponents: graph.components.length,
     qualifyingComponents: components.length,
