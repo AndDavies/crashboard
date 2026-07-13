@@ -3,6 +3,8 @@ import {
   INTELLIGENCE_EVALUATION_SCHEMA_VERSION,
   assertPrivateEvaluationPath,
   buildIntelligenceEvaluationReport,
+  hasRequiredSearchCategoryCoverage,
+  isNewsletterEvaluationSource,
   summarizePerformance,
   type IntelligenceEvaluationWorkspace,
 } from "@/lib/intelligence/evaluation-v2";
@@ -38,6 +40,7 @@ function workspace(): IntelligenceEvaluationWorkspace {
       documentId: "doc-1",
       documentTitle: "",
       publishedAt: null,
+      sourceText: "Original newsletter text.",
       parserVersion: "v2",
       parserConfidence: 0.8,
       segments: [],
@@ -51,6 +54,7 @@ function workspace(): IntelligenceEvaluationWorkspace {
       signalKey: "topic:1",
       signalId: "1",
       signalKind: "topic",
+      signalDate: "2026-07-12",
       currentLabel: "",
       previousLabel: "",
       predictedDirection: "rising",
@@ -81,6 +85,7 @@ function workspace(): IntelligenceEvaluationWorkspace {
       expectedResultIds: ["topic:1", "document:1"],
       retrievedResultIds: ["topic:1", "document:other", "document:1"],
       durationMs: 120,
+      relevanceReviewed: true,
       reviewerNote: "",
     }],
     performance: {
@@ -108,6 +113,89 @@ describe("Intelligence v2 evaluation", () => {
       { measuredAt: "now", durationMs: 1_600, status: 200, resultCount: 1 },
       { measuredAt: "now", durationMs: 1, status: 500, resultCount: 0 },
     ])).toEqual({ samples: 2, medianMs: 500, p95Ms: 1_600, maxMs: 1_600 });
+  });
+
+  it("does not pass a fast chart response unless all five requested series are returned", () => {
+    const incompleteChart = workspace();
+    incompleteChart.performance.chart[0].resultCount = 4;
+    const report = buildIntelligenceEvaluationReport(incompleteChart);
+    expect(report.metrics.chartPerformance.maxMs).toBe(400);
+    expect(report.gates.chartResponseUnder1500Ms).toBe(false);
+  });
+
+  it("does not call a topic label stable without a prior generated snapshot", () => {
+    const firstSnapshot = workspace();
+    firstSnapshot.surges[0].previousLabel = null;
+    firstSnapshot.surges[0].labelStable = true;
+    const report = buildIntelligenceEvaluationReport(firstSnapshot);
+    expect(report.metrics.topicLabelStability.value).toBeNull();
+    expect(report.reviewCompletion.surges.value).toBe(0);
+  });
+
+  it("does not infer why-now support merely from the presence of an evidence URL", () => {
+    const unverifiedEvidence = workspace();
+    unverifiedEvidence.surges[0].linkedWhyNowClaimCount = 0;
+    const report = buildIntelligenceEvaluationReport(unverifiedEvidence);
+    expect(report.metrics.evidenceLinkCompleteness.value).toBe(0);
+    expect(report.gates.evidenceLinksComplete).toBe(false);
+  });
+
+  it("recognizes only newsletter documents as segmentation-review candidates", () => {
+    expect(isNewsletterEvaluationSource("email_newsletter")).toBe(true);
+    expect(isNewsletterEvaluationSource("web_article")).toBe(false);
+    expect(isNewsletterEvaluationSource(null)).toBe(false);
+  });
+
+  it("requires the reviewed editorial-item count before a segmentation is complete", () => {
+    const incompleteCount = workspace();
+    incompleteCount.segmentationExamples[0].correctEditorialItemCount = null;
+    expect(buildIntelligenceEvaluationReport(incompleteCount).reviewCompletion.segmentationExamples.value)
+      .toBe(0);
+  });
+
+  it("requires every representative search category", () => {
+    const baseSearch = workspace().searches[0];
+    expect(hasRequiredSearchCategoryCoverage([
+      { ...baseSearch, category: "acronym" },
+      { ...baseSearch, category: "system" },
+      { ...baseSearch, category: "organization" },
+      { ...baseSearch, category: "topic" },
+      { ...baseSearch, category: "natural_language" },
+    ])).toBe(true);
+    expect(hasRequiredSearchCategoryCoverage([
+      { ...baseSearch, category: "topic" },
+      { ...baseSearch, category: "natural_language" },
+    ])).toBe(false);
+  });
+
+  it("calculates search recall at ten as an equal-weight per-query average", () => {
+    const searchEvaluation = workspace();
+    searchEvaluation.searches = [
+      {
+        ...searchEvaluation.searches[0],
+        id: "single-expected",
+        category: "acronym",
+        expectedResultIds: ["miss"],
+        retrievedResultIds: ["other"],
+      },
+      {
+        ...searchEvaluation.searches[0],
+        id: "three-expected",
+        category: "natural_language",
+        expectedResultIds: ["one", "two", "three"],
+        retrievedResultIds: ["one", "two", "three"],
+      },
+    ];
+    expect(buildIntelligenceEvaluationReport(searchEvaluation).metrics.searchRecallAt10.value)
+      .toBe(0.5);
+  });
+
+  it("does not score generated search expectations before a relevance review", () => {
+    const unreviewed = workspace();
+    unreviewed.searches[0].relevanceReviewed = false;
+    const report = buildIntelligenceEvaluationReport(unreviewed);
+    expect(report.metrics.searchRecallAt10.value).toBeNull();
+    expect(report.reviewCompletion.searches.value).toBe(0);
   });
 
   it("refuses to write review data outside the ignored private directory", () => {

@@ -4,6 +4,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { stripControlCharacters } from "@/lib/ingestion/normalize";
+import { clearNewsletterBoilerplateReason } from "@/lib/intelligence/newsletter-boilerplate";
 import {
   INTELLIGENCE_EXTRACTION_MODEL,
   INTELLIGENCE_OPENAI_MAX_RETRIES,
@@ -138,7 +139,8 @@ function sourceGroundingRatio(candidate: string, source: string) {
 
 function shouldExcludeModelArticle(title: string, content: string) {
   const combined = `${title} ${content}`;
-  return BOILERPLATE_PATTERN.test(combined) || SPONSOR_PATTERN.test(combined);
+  return clearNewsletterBoilerplateReason(title, content) !== null ||
+    BOILERPLATE_PATTERN.test(combined) || SPONSOR_PATTERN.test(combined);
 }
 
 export function modelSegmentationToSegments(input: {

@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireDashboardUser } from "@/lib/blog/data";
+import {
+  analysisPhasePrecedesCheckpoint,
+  type IntelligenceAnalysisPhase,
+} from "@/lib/intelligence/analysis-refresh";
 import { runIntelligenceV2BackfillStep } from "@/lib/intelligence/signal-refresh-v2";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -13,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     ownerId = (await requireDashboardUser()).id;
     const body = (await request.json().catch(() => ({}))) as {
-      phase?: "segmentation" | "terms" | "embeddings" | "concept_embeddings" | "topic_maintenance" | "dedupe" | "signals" | "all";
+      phase?: IntelligenceAnalysisPhase | "all";
       cursor?: number;
       limit?: number;
     };
@@ -25,11 +29,9 @@ export async function POST(request: NextRequest) {
     // request window. Smaller resumable batches keep each checkpoint durable.
     const limit = phase === "segmentation"
       ? Math.min(10, requestedLimit)
-      : phase === "terms"
-        ? Math.max(250, requestedLimit)
-        : phase === "embeddings"
-          ? Math.max(100, requestedLimit)
-          : requestedLimit;
+      : phase === "embeddings"
+        ? Math.max(100, requestedLimit)
+        : requestedLimit;
     const resumable = await admin
       .from("intelligence_runs")
       .select("id,status,checkpoint_after")
@@ -46,6 +48,21 @@ export async function POST(request: NextRequest) {
     if (existing?.id) {
       runId = String(existing.id);
       const checkpoint = existing.checkpoint_after as Record<string, unknown> | null;
+      if (
+        phase !== "all" &&
+        analysisPhasePrecedesCheckpoint(phase, checkpoint?.phase)
+      ) {
+        return NextResponse.json({
+          result: {
+            phase,
+            hasMore: false,
+            nextCursor: null,
+            skipped: true,
+            resumePhase: checkpoint?.phase,
+            runId,
+          },
+        });
+      }
       const savedCursor = Number(checkpoint?.nextCursor);
       if (
         checkpoint?.phase === phase &&

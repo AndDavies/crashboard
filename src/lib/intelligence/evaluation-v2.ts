@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export const INTELLIGENCE_EVALUATION_SCHEMA_VERSION = "intelligence-v2-evaluation.1";
+export const INTELLIGENCE_EVALUATION_SCHEMA_VERSION = "intelligence-v2-evaluation.3";
 
 export const INTELLIGENCE_EVALUATION_TARGETS = {
   duplicatePairs: 100,
@@ -33,6 +33,7 @@ export type SegmentationReview = {
   documentId: string;
   documentTitle: string;
   publishedAt: string | null;
+  sourceText: string;
   parserVersion: string;
   parserConfidence: number;
   segments: Array<{
@@ -53,6 +54,7 @@ export type SurgeReview = {
   signalKey: string;
   signalId: string;
   signalKind: string;
+  signalDate: string;
   currentLabel: string;
   previousLabel: string | null;
   predictedDirection: string;
@@ -64,6 +66,10 @@ export type SurgeReview = {
   labelStable: boolean | null;
   reviewerNote: string;
 };
+
+export function isNewsletterEvaluationSource(value: unknown) {
+  return value === "email_newsletter";
+}
 
 export type EventTopicLinkReview = {
   id: string;
@@ -85,8 +91,22 @@ export type SearchReview = {
   expectedResultIds: string[];
   retrievedResultIds: string[];
   durationMs: number | null;
+  relevanceReviewed: boolean;
   reviewerNote: string;
 };
+
+const REQUIRED_SEARCH_CATEGORIES: SearchReview["category"][] = [
+  "acronym",
+  "system",
+  "organization",
+  "topic",
+  "natural_language",
+];
+
+export function hasRequiredSearchCategoryCoverage(searches: SearchReview[]) {
+  const present = new Set(searches.map((item) => item.category));
+  return REQUIRED_SEARCH_CATEGORIES.every((category) => present.has(category));
+}
 
 export type PerformanceSample = {
   measuredAt: string;
@@ -213,19 +233,19 @@ export function buildIntelligenceEvaluationReport(
   const predictedPositives = reviewedDuplicates.filter((item) => item.predictedSameStory).length;
   const actualPositives = reviewedDuplicates.filter((item) => item.sameStory === true).length;
   const reviewedSurges = workspace.surges.filter((item) => item.isRealTrend !== null);
-  const reviewedLabelStability = workspace.surges.filter((item) => item.labelStable !== null);
+  const reviewedLabelStability = workspace.surges.filter(
+    (item) => item.previousLabel !== null && item.labelStable !== null,
+  );
   const reviewedLinks = workspace.eventTopicLinks.filter((item) => item.correctLink !== null);
   const reviewedSearches = workspace.searches.filter(
-    (item) => item.expectedResultIds.length > 0 && item.durationMs !== null,
+    (item) => item.relevanceReviewed && item.expectedResultIds.length > 0 && item.durationMs !== null,
   );
-  const recallHits = reviewedSearches.reduce((sum, item) => {
+  const searchRecallSum = reviewedSearches.reduce((sum, item) => {
     const retrieved = new Set(item.retrievedResultIds.slice(0, 10));
-    return sum + item.expectedResultIds.filter((id) => retrieved.has(id)).length;
+    const expected = [...new Set(item.expectedResultIds)];
+    const hits = expected.filter((id) => retrieved.has(id)).length;
+    return sum + hits / expected.length;
   }, 0);
-  const recallExpected = reviewedSearches.reduce(
-    (sum, item) => sum + item.expectedResultIds.length,
-    0,
-  );
   const whyNowClaims = workspace.surges.reduce(
     (sum, item) => sum + Math.max(0, item.whyNowClaimCount),
     0,
@@ -248,7 +268,7 @@ export function buildIntelligenceEvaluationReport(
   };
   const sampleTargetsMet = Object.entries(INTELLIGENCE_EVALUATION_TARGETS).every(
     ([key, target]) => sampleCounts[key as keyof typeof sampleCounts] === target,
-  );
+  ) && hasRequiredSearchCategoryCoverage(workspace.searches);
   const metrics = {
     duplicatePrecision: rate(truePositives, predictedPositives),
     duplicateRecall: rate(truePositives, actualPositives),
@@ -264,7 +284,9 @@ export function buildIntelligenceEvaluationReport(
       reviewedLinks.filter((item) => item.correctLink === true).length,
       reviewedLinks.length,
     ),
-    searchRecallAt10: rate(recallHits, recallExpected),
+    // Recall is averaged per query so natural-language searches with several
+    // relevant results do not outweigh acronym or identifier searches.
+    searchRecallAt10: rate(searchRecallSum, reviewedSearches.length),
     topicLabelStability: rate(
       reviewedLabelStability.filter((item) => item.labelStable === true).length,
       reviewedLabelStability.length,
@@ -287,7 +309,9 @@ export function buildIntelligenceEvaluationReport(
     evidenceLinksComplete: gate(metrics.evidenceLinkCompleteness, (value) => value === 1),
     chartResponseUnder1500Ms: chartPerformance.maxMs === null
       ? null
-      : chartPerformance.maxMs < 1_500,
+      : chartPerformance.maxMs < 1_500 && workspace.performance.chart.every(
+        (sample) => sample.status >= 200 && sample.status < 400 && sample.resultCount === 5,
+      ),
     searchResponseUnder1500Ms: searchPerformance.maxMs === null
       ? null
       : searchPerformance.maxMs < 1_500,
@@ -299,11 +323,14 @@ export function buildIntelligenceEvaluationReport(
     ),
     segmentationExamples: completedReviewMetric(
       workspace.segmentationExamples,
-      (item) => item.acceptable !== null && item.containsTrendEligibleBoilerplate !== null,
+      (item) => item.acceptable !== null &&
+        Number.isInteger(item.correctEditorialItemCount) &&
+        Number(item.correctEditorialItemCount) >= 0 &&
+        item.containsTrendEligibleBoilerplate !== null,
     ),
     surges: completedReviewMetric(
       workspace.surges,
-      (item) => item.isRealTrend !== null && item.labelStable !== null,
+      (item) => item.isRealTrend !== null && item.previousLabel !== null && item.labelStable !== null,
     ),
     eventTopicLinks: completedReviewMetric(
       workspace.eventTopicLinks,
@@ -311,7 +338,7 @@ export function buildIntelligenceEvaluationReport(
     ),
     searches: completedReviewMetric(
       workspace.searches,
-      (item) => item.expectedResultIds.length > 0 && item.durationMs !== null,
+      (item) => item.relevanceReviewed && item.expectedResultIds.length > 0 && item.durationMs !== null,
     ),
   };
   const allReviewsComplete = Object.values(completion).every((item) => item.value === 1);

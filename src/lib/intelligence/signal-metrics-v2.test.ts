@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCanonicalSignalDailyRows,
   dailyTotalsFromRows,
+  retainGloballySupportedSignalObservations,
   summarizeCanonicalSignal,
   type SignalMeasurementItem,
   type SignalMeasurementObservation,
@@ -12,6 +13,42 @@ function day(value: number) {
 }
 
 describe("canonical v2 signal metrics", () => {
+  it("keeps canonical series only for signals supported by three distinct items", () => {
+    const observation = (
+      itemId: string,
+      signalKey: string,
+      signalKind: SignalMeasurementObservation["signalKind"],
+    ): SignalMeasurementObservation => ({
+      itemId,
+      signalKey,
+      signalId: signalKey.split(":")[1]!,
+      signalKind,
+      signalLabel: signalKey,
+      mentions: 1,
+      extractionConfidence: 0.8,
+      lensKeys: ["all"],
+    });
+    const observations = [
+      observation("item-1", "keyword:one", "keyword"),
+      observation("item-1", "organization:two", "organization"),
+      observation("item-2", "organization:two", "organization"),
+      observation("item-1", "system:three", "system"),
+      observation("item-1", "system:three", "system"),
+      observation("item-2", "system:three", "system"),
+      observation("item-3", "system:three", "system"),
+    ];
+
+    const retained = retainGloballySupportedSignalObservations(observations);
+
+    expect(retained).toHaveLength(4);
+    expect(new Set(retained.map((item) => item.signalKey))).toEqual(
+      new Set(["system:three"]),
+    );
+    expect(new Set(retained.map((item) => item.itemId))).toEqual(
+      new Set(["item-1", "item-2", "item-3"]),
+    );
+  });
+
   it("counts measurement items once, caps repeated mentions, and balances sources", () => {
     const items: SignalMeasurementItem[] = [
       { id: "a", documentId: "d-a", date: day(1), tokenCount: 100, sourceFamily: "A", authorityTier: "primary", storyId: "s-1" },

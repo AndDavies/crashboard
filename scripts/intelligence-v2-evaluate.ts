@@ -13,6 +13,7 @@ import {
   INTELLIGENCE_EVALUATION_TARGETS,
   assertPrivateEvaluationPath,
   buildIntelligenceEvaluationReport,
+  isNewsletterEvaluationSource,
   type DuplicatePairReview,
   type EvaluationContentReference,
   type EventTopicLinkReview,
@@ -24,6 +25,7 @@ import {
   type SurgeReview,
 } from "../src/lib/intelligence/evaluation-v2";
 import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "../src/lib/intelligence/signal-metrics-v2";
+import { latestCompleteDateKey } from "../src/lib/intelligence/signal-metrics";
 
 type DbRow = Record<string, unknown>;
 type QueryResult<T> = PromiseLike<{
@@ -58,6 +60,12 @@ function excerpt(value: unknown) {
 
 function fingerprint(...values: unknown[]) {
   return createHash("sha256").update(values.map(compact).join("\u001f")).digest("hex");
+}
+
+function subtractIsoDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
 }
 
 function titleTokens(value: unknown) {
@@ -200,7 +208,9 @@ function sampleDuplicatePairs(input: {
 
 function sampleSegmentations(segments: DbRow[]) {
   const byDocument = new Map<string, DbRow[]>();
-  for (const row of segments) {
+  for (const row of segments.filter((segment) =>
+    isNewsletterEvaluationSource(documentFromSegment(segment).source_type)
+  )) {
     const group = byDocument.get(String(row.document_id)) ?? [];
     group.push(row);
     byDocument.set(String(row.document_id), group);
@@ -224,6 +234,7 @@ function sampleSegmentations(segments: DbRow[]) {
     documentId,
     documentTitle: compact(document.title ?? "Untitled newsletter"),
     publishedAt: compact(document.published_at) || null,
+    sourceText: compact(document.content_text),
     parserVersion: compact(rows[0].parser_version),
     parserConfidence: confidence,
     segments: rows.map((row) => ({
@@ -281,36 +292,42 @@ function sampleSurges(
   signalGroups: ReturnType<typeof distinctSignals>,
   referencesByDocument: Map<string, EvaluationContentReference>,
 ) {
-  const eligible = signalGroups.filter(({ latest }) =>
-    ["topic", "keyword"].includes(String(latest.signal_kind)),
-  );
-  const movement = eligible.filter(({ latest }) =>
-    ["new", "rising", "cooling"].includes(String(latest.direction)),
-  );
-  const movementKeys = new Set(movement.map((item) => item.key));
-  const candidates = [
-    ...movement,
-    ...eligible.filter((item) => !movementKeys.has(item.key)),
-  ].slice(0, INTELLIGENCE_EVALUATION_TARGETS.surges);
+  const candidates = signalGroups.flatMap((group) => {
+    if (!["topic", "keyword"].includes(String(group.latest.signal_kind))) return [];
+    const movement = group.rows.filter((row) =>
+      ["new", "rising", "cooling"].includes(String(row.direction))
+    ).toSorted((a, b) =>
+      Number(b.hidden_rank_score ?? 0) - Number(a.hidden_rank_score ?? 0) ||
+      String(b.signal_date).localeCompare(String(a.signal_date))
+    )[0];
+    return movement ? [{ ...group, evaluation: movement }] : [];
+  }).toSorted((a, b) =>
+    Number(b.evaluation.hidden_rank_score ?? 0) - Number(a.evaluation.hidden_rank_score ?? 0) ||
+    String(b.evaluation.signal_date).localeCompare(String(a.evaluation.signal_date))
+  ).slice(0, INTELLIGENCE_EVALUATION_TARGETS.surges);
   if (candidates.length !== INTELLIGENCE_EVALUATION_TARGETS.surges) {
     throw new Error(`Could only create ${candidates.length} of 30 topic or keyword surge examples.`);
   }
-  return candidates.map(({ key, rows, latest }): SurgeReview => {
-    const summary = signalSummary(latest);
-    const currentReach = Number(summary.current_reach ?? latest.raw_reach ?? 0) * 100;
+  return candidates.map(({ key, latest, evaluation }): SurgeReview => {
+    const summary = signalSummary(evaluation);
+    const currentReach = Number(summary.current_reach ?? evaluation.raw_reach ?? 0) * 100;
     const previousReach = Number(summary.previous_reach ?? 0) * 100;
-    const evidenceUrls = evidenceUrlsForSignal(rows, referencesByDocument);
+    const evidenceUrls = evidenceUrlsForSignal([evaluation], referencesByDocument);
     return {
-      id: `surge-${fingerprint(key).slice(0, 16)}`,
+      id: `surge-${fingerprint(key, evaluation.signal_date).slice(0, 16)}`,
       signalKey: key,
       signalId: String(latest.signal_id),
       signalKind: String(latest.signal_kind),
+      signalDate: String(evaluation.signal_date),
       currentLabel: String(latest.signal_label),
       previousLabel: null,
-      predictedDirection: String(latest.direction),
-      whyNow: `${String(latest.direction)}: ${currentReach.toFixed(1)}% of coverage now versus ${previousReach.toFixed(1)}% previously.`,
+      predictedDirection: String(evaluation.direction),
+      whyNow: `${String(evaluation.direction)}: ${currentReach.toFixed(1)}% of coverage versus ${previousReach.toFixed(1)}% in the comparison period ending ${String(evaluation.signal_date)}.`,
       whyNowClaimCount: 1,
-      linkedWhyNowClaimCount: evidenceUrls.length ? 1 : 0,
+      // A URL being present does not prove that it supports the why-now claim.
+      // Keep this unverified until a reviewer traces the claim to the retained
+      // evidence and explicitly updates the count in the private workspace.
+      linkedWhyNowClaimCount: 0,
       evidenceUrls,
       isRealTrend: null,
       labelStable: null,
@@ -385,6 +402,7 @@ function sampleSearches(signalGroups: ReturnType<typeof distinctSignals>) {
         : [String(latest.signal_key)],
       retrievedResultIds: [],
       durationMs: null,
+      relevanceReviewed: false,
       reviewerNote: "",
     });
   };
@@ -401,12 +419,25 @@ function sampleSearches(signalGroups: ReturnType<typeof distinctSignals>) {
 }
 
 async function sourceRows(admin: SupabaseClient, ownerId: string) {
-  const [segments, memberships, clusters, signals, eventLinks, events, concepts] = await Promise.all([
+  const completeThrough = latestCompleteDateKey();
+  const latestSignal = await admin.from("intelligence_signal_daily")
+    .select("signal_date")
+    .eq("owner_id", ownerId)
+    .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+    .eq("signal_date", completeThrough)
+    .limit(1)
+    .maybeSingle();
+  if (latestSignal.error) throw new Error(latestSignal.error.message);
+  if (!latestSignal.data?.signal_date) {
+    throw new Error(`No complete Intelligence v2 signal series is available through ${completeThrough}.`);
+  }
+  const movementStart = subtractIsoDays(completeThrough, 179);
+  const [segments, memberships, clusters, recentSignals, movementSignals, eventLinks, events, concepts] = await Promise.all([
     fetchLimited<DbRow>((from, to) => admin.from("intelligence_document_segments")
-      .select("id,document_id,segment_index,segment_type,title,content_text,content_hash,confidence,parser_version,exclusion_reason,documents!inner(title,published_at,canonical_url,original_url,source_type)")
-      .eq("owner_id", ownerId).order("id", { ascending: true }).range(from, to), 8_000),
+      .select("id,document_id,segment_index,segment_type,title,content_text,content_hash,confidence,parser_version,exclusion_reason,documents!inner(title,content_text,published_at,canonical_url,original_url,source_type)")
+      .eq("owner_id", ownerId).order("id", { ascending: true }).range(from, to), 50_000),
     fetchLimited<DbRow>((from, to) => admin.from("intelligence_cluster_segments")
-      .select("segment_id,cluster_id,relationship").eq("owner_id", ownerId).range(from, to), 8_000),
+      .select("segment_id,cluster_id,relationship").eq("owner_id", ownerId).range(from, to), 50_000),
     fetchLimited<DbRow>((from, to) => admin.from("intelligence_clusters")
       .select("id,cluster_type").eq("owner_id", ownerId)
       .in("cluster_type", ["story", "exact_duplicate", "syndicated"]).range(from, to), 5_000),
@@ -415,6 +446,14 @@ async function sourceRows(admin: SupabaseClient, ownerId: string) {
       .eq("owner_id", ownerId).eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
       .order("signal_date", { ascending: false }).order("hidden_rank_score", { ascending: false })
       .range(from, to), 20_000),
+    fetchLimited<DbRow>((from, to) => admin.from("intelligence_signal_daily")
+      .select("signal_key,signal_id,signal_kind,signal_label,signal_date,direction,raw_reach,hidden_rank_score,metadata")
+      .eq("owner_id", ownerId).eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+      .in("signal_kind", ["topic", "keyword"])
+      .in("direction", ["new", "rising", "cooling"])
+      .gte("signal_date", movementStart).lte("signal_date", completeThrough)
+      .order("hidden_rank_score", { ascending: false }).order("signal_date", { ascending: false })
+      .range(from, to), 5_000),
     fetchLimited<DbRow>((from, to) => admin.from("intelligence_event_concepts")
       .select("event_id,concept_id,confidence").eq("owner_id", ownerId)
       .order("confidence", { ascending: false }).range(from, to), 8_000),
@@ -425,7 +464,20 @@ async function sourceRows(admin: SupabaseClient, ownerId: string) {
       .select("id,canonical_label,concept_type,status").eq("owner_id", ownerId)
       .in("status", ["active", "candidate"]).range(from, to), 5_000),
   ]);
-  return { segments, memberships, clusters, signals, eventLinks, events, concepts };
+  const signalsByKeyAndDate = new Map<string, DbRow>();
+  for (const row of [...recentSignals, ...movementSignals]) {
+    signalsByKeyAndDate.set(`${row.signal_key}|${row.signal_date}`, row);
+  }
+  return {
+    segments,
+    memberships,
+    clusters,
+    signals: [...signalsByKeyAndDate.values()],
+    eventLinks,
+    events,
+    concepts,
+    completeThrough,
+  };
 }
 
 function retainReviews(
@@ -449,15 +501,17 @@ function retainReviews(
       reviewerNote: old.reviewerNote,
     } : item;
   });
-  const surgeByKey = new Map(previous.surges.map((item) => [item.signalKey, item]));
+  const surgeById = new Map(previous.surges.map((item) => [item.id, item]));
+  const previousSignalByKey = new Map(previous.surges.map((item) => [item.signalKey, item]));
   next.surges = next.surges.map((item) => {
-    const old = surgeByKey.get(item.signalKey);
-    return old ? {
+    const oldReview = surgeById.get(item.id);
+    const oldSignal = previousSignalByKey.get(item.signalKey);
+    return oldSignal ? {
       ...item,
-      previousLabel: old.currentLabel,
-      isRealTrend: old.isRealTrend,
-      labelStable: old.currentLabel === item.currentLabel,
-      reviewerNote: old.reviewerNote,
+      previousLabel: oldSignal.currentLabel,
+      isRealTrend: oldReview?.isRealTrend ?? null,
+      labelStable: oldSignal.currentLabel === item.currentLabel,
+      reviewerNote: oldReview?.reviewerNote ?? "",
     } : item;
   });
   const linkById = new Map(previous.eventTopicLinks.map((item) => [item.id, item]));
@@ -473,6 +527,7 @@ function retainReviews(
       expectedResultIds: old.expectedResultIds,
       retrievedResultIds: old.retrievedResultIds,
       durationMs: old.durationMs,
+      relevanceReviewed: old.relevanceReviewed,
       reviewerNote: old.reviewerNote,
     } : item;
   });
@@ -512,13 +567,14 @@ async function initialize() {
     generatedAt: new Date().toISOString(),
     ownerFingerprint: fingerprint(ownerId).slice(0, 16),
     metricVersion: INTELLIGENCE_SIGNAL_METRIC_VERSION,
-    completeThrough: compact(data.signals[0]?.signal_date) || null,
+    completeThrough: data.completeThrough,
     instructions: [
       "Set sameStory on all duplicate pairs.",
       "Set acceptable, correctEditorialItemCount, and containsTrendEligibleBoilerplate on every segmentation example.",
-      "Set isRealTrend and labelStable on every surge; verify each why-now claim has a linked evidence URL.",
+      "Set isRealTrend on every surge. Set linkedWhyNowClaimCount only after tracing each why-now claim to the listed evidence URLs.",
+      "Run refresh after a later completed signal refresh; labelStable is measured only when previousLabel is populated automatically.",
       "Set correctLink on all event-to-topic links.",
-      "Adjust each search's expectedResultIds if needed, then run the benchmark command.",
+      "Review each search's relevant results, adjust expectedResultIds, and set relevanceReviewed to true before benchmarking.",
       "Never move this file outside .local/intelligence-evaluation because it contains private source excerpts.",
     ],
     duplicatePairs: sampleDuplicatePairs({
@@ -570,6 +626,11 @@ async function benchmark() {
   }
   const chart = await measuredFetch(chartUrl, cookie);
   const chartBodySignals = Array.isArray(chart.body.comparison) ? chart.body.comparison : [];
+  if (chartBodySignals.length !== 5) {
+    throw new Error(
+      `The one-year chart benchmark requested five comparison series but received ${chartBodySignals.length}.`,
+    );
+  }
   workspace.performance.chart.push({
     measuredAt: new Date().toISOString(),
     durationMs: chart.durationMs,

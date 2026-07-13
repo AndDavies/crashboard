@@ -97,6 +97,18 @@ describe("newsletter model-assisted re-segmentation", () => {
           outboundUrl: "https://example.com/sponsor",
           confidence: 0.9,
         },
+        {
+          title: "DefenseTalks",
+          contentText: "Secure your spot now! Join the annual defence conference. ".repeat(4),
+          outboundUrl: "https://example.com/event",
+          confidence: 0.9,
+        },
+        {
+          title: "✉️ Wrapping Up",
+          contentText: "Have questions, comments, or feedback? Just reply directly. ".repeat(4),
+          outboundUrl: "",
+          confidence: 0.9,
+        },
       ],
     });
 

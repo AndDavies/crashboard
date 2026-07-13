@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildCanonicalSignalDailyRows,
   INTELLIGENCE_SIGNAL_METRIC_VERSION,
+  retainGloballySupportedSignalObservations,
   summarizeCanonicalSignal,
   type CanonicalSignalDailyRow,
   type SignalMeasurementItem,
@@ -14,6 +15,7 @@ import type {
 import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
 import {
   INTELLIGENCE_TERM_EXTRACTION_VERSION,
+  isTrendEligibleNormalizedTerm,
   refreshTermObservationsBatch,
 } from "@/lib/intelligence/term-observations";
 import { refreshSegmentEmbeddingsBatch } from "@/lib/intelligence/hybrid-search-v2";
@@ -30,6 +32,7 @@ import {
   isMeasurementDocument,
   sourceIdFromDocument,
 } from "@/lib/intelligence/source-cohort";
+import { isRecurringNewsletterBoilerplate } from "@/lib/intelligence/newsletter-boilerplate";
 
 const PAGE_SIZE = 1_000;
 const DAY_MS = 86_400_000;
@@ -97,6 +100,49 @@ function isMeasurementStoryCluster(row: DbRow) {
     String(metadata.dedupe_version ?? "").startsWith("story-dedup-v2.");
 }
 
+type RecurringSegmentCandidate = {
+  id: string;
+  documentId: string;
+  contentHash: string;
+  sourceFamily: string;
+  title: string;
+  contentText: string;
+};
+
+function recurringBoilerplateSegmentIds(candidates: RecurringSegmentCandidate[]) {
+  const groups = new Map<string, {
+    segmentIds: string[];
+    documentIds: Set<string>;
+    sourceFamilies: Set<string>;
+    clearBoilerplate: boolean;
+  }>();
+  for (const candidate of candidates) {
+    const contentHash = candidate.contentHash.trim();
+    const sourceFamily = candidate.sourceFamily.trim().toLocaleLowerCase("en-CA");
+    if (!contentHash || !sourceFamily) continue;
+    const group = groups.get(contentHash) ?? {
+      segmentIds: [],
+      documentIds: new Set<string>(),
+      sourceFamilies: new Set<string>(),
+      clearBoilerplate: false,
+    };
+    group.segmentIds.push(candidate.id);
+    group.documentIds.add(candidate.documentId);
+    group.sourceFamilies.add(sourceFamily);
+    group.clearBoilerplate ||= isRecurringNewsletterBoilerplate(
+      candidate.title,
+      candidate.contentText,
+    );
+    groups.set(contentHash, group);
+  }
+
+  return new Set([...groups.values()].flatMap((group) =>
+    group.clearBoilerplate && group.documentIds.size >= 3 && group.sourceFamilies.size === 1
+      ? group.segmentIds
+      : []
+  ));
+}
+
 function lensKeys(label: string, domain = ""): IntelligenceSignalLens[] {
   const value = `${label} ${domain}`.toLocaleLowerCase("en-CA");
   const lenses: IntelligenceSignalLens[] = ["all"];
@@ -156,7 +202,7 @@ export async function refreshSignalsV2(
     eventEvidence, eventConcepts, eventEntities] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin
       .from("intelligence_document_segments")
-      .select("id,document_id,content_text,segment_type,token_count,confidence,metadata,exclusion_reason,documents!inner(id,title,publisher_name,published_at,created_at,source_identity_id,metadata)")
+      .select("id,document_id,title,content_text,content_hash,segment_type,token_count,confidence,metadata,exclusion_reason,documents!inner(id,title,publisher_name,published_at,created_at,source_identity_id,metadata)")
       .eq("owner_id", ownerId)
       .in("segment_type", ["editorial", "unknown"])
       .is("exclusion_reason", null)
@@ -232,10 +278,13 @@ export async function refreshSignalsV2(
     }
   }
 
-  const items: SignalMeasurementItem[] = [];
-  const itemBySegment = new Map<string, SignalMeasurementItem>();
-  const itemsByDocument = new Map<string, SignalMeasurementItem[]>();
-  const contentByItem = new Map<string, string>();
+  const measurementSegments: Array<{
+    row: DbRow;
+    document: DbRow;
+    date: string;
+    identity: DbRow;
+    sourceFamily: string;
+  }> = [];
   for (const row of segments) {
     const document = object(row.documents);
     const publishedAt = String(document.published_at ?? document.created_at ?? "");
@@ -244,19 +293,39 @@ export async function refreshSignalsV2(
     const identity = identityById.get(String(document.source_identity_id ?? "")) ?? {};
     const source = sourceById.get(sourceIdFromDocument(document, identity)) ?? {};
     if (!isMeasurementDocument({ document, identity, source, publishedAt })) continue;
+    const sourceFamily = String(
+      identity.normalized_family
+        ?? identity.source_family
+        ?? document.publisher_name
+        ?? "unknown source",
+    );
+    measurementSegments.push({ row, document, date, identity, sourceFamily });
+  }
+  const recurringBoilerplateIds = recurringBoilerplateSegmentIds(
+    measurementSegments.map(({ row, sourceFamily }) => ({
+      id: String(row.id),
+      documentId: String(row.document_id),
+      contentHash: String(row.content_hash ?? ""),
+      sourceFamily,
+      title: String(row.title ?? ""),
+      contentText: String(row.content_text ?? ""),
+    })),
+  );
+
+  const items: SignalMeasurementItem[] = [];
+  const itemBySegment = new Map<string, SignalMeasurementItem>();
+  const itemsByDocument = new Map<string, SignalMeasurementItem[]>();
+  const contentByItem = new Map<string, string>();
+  for (const { row, date, identity, sourceFamily } of measurementSegments) {
     const segmentId = String(row.id);
+    if (recurringBoilerplateIds.has(segmentId)) continue;
     const documentId = String(row.document_id);
     const item: SignalMeasurementItem = {
       id: segmentId,
       documentId,
       date,
       tokenCount: Number(row.token_count ?? 0),
-      sourceFamily: String(
-        identity.normalized_family
-          ?? identity.source_family
-          ?? document.publisher_name
-          ?? "unknown source",
-      ),
+      sourceFamily,
       authorityTier: String(identity.authority_tier ?? "unknown"),
       storyId: storyBySegment.get(segmentId) ?? storyByDocument.get(documentId) ?? `document:${documentId}`,
     };
@@ -365,6 +434,7 @@ export async function refreshSignalsV2(
     const item = itemBySegment.get(String(row.segment_id));
     if (!item) continue;
     const signalId = String(row.normalized_term);
+    if (!isTrendEligibleNormalizedTerm(signalId)) continue;
     const label = String(row.display_term);
     observations.push({
       itemId: item.id,
@@ -448,7 +518,11 @@ export async function refreshSignalsV2(
     }
   }
 
-  const dailyRows = buildCanonicalSignalDailyRows({ items, observations });
+  const trendableObservations = retainGloballySupportedSignalObservations(observations);
+  const dailyRows = buildCanonicalSignalDailyRows({
+    items,
+    observations: trendableObservations,
+  });
   const dailyTotals = new Map<string, { items: number; tokens: number }>();
   for (const item of items) {
     const total = dailyTotals.get(item.date) ?? { items: 0, tokens: 0 };
@@ -678,5 +752,6 @@ export const __testables = {
   isMeasurementStoryCluster,
   lensKeys,
   measurementSupportsEventSubject,
+  recurringBoilerplateSegmentIds,
   segmentSupportsLabel,
 };

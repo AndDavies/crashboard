@@ -127,6 +127,7 @@ export function extractCuratedConceptMentions(input: {
   title?: string | null;
   contentText: string;
   segments: IntelligenceDocumentSegmentInput[];
+  includeDocumentBodyFallback?: boolean;
 }) {
   const mentions: CuratedConceptMention[] = [];
   const scopes: Array<{
@@ -140,7 +141,9 @@ export function extractCuratedConceptMentions(input: {
           { segmentIndex: segment.segmentIndex, scope: "segment_title" as const, text: segment.title ?? "" },
           { segmentIndex: segment.segmentIndex, scope: "segment_body" as const, text: segment.contentText },
         ])
-      : [{ segmentIndex: null, scope: "body" as const, text: input.contentText }]),
+      : input.includeDocumentBodyFallback === false
+        ? []
+        : [{ segmentIndex: null, scope: "body" as const, text: input.contentText }]),
   ];
 
   for (const definition of CURATED_CONCEPTS) {

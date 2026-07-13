@@ -111,6 +111,10 @@ function safeStringList(values: string[]) {
     .filter(Boolean);
 }
 
+function analysisEligibleSegments(segments: Iterable<SegmentRecord>) {
+  return [...segments].filter((segment) => !segment.exclusionReason);
+}
+
 export async function persistSourceIdentity(
   admin: SupabaseClient,
   document: IntelligenceDocumentEnvelope,
@@ -209,6 +213,21 @@ export async function persistDocumentSegments(
     if (!id) throw new Error(`Missing persisted segment ${segment.segmentIndex}.`);
     byIndex.set(segment.segmentIndex, { ...segment, id });
   }
+  const excludedSegmentIds = [...byIndex.values()]
+    .filter((segment) => Boolean(segment.exclusionReason))
+    .map((segment) => segment.id);
+  if (excludedSegmentIds.length) {
+    // Re-segmentation can turn a previously editorial segment into footer,
+    // navigation, sponsorship, or other boilerplate. Remove only generated
+    // concept links so those stale rows can never become trend evidence.
+    const cleanup = await admin
+      .from("intelligence_document_concepts")
+      .delete()
+      .eq("owner_id", document.ownerId)
+      .in("segment_id", excludedSegmentIds)
+      .neq("source", "manual");
+    if (cleanup.error) throw new Error(cleanup.error.message);
+  }
   return byIndex;
 }
 
@@ -253,7 +272,8 @@ export async function persistConceptGraph(
   const curatedMentions = extractCuratedConceptMentions({
     title: document.title,
     contentText: document.contentText,
-    segments: [...segmentsByIndex.values()],
+    segments: analysisEligibleSegments(segmentsByIndex.values()),
+    includeDocumentBodyFallback: false,
   });
   const descriptors = new Map<string, ConceptDescriptor>();
   for (const mention of curatedMentions) {
@@ -471,6 +491,7 @@ export async function persistConceptGraph(
 }
 
 export const __testables = {
+  analysisEligibleSegments,
   descriptorFromCurated,
   safeEvidenceText,
   safeStringList,

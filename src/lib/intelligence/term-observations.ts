@@ -28,6 +28,7 @@ const STOPWORDS = new Set([
   "would", "your", "announced", "announcement", "company", "companies", "industry",
   "market", "million", "billion", "system", "systems", "technology", "technologies",
   "new", "news", "week", "year", "years", "including", "using", "used",
+  "http", "https", "across", "rather", "without", "around", "better", "already",
 ]);
 
 const TECHNICAL_CUES = new Set([
@@ -105,6 +106,13 @@ function isContentToken(token: Token) {
 
 function isTechnicalToken(token: Token) {
   return TECHNICAL_CUES.has(token.normalized) || isIdentifier(token.raw) || isAcronym(token.raw);
+}
+
+export function isTrendEligibleNormalizedTerm(value: string) {
+  const tokens = tokenize(value);
+  return tokens.length > 0 &&
+    !STOPWORDS.has(tokens[0]!.normalized) &&
+    !STOPWORDS.has(tokens.at(-1)!.normalized);
 }
 
 function countSequence(tokens: Token[], normalizedParts: string[]) {
@@ -267,7 +275,9 @@ export async function refreshTermObservationsBatch(
     ? query.in("id", explicitSegmentIds).order("id", { ascending: true })
     : query.order("id", { ascending: true }).range(cursor, cursor + limit - 1);
   const result = await query;
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) {
+    throw new Error(`term segment read failed at cursor ${cursor}: ${result.error.message}`);
+  }
 
   const segmentIds = (result.data ?? []).map((row) => String(row.id));
   if (segmentIds.length) {
@@ -279,14 +289,18 @@ export async function refreshTermObservationsBatch(
       .eq("owner_id", ownerId)
       .eq("extraction_version", INTELLIGENCE_TERM_EXTRACTION_VERSION)
       .in("segment_id", segmentIds);
-    if (clearState.error) throw new Error(clearState.error.message);
+    if (clearState.error) {
+      throw new Error(`term completion-state reset failed for ${segmentIds.length} segments: ${clearState.error.message}`);
+    }
     const remove = await admin
       .from("intelligence_term_observations")
       .delete()
       .eq("owner_id", ownerId)
       .eq("extraction_version", INTELLIGENCE_TERM_EXTRACTION_VERSION)
       .in("segment_id", segmentIds);
-    if (remove.error) throw new Error(remove.error.message);
+    if (remove.error) {
+      throw new Error(`term observation reset failed for ${segmentIds.length} segments: ${remove.error.message}`);
+    }
   }
 
   const rows = (result.data ?? []).flatMap((raw) => {
@@ -326,9 +340,9 @@ export async function refreshTermObservationsBatch(
       typeof value === "string" ? wellFormedText(value) : value,
     ]),
   ));
-  for (let index = 0; index < safeRows.length; index += 1_000) {
+  for (let index = 0; index < safeRows.length; index += 500) {
     const write = await admin.from("intelligence_term_observations").upsert(
-      safeRows.slice(index, index + 1_000),
+      safeRows.slice(index, index + 500),
       { onConflict: "owner_id,observation_key" },
     );
     if (write.error) {
@@ -336,7 +350,7 @@ export async function refreshTermObservationsBatch(
         write.error.message,
         write.error.details,
         write.error.hint,
-        `term observation batch ${index}-${Math.min(index + 999, safeRows.length - 1)}`,
+        `term observation batch ${index}-${Math.min(index + 499, safeRows.length - 1)}`,
       ].filter(Boolean).join(" · "));
     }
   }
@@ -370,7 +384,9 @@ export async function refreshTermObservationsBatch(
       stateRows,
       { onConflict: "segment_id,content_hash,extraction_version" },
     );
-    if (stateWrite.error) throw new Error(stateWrite.error.message);
+    if (stateWrite.error) {
+      throw new Error(`term completion-state write failed for ${stateRows.length} segments: ${stateWrite.error.message}`);
+    }
   }
 
   const processed = result.data?.length ?? 0;

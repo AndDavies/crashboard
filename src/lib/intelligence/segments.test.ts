@@ -45,4 +45,29 @@ describe("newsletter segmentation", () => {
       },
     ]);
   });
+
+  it("labels direct footer and registration calls to action without excluding a system story", () => {
+    const segments = segmentNewsletterContent({
+      html: `
+        <main>
+          <article><h2>Canada selects F-35 training system</h2><p>The programme completed acceptance testing and will enter service this year. Training deliveries will begin with qualified crews and validated equipment at the main operating base.</p></article>
+          <article><h2>Registration opens for defence procurement industry day</h2><p>Suppliers can register now for the buyer's industry day, where officials will explain technical requirements, the competition timetable, and the process for submitting questions.</p></article>
+          <section><h3>✉️ Wrapping Up</h3><p>Have questions, comments, or feedback? Just reply directly. We read every response and would love to hear from you about this newsletter and future editions.</p></section>
+          <section><h3>DefenseTalks</h3><p>Secure your spot now! Join the annual defence conference for executive discussions, technology demonstrations, networking sessions, and programme updates.</p></section>
+        </main>`,
+      plainText: "fallback",
+      fallbackTitle: "Defence update",
+    });
+
+    expect(segments.map((segment) => ({
+      title: segment.title,
+      type: segment.segmentType,
+      reason: segment.exclusionReason,
+    }))).toEqual([
+      { title: "Canada selects F-35 training system", type: "editorial", reason: null },
+      { title: "Registration opens for defence procurement industry day", type: "editorial", reason: null },
+      { title: "✉️ Wrapping Up", type: "footer", reason: "footer_boilerplate" },
+      { title: "DefenseTalks", type: "sponsored", reason: "sponsored_content" },
+    ]);
+  });
 });

@@ -5,6 +5,56 @@ vi.mock("server-only", () => ({}));
 import { __testables } from "@/lib/intelligence/signal-refresh-v2";
 
 describe("segment-level signal support", () => {
+  it("excludes a clear recurring promo only after three documents from one family", () => {
+    const candidate = (id: string, documentId: string, sourceFamily = "Defence newsletter") => ({
+      id,
+      documentId,
+      contentHash: "same-promo-hash",
+      sourceFamily,
+      title: "DefenseTalks | Sep 22, 2026",
+      contentText: "Secure your spot now! Emerging technologies are transforming defence operations.",
+    });
+    expect(__testables.recurringBoilerplateSegmentIds([
+      candidate("one", "document-one"),
+      candidate("two", "document-two"),
+    ])).toEqual(new Set());
+    expect(__testables.recurringBoilerplateSegmentIds([
+      candidate("one", "document-one"),
+      candidate("two", "document-two"),
+      candidate("three", "document-three"),
+    ])).toEqual(new Set(["one", "two", "three"]));
+
+    const recurringGenericRegistration = ["four", "five", "six"].map((id) => ({
+      ...candidate(id, `document-${id}`),
+      contentHash: "same-registration-hash",
+      title: "Supplier briefing",
+      contentText: "Register now for details about the upcoming supplier briefing.",
+    }));
+    expect(__testables.recurringBoilerplateSegmentIds(recurringGenericRegistration))
+      .toEqual(new Set(["four", "five", "six"]));
+  });
+
+  it("preserves recurring editorial system coverage and cross-family evidence", () => {
+    const legitimate = ["one", "two", "three"].map((id) => ({
+      id,
+      documentId: `document-${id}`,
+      contentHash: "same-system-story",
+      sourceFamily: "Defence newsletter",
+      title: "Canada selects F-35 training system",
+      contentText: "The programme completed acceptance testing and will enter service this year.",
+    }));
+    expect(__testables.recurringBoilerplateSegmentIds(legitimate)).toEqual(new Set());
+
+    const promoAcrossFamilies = legitimate.map((row, index) => ({
+      ...row,
+      contentHash: "same-promo",
+      sourceFamily: index === 2 ? "Independent publisher" : row.sourceFamily,
+      title: "FedTalks",
+      contentText: "Register now! Join senior leaders at the annual conference.",
+    }));
+    expect(__testables.recurringBoilerplateSegmentIds(promoAcrossFamilies)).toEqual(new Set());
+  });
+
   it("matches punctuation-preserving system and acronym labels at token boundaries", () => {
     expect(__testables.segmentSupportsLabel(
       "Canada selected a new C-UAS system alongside the F-35 programme.",

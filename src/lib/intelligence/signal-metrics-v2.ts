@@ -96,6 +96,42 @@ export type CanonicalSignalSummary = {
   series: IntelligenceSignalSeriesPoint[];
 };
 
+/**
+ * Trend series only become actionable once a signal has enough distinct
+ * measurement items to satisfy the product's minimum visible support gate.
+ * Raw observations remain available to search; this only bounds the canonical
+ * daily-series workload and prevents archive singletons from becoming signals.
+ */
+export function retainGloballySupportedSignalObservations(
+  observations: SignalMeasurementObservation[],
+  minimumDistinctItems = 3,
+) {
+  const minimum = Math.max(1, Math.floor(minimumDistinctItems));
+  if (minimum === 1) return observations;
+
+  // Keep at most `minimum` item IDs per key. Most extracted phrases are
+  // singletons, so this avoids allocating a Set for every long-tail term.
+  const supportBySignal = new Map<string, string[] | true>();
+  for (const observation of observations) {
+    const support = supportBySignal.get(observation.signalKey);
+    if (support === true) continue;
+    if (!support) {
+      supportBySignal.set(observation.signalKey, [observation.itemId]);
+      continue;
+    }
+    if (support.includes(observation.itemId)) continue;
+    if (support.length + 1 >= minimum) {
+      supportBySignal.set(observation.signalKey, true);
+      continue;
+    }
+    support.push(observation.itemId);
+  }
+
+  return observations.filter((observation) =>
+    supportBySignal.get(observation.signalKey) === true
+  );
+}
+
 function round(value: number, places = 8) {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;

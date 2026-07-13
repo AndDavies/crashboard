@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { extractTermObservations } from "@/lib/intelligence/term-observations";
+import {
+  extractTermObservations,
+  isTrendEligibleNormalizedTerm,
+} from "@/lib/intelligence/term-observations";
 
 describe("deterministic intelligence term observations", () => {
   it("preserves defence acronyms, model numbers, and exact programme identifiers", () => {
@@ -27,6 +30,22 @@ describe("deterministic intelligence term observations", () => {
     expect(result.length).toBeLessThanOrEqual(12);
     expect(result.some((row) => row.normalizedTerm === "newsletter")).toBe(false);
     expect(result.some((row) => row.normalizedTerm.includes("counter-uas"))).toBe(true);
+  });
+
+  it("rejects URL tokens and generic connective words from trend observations", () => {
+    const result = extractTermObservations({
+      contentText:
+        "HTTPS updates spread across the sector rather than staying within one programme. Better evidence already exists around the F-35 trial.",
+    });
+    const normalized = new Set(result.map((row) => row.normalizedTerm));
+
+    for (const noise of ["https", "across", "rather", "better", "already", "around"]) {
+      expect(normalized.has(noise)).toBe(false);
+    }
+    expect(normalized.has("f-35")).toBe(true);
+    expect(isTrendEligibleNormalizedTerm("https")).toBe(false);
+    expect(isTrendEligibleNormalizedTerm("across defence programmes")).toBe(false);
+    expect(isTrendEligibleNormalizedTerm("F-35")).toBe(true);
   });
 
   it("retains meaningful two-letter acronyms", () => {

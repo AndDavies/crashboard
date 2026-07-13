@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { load } from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import { stripControlCharacters } from "@/lib/ingestion/normalize";
+import { clearNewsletterBoilerplateReason } from "@/lib/intelligence/newsletter-boilerplate";
 import {
   chooseCanonicalSourceUrl,
   normalizeSourceUrl,
@@ -63,6 +64,10 @@ function inferredTitle(value: string, fallback: string | null | undefined) {
 
 function segmentType(text: string, title: string | null, linkCount: number) {
   const combined = `${title ?? ""} ${text}`;
+  const clearReason = clearNewsletterBoilerplateReason(title, text);
+  if (clearReason === "sponsored_content") return "sponsored" as const;
+  if (clearReason === "footer_boilerplate") return "footer" as const;
+  if (clearReason === "navigation_boilerplate") return "navigation" as const;
   if (SPONSOR_PATTERN.test(combined)) return "sponsored" as const;
   if (FOOTER_PATTERN.test(combined)) return "footer" as const;
   if (NAVIGATION_PATTERN.test(combined) || (text.length < 220 && linkCount >= 4)) {

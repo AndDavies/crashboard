@@ -58,4 +58,15 @@ describe("canonical intelligence concepts", () => {
       aliases: expect.arrayContaining(["counter drone", "drone defence"]),
     });
   });
+
+  it("does not fall back to excluded document body text when explicitly disabled", () => {
+    const mentions = extractCuratedConceptMentions({
+      title: "Newsletter",
+      contentText: "Sponsored counter-UAS and artificial intelligence promotion.",
+      segments: [],
+      includeDocumentBodyFallback: false,
+    });
+
+    expect(mentions).toEqual([]);
+  });
 });

@@ -9,6 +9,10 @@ import {
   runFullBackfillBatches,
   type FullBackfillProgress,
 } from "@/lib/intelligence/full-backfill";
+import {
+  INTELLIGENCE_ANALYSIS_PHASES,
+  type IntelligenceAnalysisPhase,
+} from "@/lib/intelligence/analysis-refresh";
 import { cn } from "@/lib/utils";
 
 async function post(endpoint: string, body: Record<string, unknown> = {}) {
@@ -25,37 +29,18 @@ async function post(endpoint: string, body: Record<string, unknown> = {}) {
   return result.result ?? {};
 }
 
-type AnalysisPhase =
-  | "segmentation"
-  | "terms"
-  | "embeddings"
-  | "concept_embeddings"
-  | "topic_maintenance"
-  | "dedupe"
-  | "signals";
-
 type AnalysisProgress = {
-  phase: AnalysisPhase;
+  phase: IntelligenceAnalysisPhase;
   label: string;
   processed: number;
   batches: number;
 };
 
-const ANALYSIS_PHASES: Array<{ phase: AnalysisPhase; label: string; limit: number }> = [
-  { phase: "segmentation", label: "Separating newsletter stories", limit: 25 },
-  { phase: "terms", label: "Measuring exact terms", limit: 100 },
-  { phase: "embeddings", label: "Preparing evidence search", limit: 25 },
-  { phase: "concept_embeddings", label: "Preparing topic matching", limit: 25 },
-  { phase: "topic_maintenance", label: "Discovering stable topics", limit: 400 },
-  { phase: "dedupe", label: "Grouping repeated stories", limit: 1 },
-  { phase: "signals", label: "Calculating trend lines", limit: 1 },
-];
-
 async function refreshSignals(onProgress?: (progress: AnalysisProgress) => void) {
   let signalCount = 0;
   let processed = 0;
   let batches = 0;
-  for (const definition of ANALYSIS_PHASES) {
+  for (const definition of INTELLIGENCE_ANALYSIS_PHASES) {
     let cursor = 0;
     while (true) {
       onProgress?.({
