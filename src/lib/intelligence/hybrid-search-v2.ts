@@ -226,7 +226,7 @@ export async function refreshSegmentEmbeddingsBatch(
     : [...new Set(options.segmentIds.map(String).filter(Boolean))].slice(0, 625);
   const limit = explicitSegmentIds
     ? Math.max(1, explicitSegmentIds.length)
-    : Math.min(25, Math.max(1, Math.floor(options.limit ?? 10)));
+    : Math.min(100, Math.max(1, Math.floor(options.limit ?? 10)));
   // Segment text can be large and createEmbeddings may expand one segment into
   // multiple chunks. Keep request groups conservative until batching is token-aware.
   const concurrency = Math.min(5, Math.max(1, Math.floor(options.concurrency ?? 5)));

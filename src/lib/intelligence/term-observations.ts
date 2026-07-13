@@ -326,9 +326,9 @@ export async function refreshTermObservationsBatch(
       typeof value === "string" ? wellFormedText(value) : value,
     ]),
   ));
-  for (let index = 0; index < safeRows.length; index += 500) {
+  for (let index = 0; index < safeRows.length; index += 1_000) {
     const write = await admin.from("intelligence_term_observations").upsert(
-      safeRows.slice(index, index + 500),
+      safeRows.slice(index, index + 1_000),
       { onConflict: "owner_id,observation_key" },
     );
     if (write.error) {
@@ -336,7 +336,7 @@ export async function refreshTermObservationsBatch(
         write.error.message,
         write.error.details,
         write.error.hint,
-        `term observation batch ${index}-${Math.min(index + 499, safeRows.length - 1)}`,
+        `term observation batch ${index}-${Math.min(index + 999, safeRows.length - 1)}`,
       ].filter(Boolean).join(" · "));
     }
   }

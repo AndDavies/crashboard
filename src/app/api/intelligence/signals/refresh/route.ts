@@ -23,7 +23,13 @@ export async function POST(request: NextRequest) {
     const requestedLimit = Math.min(250, Math.max(1, Math.floor(Number(body.limit ?? 100))));
     // Model-assisted newsletter splitting can consume most of a serverless
     // request window. Smaller resumable batches keep each checkpoint durable.
-    const limit = phase === "segmentation" ? Math.min(10, requestedLimit) : requestedLimit;
+    const limit = phase === "segmentation"
+      ? Math.min(10, requestedLimit)
+      : phase === "terms"
+        ? Math.max(250, requestedLimit)
+        : phase === "embeddings"
+          ? Math.max(100, requestedLimit)
+          : requestedLimit;
     const resumable = await admin
       .from("intelligence_runs")
       .select("id,status,checkpoint_after")
