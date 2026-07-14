@@ -9,6 +9,7 @@ import {
   getGmailSource,
   syncGmailSource,
 } from "@/lib/intelligence/jobs";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -55,6 +56,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (intelligenceUsesTurso()) {
+      const store = getTursoIntelligenceStore();
+      const source = await store.getSource(ownerId, "gmail");
+      if (!source) return NextResponse.json({ error: "Connect Gmail before queuing newsletter sync." }, { status: 409 });
+      const jobId = await store.enqueueJob({
+        ownerId,
+        jobType: parsed.data.mode === "backfill" ? "backfill" : "collect",
+        priority: parsed.data.mode === "backfill" ? 80 : 50,
+        payload: parsed.data,
+      });
+      return NextResponse.json({ result: { queued: true, jobId, processed: 0, hasMore: true } }, { status: 202 });
+    }
     const admin = createAdminClient();
     const source = await getGmailSource(admin, ownerId);
     if (!source) {

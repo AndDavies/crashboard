@@ -1,21 +1,62 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 
-export const INTELLIGENCE_EVALUATION_SCHEMA_VERSION = "intelligence-v2-evaluation.3";
+export const INTELLIGENCE_EVALUATION_SCHEMA_VERSION = "intelligence-v2-evaluation.5";
+export const INTELLIGENCE_DATA_QUALITY_SCHEMA_VERSION = "intelligence-v2-data-quality.1";
+export const INTELLIGENCE_SIGNAL_FINGERPRINT_VERSION = "signal-fingerprint-v2.0.0";
 
 export const INTELLIGENCE_EVALUATION_TARGETS = {
   duplicatePairs: 100,
+  eventDuplicatePairs: 100,
   segmentationExamples: 50,
   surges: 30,
   eventTopicLinks: 50,
   searches: 20,
 } as const;
 
+export const INTELLIGENCE_REQUIRED_VALIDATION_SNAPSHOTS = 7;
+
+export const INTELLIGENCE_EVALUATION_THRESHOLDS = {
+  segmentationAcceptance: 0.9,
+  eventTopicLinkPrecision: 0.9,
+  topicLabelStability: 1,
+} as const;
+
 export type DuplicatePairReview = {
   id: string;
+  candidateReason: "canonical_url" | "content_hash" | "title_similarity" | "deterministic_control";
   predictedSameStory: boolean;
   left: EvaluationContentReference;
   right: EvaluationContentReference;
   sameStory: boolean | null;
+  reviewerNote: string;
+};
+
+export type EventDuplicatePairReview = {
+  id: string;
+  candidateReason: "title_similarity" | "event_context" | "deterministic_control";
+  predictedSameEvent: boolean;
+  left: EvaluationEventReference;
+  right: EvaluationEventReference;
+  sameEvent: boolean | null;
+  reviewerNote: string;
+};
+
+export type EvaluationEventReference = {
+  id: string;
+  title: string;
+  summary: string;
+  eventType: string;
+  eventDate: string | null;
+};
+
+export type VisibleWhyNowReview = {
+  id: string;
+  signalKey: string;
+  signalDate: string;
+  whyNow: string;
+  evidenceUrls: string[];
+  supportedByLinkedEvidence: boolean | null;
   reviewerNote: string;
 };
 
@@ -63,8 +104,83 @@ export type SurgeReview = {
   linkedWhyNowClaimCount: number;
   evidenceUrls: string[];
   isRealTrend: boolean | null;
+  directionCorrect: boolean | null;
   labelStable: boolean | null;
   reviewerNote: string;
+};
+
+export type TopicLabelReview = {
+  signalKey: string;
+  currentLabel: string;
+  previousLabel: string | null;
+  labelStable: boolean | null;
+};
+
+export type EvaluationRunProvenance = {
+  sourceRunId: string;
+  signalRefreshId: string;
+  sourceRunType: "backfill" | "signal_refresh";
+  sourceRunCompletedAt: string;
+  startDate: string;
+  completeThrough: string;
+  metricVersion: string;
+  storyGenerationId: string;
+  storyDedupeVersion: string;
+  eventGenerationId: string;
+  eventDedupeVersion: string;
+  validationGenerationPruned: boolean;
+  signalFingerprintVersion: string;
+  signalRowCount: number;
+  completeDaySignalCount: number;
+  topicLabelCount: number;
+  signalSnapshotFingerprint: string;
+  topicLabelFingerprint: string;
+};
+
+export type EvaluationValidationSnapshot = Pick<
+  EvaluationRunProvenance,
+  | "sourceRunId"
+  | "signalRefreshId"
+  | "sourceRunCompletedAt"
+  | "startDate"
+  | "completeThrough"
+  | "metricVersion"
+  | "signalFingerprintVersion"
+  | "signalRowCount"
+  | "completeDaySignalCount"
+  | "topicLabelCount"
+  | "signalSnapshotFingerprint"
+  | "topicLabelFingerprint"
+>;
+
+export type IntelligenceDataQualityGateName =
+  | "measurementCoverageAtLeast95Percent"
+  | "sourceFamiliesComplete"
+  | "newsletterParserRebuildComplete"
+  | "excludedSegmentsIsolated"
+  | "eventLinkCoverageAtLeast90Percent"
+  | "noFutureVisibleEvents"
+  | "canonicalSeriesValid"
+  | "dailyDenominatorsConsistent"
+  | "researchCohortIsolated";
+
+export type IntelligenceDataQualitySnapshot = {
+  schemaVersion: typeof INTELLIGENCE_DATA_QUALITY_SCHEMA_VERSION;
+  generatedAt: string;
+  provenance: EvaluationRunProvenance;
+  measurements: Record<string, number | null>;
+  gates: Record<IntelligenceDataQualityGateName, boolean>;
+};
+
+export type IntelligenceBenchmarkProvenance = {
+  baseUrl: string;
+  deploymentCommit: string;
+  completeThrough: string;
+  startedAt: string;
+  completedAt: string;
+  reviewFingerprint: string;
+  chartRequestCount: number;
+  searchRequestCount: number;
 };
 
 export function isNewsletterEvaluationSource(value: unknown) {
@@ -104,11 +220,15 @@ const REQUIRED_SEARCH_CATEGORIES: SearchReview["category"][] = [
 ];
 
 export function hasRequiredSearchCategoryCoverage(searches: SearchReview[]) {
-  const present = new Set(searches.map((item) => item.category));
-  return REQUIRED_SEARCH_CATEGORIES.every((category) => present.has(category));
+  const expectedPerCategory = INTELLIGENCE_EVALUATION_TARGETS.searches /
+    REQUIRED_SEARCH_CATEGORIES.length;
+  return REQUIRED_SEARCH_CATEGORIES.every((category) =>
+    searches.filter((item) => item.category === category).length === expectedPerCategory
+  );
 }
 
 export type PerformanceSample = {
+  requestId: string;
   measuredAt: string;
   durationMs: number;
   status: number;
@@ -121,17 +241,58 @@ export type IntelligenceEvaluationWorkspace = {
   ownerFingerprint: string;
   metricVersion: string;
   completeThrough: string | null;
+  reviewFingerprint: string;
+  provenance: EvaluationRunProvenance;
+  validationSnapshots: EvaluationValidationSnapshot[];
   instructions: string[];
   duplicatePairs: DuplicatePairReview[];
+  eventDuplicatePairs: EventDuplicatePairReview[];
   segmentationExamples: SegmentationReview[];
   surges: SurgeReview[];
+  topicLabels: TopicLabelReview[];
   eventTopicLinks: EventTopicLinkReview[];
   searches: SearchReview[];
+  visibleWhyNowClaims: VisibleWhyNowReview[];
   performance: {
     chart: PerformanceSample[];
     search: PerformanceSample[];
   };
+  dataQuality: IntelligenceDataQualitySnapshot | null;
+  benchmark: IntelligenceBenchmarkProvenance | null;
 };
+
+type ReviewFingerprintInput = Pick<
+  IntelligenceEvaluationWorkspace,
+  | "duplicatePairs"
+  | "eventDuplicatePairs"
+  | "segmentationExamples"
+  | "surges"
+  | "eventTopicLinks"
+  | "searches"
+  | "provenance"
+>;
+
+export function intelligenceEvaluationReviewFingerprint(
+  workspace: ReviewFingerprintInput,
+) {
+  const serialized = JSON.stringify({
+    sourceRunId: workspace.provenance.sourceRunId,
+    signalSnapshotFingerprint: workspace.provenance.signalSnapshotFingerprint,
+    duplicatePairs: workspace.duplicatePairs.map((item) => item.id),
+    eventDuplicatePairs: workspace.eventDuplicatePairs.map((item) => item.id),
+    segmentationExamples: workspace.segmentationExamples.map((item) => item.id),
+    surges: workspace.surges.map((item) => item.id),
+    eventTopicLinks: workspace.eventTopicLinks.map((item) => item.id),
+    searches: workspace.searches.map((item) => ({
+      id: item.id,
+      category: item.category,
+      query: item.query,
+      expectedResultIds: item.expectedResultIds.toSorted(),
+      relevanceReviewed: item.relevanceReviewed,
+    })),
+  });
+  return createHash("sha256").update(serialized).digest("hex");
+}
 
 export type RateMetric = {
   numerator: number;
@@ -146,31 +307,47 @@ export type IntelligenceEvaluationReport = {
   sampleTargetsMet: boolean;
   reviewCompletion: {
     duplicatePairs: RateMetric;
+    eventDuplicatePairs: RateMetric;
     segmentationExamples: RateMetric;
     surges: RateMetric;
     eventTopicLinks: RateMetric;
     searches: RateMetric;
+    visibleWhyNowClaims: RateMetric;
   };
   metrics: {
     duplicatePrecision: RateMetric;
     duplicateRecall: RateMetric;
+    eventDuplicatePrecision: RateMetric;
+    eventDuplicateRecall: RateMetric;
     segmentationAcceptance: RateMetric;
     falseTrendRate: RateMetric;
     eventTopicLinkPrecision: RateMetric;
     searchRecallAt10: RateMetric;
     topicLabelStability: RateMetric;
     evidenceLinkCompleteness: RateMetric;
+    sampledWhyNowClaimCompleteness: RateMetric;
     chartPerformance: PerformanceMetric;
     searchPerformance: PerformanceMetric;
+    validationSnapshotCount: number;
   };
   gates: {
     duplicatePrecisionAtLeast90Percent: boolean | null;
     duplicateRecallAtLeast80Percent: boolean | null;
+    eventDuplicatePrecisionAtLeast90Percent: boolean | null;
+    eventDuplicateRecallAtLeast80Percent: boolean | null;
+    segmentationAcceptanceAtLeast90Percent: boolean | null;
+    eventTopicLinkPrecisionAtLeast90Percent: boolean | null;
+    topicLabelStabilityComplete: boolean | null;
     falseTrendRateBelow10Percent: boolean | null;
     searchRecallAt10AtLeast80Percent: boolean | null;
     evidenceLinksComplete: boolean | null;
+    sampledWhyNowClaimsComplete: boolean | null;
     chartResponseUnder1500Ms: boolean | null;
     searchResponseUnder1500Ms: boolean | null;
+    validationRefreshSeriesComplete: boolean;
+    dataQualitySnapshotCurrent: boolean;
+    dataQualityGatesPass: boolean;
+    benchmarkCurrent: boolean;
   };
   readyForApproval: boolean;
 };
@@ -232,8 +409,20 @@ export function buildIntelligenceEvaluationReport(
   ).length;
   const predictedPositives = reviewedDuplicates.filter((item) => item.predictedSameStory).length;
   const actualPositives = reviewedDuplicates.filter((item) => item.sameStory === true).length;
+  const reviewedEventDuplicates = workspace.eventDuplicatePairs.filter(
+    (item) => item.sameEvent !== null,
+  );
+  const eventTruePositives = reviewedEventDuplicates.filter(
+    (item) => item.predictedSameEvent && item.sameEvent === true,
+  ).length;
+  const eventPredictedPositives = reviewedEventDuplicates.filter(
+    (item) => item.predictedSameEvent,
+  ).length;
+  const eventActualPositives = reviewedEventDuplicates.filter(
+    (item) => item.sameEvent === true,
+  ).length;
   const reviewedSurges = workspace.surges.filter((item) => item.isRealTrend !== null);
-  const reviewedLabelStability = workspace.surges.filter(
+  const reviewedLabelStability = workspace.topicLabels.filter(
     (item) => item.previousLabel !== null && item.labelStable !== null,
   );
   const reviewedLinks = workspace.eventTopicLinks.filter((item) => item.correctLink !== null);
@@ -246,14 +435,19 @@ export function buildIntelligenceEvaluationReport(
     const hits = expected.filter((id) => retrieved.has(id)).length;
     return sum + hits / expected.length;
   }, 0);
-  const whyNowClaims = workspace.surges.reduce(
+  const visibleWhyNowClaims = workspace.visibleWhyNowClaims ?? [];
+  const supportedVisibleWhyNowClaims = visibleWhyNowClaims.filter(
+    (item) => item.supportedByLinkedEvidence === true && item.evidenceUrls.length > 0,
+  ).length;
+  const sampledWhyNowClaimCount = workspace.surges.reduce(
     (sum, item) => sum + Math.max(0, item.whyNowClaimCount),
     0,
   );
-  const linkedClaims = workspace.surges.reduce(
-    (sum, item) => sum + Math.min(
-      Math.max(0, item.whyNowClaimCount),
-      Math.max(0, item.linkedWhyNowClaimCount),
+  const linkedSampledWhyNowClaimCount = workspace.surges.reduce(
+    (sum, item) => sum + (
+      item.evidenceUrls.length > 0
+        ? Math.min(Math.max(0, item.linkedWhyNowClaimCount), Math.max(0, item.whyNowClaimCount))
+        : 0
     ),
     0,
   );
@@ -261,6 +455,7 @@ export function buildIntelligenceEvaluationReport(
   const searchPerformance = summarizePerformance(workspace.performance.search);
   const sampleCounts = {
     duplicatePairs: workspace.duplicatePairs.length,
+    eventDuplicatePairs: workspace.eventDuplicatePairs.length,
     segmentationExamples: workspace.segmentationExamples.length,
     surges: workspace.surges.length,
     eventTopicLinks: workspace.eventTopicLinks.length,
@@ -272,12 +467,22 @@ export function buildIntelligenceEvaluationReport(
   const metrics = {
     duplicatePrecision: rate(truePositives, predictedPositives),
     duplicateRecall: rate(truePositives, actualPositives),
+    eventDuplicatePrecision: rate(eventTruePositives, eventPredictedPositives),
+    eventDuplicateRecall: rate(eventTruePositives, eventActualPositives),
     segmentationAcceptance: rate(
-      workspace.segmentationExamples.filter((item) => item.acceptable === true).length,
+      workspace.segmentationExamples.filter((item) => {
+        const predictedEditorialItems = item.segments.filter((segment) =>
+          ["editorial", "unknown"].includes(segment.type) && segment.excludedBecause === null
+        ).length;
+        return item.acceptable === true && item.containsTrendEligibleBoilerplate === false &&
+          item.correctEditorialItemCount === predictedEditorialItems;
+      }).length,
       workspace.segmentationExamples.filter((item) => item.acceptable !== null).length,
     ),
     falseTrendRate: rate(
-      reviewedSurges.filter((item) => item.isRealTrend === false).length,
+      reviewedSurges.filter((item) =>
+        item.isRealTrend === false || item.directionCorrect === false
+      ).length,
       reviewedSurges.length,
     ),
     eventTopicLinkPrecision: rate(
@@ -291,35 +496,129 @@ export function buildIntelligenceEvaluationReport(
       reviewedLabelStability.filter((item) => item.labelStable === true).length,
       reviewedLabelStability.length,
     ),
-    evidenceLinkCompleteness: rate(linkedClaims, whyNowClaims),
+    evidenceLinkCompleteness: rate(
+      supportedVisibleWhyNowClaims,
+      visibleWhyNowClaims.length,
+    ),
+    sampledWhyNowClaimCompleteness: rate(
+      linkedSampledWhyNowClaimCount,
+      sampledWhyNowClaimCount,
+    ),
     chartPerformance,
     searchPerformance,
+    validationSnapshotCount: workspace.validationSnapshots.length,
   };
+  const validationSnapshots = workspace.validationSnapshots;
+  const validationRefreshSeriesComplete =
+    validationSnapshots.length >= INTELLIGENCE_REQUIRED_VALIDATION_SNAPSHOTS &&
+    new Set(validationSnapshots.map((item) => item.sourceRunId)).size ===
+      validationSnapshots.length &&
+    validationSnapshots.every((item) =>
+      item.startDate === workspace.provenance.startDate &&
+      item.completeThrough === workspace.provenance.completeThrough &&
+      item.metricVersion === workspace.provenance.metricVersion &&
+      item.signalFingerprintVersion === INTELLIGENCE_SIGNAL_FINGERPRINT_VERSION &&
+      item.signalFingerprintVersion ===
+        validationSnapshots[0]?.signalFingerprintVersion &&
+      item.signalRowCount > 0 &&
+      item.signalRowCount === validationSnapshots[0]?.signalRowCount &&
+      item.completeDaySignalCount > 0 &&
+      item.completeDaySignalCount === validationSnapshots[0]?.completeDaySignalCount &&
+      item.topicLabelCount > 0 &&
+      item.topicLabelCount === validationSnapshots[0]?.topicLabelCount &&
+      item.signalSnapshotFingerprint ===
+        validationSnapshots[0]?.signalSnapshotFingerprint &&
+      item.topicLabelFingerprint === validationSnapshots[0]?.topicLabelFingerprint
+    );
+  const quality = workspace.dataQuality;
+  const dataQualitySnapshotCurrent = Boolean(quality &&
+    quality.schemaVersion === INTELLIGENCE_DATA_QUALITY_SCHEMA_VERSION &&
+    quality.provenance.metricVersion === workspace.provenance.metricVersion &&
+    quality.provenance.sourceRunId === quality.provenance.signalRefreshId &&
+    quality.provenance.signalFingerprintVersion ===
+      INTELLIGENCE_SIGNAL_FINGERPRINT_VERSION &&
+    quality.provenance.signalRowCount > 0 &&
+    quality.provenance.completeDaySignalCount > 0 &&
+    quality.provenance.topicLabelCount > 0 &&
+    Boolean(quality.provenance.signalSnapshotFingerprint) &&
+    Boolean(quality.provenance.topicLabelFingerprint) &&
+    quality.provenance.completeThrough >= workspace.provenance.completeThrough);
+  const dataQualityGatesPass = Boolean(
+    quality && Object.values(quality.gates).every((value) => value === true),
+  );
+  const benchmark = workspace.benchmark;
+  const currentReviewFingerprint = intelligenceEvaluationReviewFingerprint(workspace);
+  const benchmarkCurrent = Boolean(benchmark && quality &&
+    benchmark.completeThrough === quality.provenance.completeThrough &&
+    benchmark.reviewFingerprint === workspace.reviewFingerprint &&
+    workspace.reviewFingerprint === currentReviewFingerprint &&
+    benchmark.chartRequestCount === 1 &&
+    benchmark.searchRequestCount === INTELLIGENCE_EVALUATION_TARGETS.searches &&
+    Date.parse(benchmark.completedAt) >= Date.parse(quality.generatedAt));
   const gates = {
     duplicatePrecisionAtLeast90Percent: gate(
       metrics.duplicatePrecision,
       (value) => value >= 0.9,
     ),
     duplicateRecallAtLeast80Percent: gate(metrics.duplicateRecall, (value) => value >= 0.8),
+    eventDuplicatePrecisionAtLeast90Percent: gate(
+      metrics.eventDuplicatePrecision,
+      (value) => value >= 0.9,
+    ),
+    eventDuplicateRecallAtLeast80Percent: gate(
+      metrics.eventDuplicateRecall,
+      (value) => value >= 0.8,
+    ),
+    segmentationAcceptanceAtLeast90Percent: gate(
+      metrics.segmentationAcceptance,
+      (value) => value >= INTELLIGENCE_EVALUATION_THRESHOLDS.segmentationAcceptance,
+    ),
+    eventTopicLinkPrecisionAtLeast90Percent: gate(
+      metrics.eventTopicLinkPrecision,
+      (value) => value >= INTELLIGENCE_EVALUATION_THRESHOLDS.eventTopicLinkPrecision,
+    ),
+    topicLabelStabilityComplete: metrics.topicLabelStability.value === null
+      ? null
+      : metrics.topicLabelStability.value >=
+          INTELLIGENCE_EVALUATION_THRESHOLDS.topicLabelStability &&
+        workspace.topicLabels.length > 0 &&
+        reviewedLabelStability.length === workspace.topicLabels.length,
     falseTrendRateBelow10Percent: gate(metrics.falseTrendRate, (value) => value < 0.1),
     searchRecallAt10AtLeast80Percent: gate(
       metrics.searchRecallAt10,
       (value) => value >= 0.8,
     ),
     evidenceLinksComplete: gate(metrics.evidenceLinkCompleteness, (value) => value === 1),
+    sampledWhyNowClaimsComplete: gate(
+      metrics.sampledWhyNowClaimCompleteness,
+      (value) => value === 1,
+    ),
     chartResponseUnder1500Ms: chartPerformance.maxMs === null
       ? null
-      : chartPerformance.maxMs < 1_500 && workspace.performance.chart.every(
+      : chartPerformance.maxMs < 1_500 && workspace.performance.chart.length === 1 &&
+        workspace.performance.chart.every(
         (sample) => sample.status >= 200 && sample.status < 400 && sample.resultCount === 5,
       ),
     searchResponseUnder1500Ms: searchPerformance.maxMs === null
       ? null
-      : searchPerformance.maxMs < 1_500,
+      : searchPerformance.maxMs < 1_500 &&
+        workspace.performance.search.length === INTELLIGENCE_EVALUATION_TARGETS.searches &&
+        workspace.performance.search.every((sample) =>
+          sample.status >= 200 && sample.status < 400 && sample.resultCount > 0
+        ),
+    validationRefreshSeriesComplete,
+    dataQualitySnapshotCurrent,
+    dataQualityGatesPass,
+    benchmarkCurrent,
   };
   const completion = {
     duplicatePairs: completedReviewMetric(
       workspace.duplicatePairs,
       (item) => item.sameStory !== null,
+    ),
+    eventDuplicatePairs: completedReviewMetric(
+      workspace.eventDuplicatePairs,
+      (item) => item.sameEvent !== null,
     ),
     segmentationExamples: completedReviewMetric(
       workspace.segmentationExamples,
@@ -330,7 +629,10 @@ export function buildIntelligenceEvaluationReport(
     ),
     surges: completedReviewMetric(
       workspace.surges,
-      (item) => item.isRealTrend !== null && item.previousLabel !== null && item.labelStable !== null,
+      (item) => item.isRealTrend !== null && item.directionCorrect !== null &&
+        item.whyNowClaimCount > 0 &&
+        item.linkedWhyNowClaimCount === item.whyNowClaimCount &&
+        item.evidenceUrls.length > 0,
     ),
     eventTopicLinks: completedReviewMetric(
       workspace.eventTopicLinks,
@@ -339,6 +641,10 @@ export function buildIntelligenceEvaluationReport(
     searches: completedReviewMetric(
       workspace.searches,
       (item) => item.relevanceReviewed && item.expectedResultIds.length > 0 && item.durationMs !== null,
+    ),
+    visibleWhyNowClaims: completedReviewMetric(
+      visibleWhyNowClaims,
+      (item) => item.supportedByLinkedEvidence !== null,
     ),
   };
   const allReviewsComplete = Object.values(completion).every((item) => item.value === 1);

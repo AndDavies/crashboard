@@ -112,7 +112,51 @@ function safeStringList(values: string[]) {
 }
 
 function analysisEligibleSegments(segments: Iterable<SegmentRecord>) {
-  return [...segments].filter((segment) => !segment.exclusionReason);
+  return [...segments].filter((segment) =>
+    !segment.exclusionReason && ["editorial", "unknown"].includes(segment.segmentType)
+  );
+}
+
+const EXCLUDED_SEGMENT_ARTIFACT_TABLES = [
+  "intelligence_term_observations",
+  "intelligence_term_processing_state",
+  "intelligence_segment_embeddings",
+  "intelligence_cluster_segments",
+  "intelligence_document_concepts",
+  "intelligence_term_signal_refresh_segments",
+  "intelligence_topic_knn_members",
+] as const;
+
+export async function cleanupExcludedSegmentArtifacts(
+  admin: SupabaseClient,
+  ownerId: string,
+  segmentIds: string[],
+) {
+  const ids = [...new Set(segmentIds.map(String).filter(Boolean))];
+  if (!ids.length) return { segments: 0, deletes: 0 };
+  let deletes = 0;
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const batch = ids.slice(offset, offset + 200);
+    // Frozen graph edges reference segment rows directly rather than graph
+    // membership, so both endpoint directions must be cleared explicitly.
+    for (const endpoint of ["left_segment_id", "right_segment_id"] as const) {
+      const edgeCleanup = await admin.from("intelligence_topic_knn_edges")
+        .delete()
+        .eq("owner_id", ownerId)
+        .in(endpoint, batch);
+      if (edgeCleanup.error) throw new Error(edgeCleanup.error.message);
+      deletes += 1;
+    }
+    for (const table of EXCLUDED_SEGMENT_ARTIFACT_TABLES) {
+      const cleanup = await admin.from(table)
+        .delete()
+        .eq("owner_id", ownerId)
+        .in("segment_id", batch);
+      if (cleanup.error) throw new Error(cleanup.error.message);
+      deletes += 1;
+    }
+  }
+  return { segments: ids.length, deletes };
 }
 
 export async function persistSourceIdentity(
@@ -214,19 +258,17 @@ export async function persistDocumentSegments(
     byIndex.set(segment.segmentIndex, { ...segment, id });
   }
   const excludedSegmentIds = [...byIndex.values()]
-    .filter((segment) => Boolean(segment.exclusionReason))
+    .filter((segment) =>
+      Boolean(segment.exclusionReason) ||
+      !["editorial", "unknown"].includes(segment.segmentType)
+    )
     .map((segment) => segment.id);
   if (excludedSegmentIds.length) {
     // Re-segmentation can turn a previously editorial segment into footer,
-    // navigation, sponsorship, or other boilerplate. Remove only generated
-    // concept links so those stale rows can never become trend evidence.
-    const cleanup = await admin
-      .from("intelligence_document_concepts")
-      .delete()
-      .eq("owner_id", document.ownerId)
-      .in("segment_id", excludedSegmentIds)
-      .neq("source", "manual");
-    if (cleanup.error) throw new Error(cleanup.error.message);
+    // navigation, sponsorship, or other boilerplate. Remove every derived
+    // artifact so excluded text cannot survive in trends, search, clusters, or
+    // a resumable topic graph.
+    await cleanupExcludedSegmentArtifacts(admin, document.ownerId, excludedSegmentIds);
   }
   return byIndex;
 }

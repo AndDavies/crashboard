@@ -1,27 +1,87 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import { sha256Hex } from "@/lib/ingestion/hash";
-import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
+import { INTELLIGENCE_EMBEDDING_MODEL } from "@/lib/intelligence/enrichment";
+import {
+  directEventPrincipals,
+  isQualifyingIntelligenceAction,
+  principalEntities,
+  principalEntity,
+  qualifyingActionExclusion,
+  type EventPrincipal,
+  type EventPrincipalStrength,
+} from "@/lib/intelligence/event-action-qualification";
+import {
+  isExactContentIdentityUrl,
+  normalizeSourceUrl,
+} from "@/lib/intelligence/source-url";
 import {
   isMeasurementDocument,
   sourceIdFromDocument,
 } from "@/lib/intelligence/source-cohort";
+import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
+import {
+  requireSignalRefreshLease,
+  type SignalRefreshLeaseHolderKind,
+} from "@/lib/intelligence/signal-refresh-lease";
+import {
+  INTELLIGENCE_EVENT_DEDUP_VERSION,
+} from "@/lib/intelligence/event-cluster-memberships";
+import {
+  INTELLIGENCE_STORY_DEDUP_VERSION,
+  INTELLIGENCE_STORY_REVIEW_VERSION,
+} from "@/lib/intelligence/story-cluster-generations";
 
 type DbRow = Record<string, unknown>;
 type DedupCohort = "measurement" | "non_measurement";
 const DAY_MS = 86_400_000;
+const EVENT_WRITE_CHUNK_SIZE = 500;
+
+export type IntelligenceDedupLeaseContext = {
+  leaseToken: string;
+  holderRunId: string;
+  holderKind: SignalRefreshLeaseHolderKind;
+};
+
+async function runInConcurrentBatches<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  worker: (value: T, index: number) => Promise<R>,
+) {
+  const batchSize = Math.max(1, Math.floor(concurrency));
+  const results: R[] = [];
+  for (let index = 0; index < values.length; index += batchSize) {
+    const batch = values.slice(index, index + batchSize);
+    const settled = await Promise.allSettled(
+      batch.map((value, offset) => worker(value, index + offset)),
+    );
+    for (const result of settled) {
+      if (result.status === "rejected") {
+        if (result.reason instanceof Error) throw result.reason;
+        throw new Error(String(result.reason));
+      }
+    }
+    for (const result of settled) {
+      if (result.status === "fulfilled") results.push(result.value);
+    }
+  }
+  return results;
+}
 
 async function fetchPages<T>(
   query: (from: number, to: number) => PromiseLike<{
     data: T[] | null;
     error: { message: string } | null;
   }>,
+  pageSize = 1_000,
 ) {
   const rows: T[] = [];
-  for (let from = 0; ; from += 1_000) {
-    const result = await query(from, from + 999);
+  const boundedPageSize = Math.min(1_000, Math.max(25, Math.floor(pageSize)));
+  for (let from = 0; ; from += boundedPageSize) {
+    const result = await query(from, from + boundedPageSize - 1);
     if (result.error) throw new Error(result.error.message);
     rows.push(...(result.data ?? []));
-    if ((result.data ?? []).length < 1_000) return rows;
+    if ((result.data ?? []).length < boundedPageSize) return rows;
   }
 }
 
@@ -29,12 +89,18 @@ async function loadDocumentCohorts(admin: SupabaseClient, ownerId: string) {
   const [documents, identities, sources] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin.from("documents")
       .select("id,published_at,created_at,source_identity_id,metadata")
-      .eq("owner_id", ownerId).range(from, to)),
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_source_identities")
-      .select("id,source_id").eq("owner_id", ownerId).range(from, to)),
+      .select("id,source_id").eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_sources")
       .select("id,status,cohort,measurement_active_from")
-      .eq("owner_id", ownerId).range(from, to)),
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
   ]);
   const identityById = new Map(identities.map((row) => [String(row.id), row]));
   const sourceById = new Map(sources.map((row) => [String(row.id), row]));
@@ -53,13 +119,15 @@ async function loadDocumentCohorts(admin: SupabaseClient, ownerId: string) {
 }
 
 function normalizedWords(value: unknown) {
-  return String(value ?? "")
+  const words = String(value ?? "")
     .normalize("NFKC")
     .toLocaleLowerCase("en-CA")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .split(/\s+/u)
-    .filter((word) => word.length >= 3 && !["the", "and", "for", "with", "from", "into", "new"].includes(word))
+    .match(/[\p{L}\p{N}]+(?:[-./][\p{L}\p{N}]+)*/gu) ?? [];
+  return words
+    .filter((word) =>
+      (word.length >= 3 || /\d/u.test(word)) &&
+      !["the", "and", "for", "with", "from", "into", "new"].includes(word)
+    )
     .map((word) => {
       if (/^award(?:ed|ing|s)?$/u.test(word)) return "award";
       if (/^announc(?:e|ed|es|ing|ement)$/u.test(word)) return "announce";
@@ -75,6 +143,37 @@ export function titleSimilarity(a: unknown, b: unknown) {
   if (!left.size || !right.size) return 0;
   const overlap = [...left].filter((word) => right.has(word)).length;
   return overlap / (left.size + right.size - overlap);
+}
+
+function titleOverlap(
+  a: unknown,
+  b: unknown,
+  ignoredDistinctiveWords: ReadonlySet<string> = new Set(),
+) {
+  const left = new Set(normalizedWords(a));
+  const right = new Set(normalizedWords(b));
+  const sharedWords = [...left].filter((word) => right.has(word));
+  const overlap = sharedWords.length;
+  const genericEventWords = new Set([
+    "announce", "award", "canada", "company", "contract", "deal", "defence",
+    "deploy", "development", "financing", "funding", "government", "investment",
+    "launch", "launches", "million", "billion", "programme", "program", "raised",
+    "raises", "round", "rounds", "security", "seed", "series", "system", "technology",
+    "trial",
+  ]);
+  return {
+    overlap,
+    distinctiveOverlap: sharedWords.filter((word) => !genericEventWords.has(word)).length,
+    actionDistinctiveOverlap: sharedWords.filter((word) =>
+      !genericEventWords.has(word) && !ignoredDistinctiveWords.has(word)
+    ).length,
+    similarity: left.size && right.size
+      ? overlap / (left.size + right.size - overlap)
+      : 0,
+    containment: left.size && right.size
+      ? overlap / Math.min(left.size, right.size)
+      : 0,
+  };
 }
 
 function eventDay(row: DbRow) {
@@ -118,7 +217,7 @@ function storyExactKeys(row: DbRow) {
   const url = normalizeSourceUrl(String(
     row.outbound_url ?? row.canonical_url ?? row.original_url ?? "",
   ));
-  if (url) keys.push(`url:${url}`);
+  if (url && isExactContentIdentityUrl(url)) keys.push(`url:${url}`);
   const hash = String(row.content_hash ?? "").trim();
   if (hash) keys.push(`hash:${hash}`);
   return keys;
@@ -171,19 +270,22 @@ function groupStoryCandidates(input: {
   principalsByDocument: Map<string, Set<string>>;
   eventTypesByDocument: Map<string, Set<string>>;
 }) {
-  const set = new DisjointSet();
+  const exactSet = new DisjointSet();
   const reviewCandidates: StoryReviewCandidate[] = [];
   const exactOwner = new Map<string, string>();
   for (const segment of input.segments) {
     const id = String(segment.id);
     const cohort = dedupCohort(segment);
-    set.add(id);
+    exactSet.add(id);
     for (const exact of storyExactKeys(segment)) {
       const cohortExact = `${cohort}|${exact}`;
-      if (exactOwner.has(cohortExact)) set.union(id, exactOwner.get(cohortExact)!);
+      if (exactOwner.has(cohortExact)) exactSet.union(id, exactOwner.get(cohortExact)!);
       else exactOwner.set(cohortExact, id);
     }
   }
+  const automaticPairs = new Set<string>();
+  const pairKey = (left: unknown, right: unknown) =>
+    [String(left), String(right)].sort().join("|");
   for (let left = 0; left < input.segments.length; left += 1) {
     const leftSegment = input.segments[left];
     const leftDate = String(leftSegment.published_at).slice(0, 10);
@@ -195,23 +297,24 @@ function groupStoryCandidates(input: {
         continue;
       }
       if (dedupCohort(leftSegment) !== dedupCohort(rightSegment)) continue;
+      // A newsletter can contain several unrelated articles while inheriting
+      // the same document-level entities and event types. Only exact URL/hash
+      // identity (handled above) may merge two segments from one document.
+      if (String(leftSegment.document_id) === String(rightSegment.document_id)) continue;
       const leftPrincipals = input.principalsByDocument.get(String(leftSegment.document_id)) ?? new Set<string>();
       const rightPrincipals = input.principalsByDocument.get(String(rightSegment.document_id)) ?? new Set<string>();
       const sharesPrincipal = [...leftPrincipals].some((id) => rightPrincipals.has(id));
       const leftEventTypes = input.eventTypesByDocument.get(String(leftSegment.document_id)) ?? new Set<string>();
       const rightEventTypes = input.eventTypesByDocument.get(String(rightSegment.document_id)) ?? new Set<string>();
       const hasCompatibleEvent = [...leftEventTypes].some((eventType) => rightEventTypes.has(eventType));
-      if (sharesPrincipal && hasCompatibleEvent) {
-        set.union(String(leftSegment.id), String(rightSegment.id));
-        continue;
-      }
       const titleScore = titleSimilarity(leftSegment.story_title, rightSegment.story_title);
       if (titleScore < 0.5) continue;
       const leftVector = input.vectors.get(String(leftSegment.id)) ?? [];
       const rightVector = input.vectors.get(String(rightSegment.id)) ?? [];
       const embeddingScore = cosineSimilarity(leftVector, rightVector);
-      if (embeddingScore >= 0.86) {
-        set.union(String(leftSegment.id), String(rightSegment.id));
+      const automaticThreshold = sharesPrincipal && hasCompatibleEvent ? 0.82 : 0.86;
+      if (embeddingScore >= automaticThreshold) {
+        automaticPairs.add(pairKey(leftSegment.id, rightSegment.id));
       } else if (embeddingScore >= 0.8) {
         reviewCandidates.push({
           left: leftSegment,
@@ -222,10 +325,31 @@ function groupStoryCandidates(input: {
       }
     }
   }
+  const exactGroups = groupsFromSet(input.segments, exactSet).sort((a, b) =>
+    String(a[0]?.published_at ?? "").localeCompare(String(b[0]?.published_at ?? "")) ||
+    String(a[0]?.id ?? "").localeCompare(String(b[0]?.id ?? ""))
+  );
+  const groups: DbRow[][] = [];
+  for (const exactGroup of exactGroups) {
+    // Exact URL/hash components are trusted identity units. A semantic unit may
+    // join an existing cluster only when every cross-pair passes the automatic
+    // title/embedding rule, preventing a bridge story from chaining unrelated
+    // announcements into one cluster.
+    const target = groups.find((candidate) => exactGroup.every((left) =>
+      candidate.every((right) => automaticPairs.has(pairKey(left.id, right.id)))
+    ));
+    if (target) target.push(...exactGroup);
+    else groups.push([...exactGroup]);
+  }
+  const groupIndexBySegment = new Map<string, number>();
+  groups.forEach((group, index) => {
+    for (const segment of group) groupIndexBySegment.set(String(segment.id), index);
+  });
   return {
-    groups: groupsFromSet(input.segments, set),
+    groups,
     reviewCandidates: reviewCandidates.filter((candidate) =>
-      set.find(String(candidate.left.id)) !== set.find(String(candidate.right.id))
+      groupIndexBySegment.get(String(candidate.left.id)) !==
+        groupIndexBySegment.get(String(candidate.right.id))
     ),
   };
 }
@@ -234,34 +358,48 @@ async function rebuildStoryClusters(
   admin: SupabaseClient,
   ownerId: string,
   documentCohorts: Map<string, DedupCohort>,
+  lease: IntelligenceDedupLeaseContext,
+  renewLease: () => Promise<unknown>,
 ) {
-  const [segmentRows, embeddingRows, existingRows, documentEntityRows, entityRows,
+  const generationId = randomUUID();
+  const [segmentRows, embeddingRows, documentEntityRows, entityRows,
     eventEvidenceRows, eventRows] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_segments")
       .select("id,document_id,title,outbound_url,content_hash,confidence,documents!inner(title,published_at)")
       .eq("owner_id", ownerId).in("segment_type", ["editorial", "unknown"])
       .is("exclusion_reason", null).order("id", { ascending: true }).range(from, to)),
+    // A thousand 1,536-dimension vectors exceeds the production PostgREST
+    // statement/response budget. Keep this read deliberately small and only
+    // load the vector space used by search and topic analysis.
     fetchPages<DbRow>((from, to) => admin.from("intelligence_segment_embeddings")
-      .select("segment_id,embedding").eq("owner_id", ownerId).range(from, to)),
-    fetchPages<DbRow>((from, to) => admin.from("intelligence_clusters").select("id,metadata")
-      .eq("owner_id", ownerId).in("cluster_type", ["story", "story_review"]).range(from, to)),
+      .select("id,segment_id,embedding")
+      .eq("owner_id", ownerId)
+      .eq("embedding_model", INTELLIGENCE_EMBEDDING_MODEL)
+      .order("segment_id", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to), 100),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_entities")
-      .select("document_id,entity_id,confidence").eq("owner_id", ownerId)
-      .gte("confidence", 0.65).range(from, to)),
+      .select("document_id,entity_id,role,confidence").eq("owner_id", ownerId)
+      .gte("confidence", 0.65)
+      .order("document_id", { ascending: true })
+      .order("entity_id", { ascending: true })
+      .order("role", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_entities")
-      .select("id,entity_type").eq("owner_id", ownerId).range(from, to)),
+      .select("id,entity_type").eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_event_evidence")
-      .select("event_id,document_id").eq("owner_id", ownerId).range(from, to)),
+      .select("event_id,document_id").eq("owner_id", ownerId)
+      .order("event_id", { ascending: true })
+      .order("document_id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_events")
       .select("id,event_type,review_status").eq("owner_id", ownerId)
-      .neq("event_type", "other").neq("review_status", "rejected").range(from, to)),
+      .neq("event_type", "other").neq("review_status", "rejected")
+      .order("id", { ascending: true })
+      .range(from, to)),
   ]);
-  const staleV2Ids = existingRows.filter((row) => {
-    const metadata = row.metadata && typeof row.metadata === "object"
-      ? row.metadata as Record<string, unknown>
-      : {};
-    return ["story-dedup-v2.0.0", "story-review-v2.0.0"].includes(String(metadata.dedupe_version));
-  }).map((row) => String(row.id));
   const vectors = new Map(
     embeddingRows.map((row) => [String(row.segment_id), embeddingVector(row.embedding)]),
   );
@@ -314,6 +452,28 @@ async function rebuildStoryClusters(
     principalsByDocument,
     eventTypesByDocument,
   });
+  await renewLease();
+  const generation = await admin.from("intelligence_story_dedup_generations").insert({
+    generation_id: generationId,
+    owner_id: ownerId,
+    dedupe_version: INTELLIGENCE_STORY_DEDUP_VERSION,
+    holder_run_id: lease.holderRunId,
+    expected_story_cluster_count: groups.length,
+    expected_segment_membership_count: groups.reduce(
+      (count, group) => count + group.length,
+      0,
+    ),
+    expected_document_membership_count: groups.reduce(
+      (count, group) => count + new Set(group.map((row) => String(row.document_id))).size,
+      0,
+    ),
+    expected_review_cluster_count: reviewCandidates.length,
+    expected_review_membership_count: reviewCandidates.length * 2,
+    status: "staging",
+  });
+  if (generation.error) {
+    throw new Error(`Story dedup generation staging failed: ${generation.error.message}`);
+  }
   const clusterRows = groups.map((group) => {
     const canonical = [...group].sort((a, b) =>
       Number(b.confidence ?? 0) - Number(a.confidence ?? 0) ||
@@ -321,7 +481,7 @@ async function rebuildStoryClusters(
     )[0];
     const cohort = dedupCohort(canonical);
     const fingerprint = sha256Hex(
-      `story|${cohort}|${group.map((row) => String(row.id)).sort().join("|")}`,
+      `story|${generationId}|${cohort}|${group.map((row) => String(row.id)).sort().join("|")}`,
     );
     return {
       owner_id: ownerId,
@@ -332,7 +492,8 @@ async function rebuildStoryClusters(
       metadata: {
         member_count: group.length,
         canonical_segment_id: canonical.id,
-        dedupe_version: "story-dedup-v2.0.0",
+        dedupe_version: INTELLIGENCE_STORY_DEDUP_VERSION,
+        story_generation_id: generationId,
         dedup_cohort: cohort,
         measurement_eligible: cohort === "measurement",
       },
@@ -342,6 +503,7 @@ async function rebuildStoryClusters(
   });
   const clusterByFingerprint = new Map<string, string>();
   for (let index = 0; index < clusterRows.length; index += 500) {
+    await renewLease();
     const writeClusters = await admin.from("intelligence_clusters").upsert(
       clusterRows.slice(index, index + 500).map(({ group, ...row }) => {
         if (!group.length) throw new Error("Story cluster cannot be empty.");
@@ -365,6 +527,7 @@ async function rebuildStoryClusters(
     }));
   });
   for (let index = 0; index < documentRows.length; index += 500) {
+    await renewLease();
     const write = await admin.from("intelligence_cluster_documents").upsert(
       documentRows.slice(index, index + 500),
       { onConflict: "cluster_id,document_id" },
@@ -382,6 +545,7 @@ async function rebuildStoryClusters(
     }));
   });
   for (let index = 0; index < segmentMembershipRows.length; index += 500) {
+    await renewLease();
     const write = await admin.from("intelligence_cluster_segments").upsert(
       segmentMembershipRows.slice(index, index + 500),
       { onConflict: "cluster_id,segment_id" },
@@ -394,14 +558,15 @@ async function rebuildStoryClusters(
       owner_id: ownerId,
       cluster_type: "story_review",
       canonical_document_id: candidate.left.document_id,
-      fingerprint: sha256Hex(`story-review|${segmentIds.join("|")}`),
+      fingerprint: sha256Hex(`story-review|${generationId}|${segmentIds.join("|")}`),
       title: candidate.left.story_title,
       metadata: {
         member_count: 2,
         segment_ids: segmentIds,
         title_similarity: candidate.titleScore,
         embedding_similarity: candidate.embeddingScore,
-        dedupe_version: "story-review-v2.0.0",
+        dedupe_version: INTELLIGENCE_STORY_REVIEW_VERSION,
+        story_generation_id: generationId,
         dedup_cohort: dedupCohort(candidate.left),
         measurement_eligible: dedupCohort(candidate.left) === "measurement",
       },
@@ -411,6 +576,7 @@ async function rebuildStoryClusters(
   });
   const reviewClusterByFingerprint = new Map<string, string>();
   for (let index = 0; index < reviewClusterRows.length; index += 500) {
+    await renewLease();
     const write = await admin.from("intelligence_clusters").upsert(
       reviewClusterRows.slice(index, index + 500).map(({ candidate, ...row }) => {
         if (!candidate.left.id || !candidate.right.id) throw new Error("Review pair cannot be empty.");
@@ -433,60 +599,300 @@ async function rebuildStoryClusters(
     }));
   });
   for (let index = 0; index < reviewSegmentRows.length; index += 500) {
+    await renewLease();
     const write = await admin.from("intelligence_cluster_segments").upsert(
       reviewSegmentRows.slice(index, index + 500),
       { onConflict: "cluster_id,segment_id" },
     );
     if (write.error) throw new Error(write.error.message);
   }
-  // Keep the last complete cluster set available until every replacement and
-  // membership write succeeds. Upserted fingerprints reuse their existing IDs;
-  // only obsolete v2 clusters are removed after the replacement is complete.
-  const replacementClusterIds = new Set([
-    ...clusterByFingerprint.values(),
-    ...reviewClusterByFingerprint.values(),
-  ]);
-  const obsoleteV2Ids = staleV2Ids.filter((id) => !replacementClusterIds.has(id));
-  for (let index = 0; index < obsoleteV2Ids.length; index += 100) {
-    const remove = await admin.from("intelligence_clusters").delete()
-      .eq("owner_id", ownerId).in("id", obsoleteV2Ids.slice(index, index + 100));
-    if (remove.error) throw new Error(remove.error.message);
+  // A staged generation is deliberately unreadable. The database validates
+  // every expected row and switches the active generation in one transaction
+  // while re-checking the same owner-wide lease.
+  await renewLease();
+  const activation = await admin.rpc("activate_intelligence_story_dedup_generation", {
+    query_owner: ownerId,
+    query_dedupe_version: INTELLIGENCE_STORY_DEDUP_VERSION,
+    query_generation_id: generationId,
+    query_lease_token: lease.leaseToken,
+  });
+  if (activation.error) {
+    throw new Error(`Story dedup generation activation failed: ${activation.error.message}`);
   }
+  const activationResult = (
+    Array.isArray(activation.data) ? activation.data[0] : activation.data
+  ) as Record<string, unknown> | null;
+  if (activationResult?.activated !== true) {
+    throw new Error("The staged story dedup generation was not activated.");
+  }
+
+  // Retired generations stay immutable and readable by generation ID. A
+  // signal refresh that was interrupted before this activation can therefore
+  // resume against exactly the story set it originally pinned. Retention is a
+  // separate maintenance concern and must account for unfinished refreshes.
   return {
     storyClusters: clusterRows.length,
     storySegmentMemberships: segmentMembershipRows.length,
     storyDocumentMemberships: documentRows.length,
     storyReviewCandidates: reviewClusterRows.length,
+    storyMembershipGeneration: generationId,
   };
+}
+
+function sharedPrincipalContext(
+  left: EventPrincipal[],
+  right: EventPrincipal[],
+) {
+  const rightById = new Map(right.map((principal) => [principal.id, principal]));
+  const rank: Record<EventPrincipalStrength, number> = {
+    strong: 3,
+    capability: 2,
+    organization: 1,
+  };
+  const shared = left
+    .flatMap((principal) => {
+      const other = rightById.get(principal.id);
+      if (!other) return [];
+      const strength = rank[principal.strength] <= rank[other.strength]
+        ? principal.strength
+        : other.strength;
+      return [{
+        strength,
+        label: principal.label ?? other.label ?? "",
+      }];
+    })
+    .sort((a, b) => rank[b.strength] - rank[a.strength]);
+  return {
+    strength: shared[0]?.strength ?? null,
+    labelWords: new Set(shared.flatMap((principal) => normalizedWords(principal.label))),
+  };
+}
+
+type ExactEvidenceIdentities = ReadonlyMap<string, ReadonlySet<string>>;
+
+function hasIndependentExactEvidence(
+  left: ExactEvidenceIdentities,
+  right: ExactEvidenceIdentities,
+) {
+  for (const [identity, leftDocuments] of left) {
+    const rightDocuments = right.get(identity);
+    if (!rightDocuments) continue;
+    for (const leftDocument of leftDocuments) {
+      for (const rightDocument of rightDocuments) {
+        if (leftDocument !== rightDocument) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function eventModelIdentifiers(value: unknown) {
+  return new Set(
+    (String(value ?? "").normalize("NFKC").match(
+      /\b(?=[\p{L}\p{N}./-]*\d)(?=[\p{L}\p{N}./-]*\p{L})[\p{L}\p{N}]+(?:[./-][\p{L}\p{N}]+)*\b/gu,
+    ) ?? [])
+      .map((token) => token.toLocaleLowerCase("en-CA"))
+      .filter((token) => !/^\d+(?:\.\d+)?(?:k|m|mm|bn|b)$/u.test(token)),
+  );
+}
+
+function hasConflictingModelIdentifiers(left: unknown, right: unknown) {
+  const leftIdentifiers = eventModelIdentifiers(left);
+  const rightIdentifiers = eventModelIdentifiers(right);
+  return leftIdentifiers.size > 0 && rightIdentifiers.size > 0 &&
+    ![...leftIdentifiers].some((identifier) => rightIdentifiers.has(identifier));
+}
+
+function hasDownstreamActionMarker(value: unknown) {
+  return /\b(?:after|consequent(?:ly)?|following|in response to|to comply with)\b/iu
+    .test(String(value ?? ""));
+}
+
+function eventPairMatches(input: {
+  left: DbRow;
+  right: DbRow;
+  cohortByEvent: Map<string, DedupCohort>;
+  principals: (eventId: string) => EventPrincipal[];
+  exactEvidenceKeys: (eventId: string) => ExactEvidenceIdentities;
+  evidenceDocumentIds: (eventId: string) => ReadonlySet<string>;
+}) {
+  if (input.left.event_type !== input.right.event_type) return false;
+  const dateDistance = daysApart(eventDay(input.left), eventDay(input.right));
+  if (dateDistance > 7) return false;
+  const leftId = String(input.left.id);
+  const rightId = String(input.right.id);
+  const leftCohort = input.cohortByEvent.get(leftId) ?? "non_measurement";
+  const rightCohort = input.cohortByEvent.get(rightId) ?? "non_measurement";
+  if (leftCohort !== rightCohort) return false;
+  if (hasConflictingModelIdentifiers(input.left.title, input.right.title)) return false;
+  // A directive and a later implementation may be one news story, but they
+  // are separate real-world actions. Keep the downstream transition separate
+  // unless the titles are otherwise near-identical.
+  if (
+    hasDownstreamActionMarker(input.left.title) !==
+      hasDownstreamActionMarker(input.right.title) &&
+    titleSimilarity(input.left.title, input.right.title) < 0.65
+  ) return false;
+
+  // These keys are deliberately limited to event-level evidence text or an
+  // atomic document/story that supports only one event. They are stronger
+  // identity evidence than a model-assigned organization or topic.
+  if (hasIndependentExactEvidence(
+    input.exactEvidenceKeys(leftId),
+    input.exactEvidenceKeys(rightId),
+  )) return true;
+
+  const sharedPrincipal = sharedPrincipalContext(
+    input.principals(leftId),
+    input.principals(rightId),
+  );
+  const overlap = titleOverlap(
+    input.left.title,
+    input.right.title,
+    sharedPrincipal.labelWords,
+  );
+  const leftDocuments = input.evidenceDocumentIds(leftId);
+  const rightDocuments = input.evidenceDocumentIds(rightId);
+  const sharesEvidenceDocument = [...leftDocuments].some((id) => rightDocuments.has(id));
+  // Multiple events extracted from one newsletter or roundup are separate by
+  // default. Only near-identical titles may collapse within that same source.
+  if (sharesEvidenceDocument && overlap.similarity < 0.8) return false;
+  const sharedStrength = sharedPrincipal.strength;
+  if (sharedStrength === "strong") {
+    // A programme or named system is precise enough to tolerate paraphrasing,
+    // but it still needs two corroborating non-generic title words. Shared
+    // words such as "Canada", "award", and "contract" are not event identity.
+    if (input.left.event_type === "funding_investment") {
+      return overlap.distinctiveOverlap >= 2 && overlap.similarity >= 0.65;
+    }
+    if (overlap.distinctiveOverlap < 2) return false;
+    if (overlap.similarity >= 0.4) return true;
+    // A shared product or programme name does not prove that two items
+    // describe the same action. Mid-similarity items more than a day apart
+    // must also share three meaningful words outside that principal label.
+    // Near-identical short product announcements can still match on the same
+    // or next day, preserving recall for concise newsletter titles.
+    if (overlap.similarity >= 0.33) {
+      return dateDistance <= 1 || overlap.actionDistinctiveOverlap >= 3;
+    }
+    return dateDistance <= 1 &&
+      overlap.similarity >= 0.25 &&
+      overlap.containment >= 0.4;
+  }
+  if (sharedStrength === "capability") {
+    // Capability labels are often broad (for example, "AI" or "C-UAS").
+    return overlap.similarity >= 0.7;
+  }
+  if (sharedStrength === "organization") {
+    // The same company or agency can make many announcements in one week.
+    return overlap.similarity >= 0.8;
+  }
+  return overlap.similarity >= 0.9;
 }
 
 function groupEventCandidates(input: {
   events: DbRow[];
   cohortByEvent: Map<string, DedupCohort>;
-  principal: (eventId: string) => string | null;
+  principals: (eventId: string) => EventPrincipal[];
+  exactEvidenceKeys?: (eventId: string) => ExactEvidenceIdentities;
+  evidenceDocumentIds?: (eventId: string) => ReadonlySet<string>;
 }) {
-  const set = new DisjointSet();
-  for (const event of input.events) set.add(String(event.id));
-  for (let left = 0; left < input.events.length; left += 1) {
-    for (let right = left + 1; right < input.events.length; right += 1) {
-      const leftEvent = input.events[left];
-      const rightEvent = input.events[right];
-      if (leftEvent.event_type !== rightEvent.event_type) continue;
-      if (daysApart(eventDay(leftEvent), eventDay(rightEvent)) > 7) continue;
-      const leftCohort = input.cohortByEvent.get(String(leftEvent.id)) ?? "non_measurement";
-      const rightCohort = input.cohortByEvent.get(String(rightEvent.id)) ?? "non_measurement";
-      if (leftCohort !== rightCohort) continue;
-      const leftPrincipal = input.principal(String(leftEvent.id));
-      const rightPrincipal = input.principal(String(rightEvent.id));
-      if (leftPrincipal && leftPrincipal === rightPrincipal) {
-        set.union(String(leftEvent.id), String(rightEvent.id));
-      } else if (!leftPrincipal && !rightPrincipal &&
-        titleSimilarity(leftEvent.title, rightEvent.title) >= 0.86) {
-        set.union(String(leftEvent.id), String(rightEvent.id));
-      }
-    }
+  const exactEvidenceKeys = input.exactEvidenceKeys ?? (() => new Map());
+  const evidenceDocumentIds = input.evidenceDocumentIds ?? (() => new Set<string>());
+  const groups: DbRow[][] = [];
+  const events = [...input.events].sort((a, b) =>
+    eventDay(a).localeCompare(eventDay(b)) ||
+    String(a.event_type).localeCompare(String(b.event_type)) ||
+    String(a.title).localeCompare(String(b.title)) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+  for (const event of events) {
+    // Complete-link grouping prevents an ambiguous middle event from joining
+    // two otherwise unrelated announcements through transitive single links.
+    const group = groups.find((candidate) => candidate.every((member) =>
+      eventPairMatches({
+        left: event,
+        right: member,
+        cohortByEvent: input.cohortByEvent,
+        principals: input.principals,
+        exactEvidenceKeys,
+        evidenceDocumentIds,
+      })
+    ));
+    if (group) group.push(event);
+    else groups.push([event]);
   }
-  return groupsFromSet(input.events, set);
+  return groups;
+}
+
+type EventClusterPlan = {
+  canonical: DbRow;
+  canonicalId: string;
+  cohort: DedupCohort;
+  fingerprint: string;
+  members: Array<{
+    eventId: string;
+    relationship: "canonical" | "member";
+    matchMetadata: Record<string, unknown>;
+  }>;
+  memberCount: number;
+};
+
+function buildEventClusterPlans(input: {
+  groups: DbRow[][];
+  cohortByEvent: Map<string, DedupCohort>;
+  principal: (eventId: string) => string | null;
+  evidenceByEvent: Map<string, DbRow[]>;
+}) {
+  return input.groups.flatMap((group): EventClusterPlan[] => {
+    // Singleton events already have stable ingestion identities. Analytical
+    // memberships are only needed when several source event rows represent
+    // one announcement.
+    if (group.length < 2) return [];
+    const reviewRank = (event: DbRow) =>
+      event.review_status === "corrected" ? 3 :
+        event.review_status === "confirmed" ? 2 : 1;
+    const canonical = [...group].sort((a, b) =>
+      reviewRank(b) - reviewRank(a) ||
+      (input.evidenceByEvent.get(String(b.id))?.length ?? 0) -
+        (input.evidenceByEvent.get(String(a.id))?.length ?? 0) ||
+      Number(b.confidence ?? 0) - Number(a.confidence ?? 0) ||
+      eventDay(a).localeCompare(eventDay(b)) ||
+      String(a.id).localeCompare(String(b.id))
+    )[0];
+    const canonicalId = String(canonical.id);
+    const cohort = input.cohortByEvent.get(canonicalId) ?? "non_measurement";
+    const memberIdentity = group.map((event) =>
+      `${String(event.id)}:${normalizedWords(event.title).join(" ")}`
+    ).sort();
+    return [{
+      canonical,
+      canonicalId,
+      cohort,
+      fingerprint: sha256Hex(
+        `${INTELLIGENCE_EVENT_DEDUP_VERSION}|${cohort}|canonical:${canonicalId}|${memberIdentity.join("|")}`,
+      ),
+      members: group.map((event) => {
+        const eventId = String(event.id);
+        return {
+          eventId,
+          relationship: eventId === canonicalId ? "canonical" : "member",
+          matchMetadata: {
+            canonical_event_id: canonicalId,
+            event_type: String(event.event_type),
+            event_date: eventDay(event),
+            canonical_date: eventDay(canonical),
+            days_apart: daysApart(eventDay(event), eventDay(canonical)),
+            title_similarity: titleSimilarity(event.title, canonical.title),
+            principal_id: input.principal(eventId),
+            canonical_principal_id: input.principal(canonicalId),
+            ingestion_cluster_id: event.cluster_id ?? null,
+          },
+        };
+      }),
+      memberCount: group.length,
+    }];
+  });
 }
 
 function cohortAlignedEvidenceDocumentIds(input: {
@@ -503,20 +909,61 @@ function cohortAlignedEvidenceDocumentIds(input: {
     );
 }
 
-function principalEntity(
-  values: Array<{ id: string; type: string; role: string }>,
-) {
-  return [...values]
-    .filter((value) =>
-      ["program", "product_system", "capability_technology", "government_agency"].includes(value.type) ||
-      (value.type === "organization" && /buyer|customer|agency|operator|subject/iu.test(value.role))
-    )
-    .sort((a, b) => {
-      const score = (value: { type: string; role: string }) =>
-        ["program", "product_system", "capability_technology"].includes(value.type) ? 3 :
-          /buyer|customer|agency|operator|subject/iu.test(value.role) ? 2 : 1;
-      return score(b) - score(a);
-    })[0]?.id ?? null;
+function normalizedEvidenceText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-CA")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function buildExactEventEvidenceKeys(input: {
+  events: DbRow[];
+  evidenceByEvent: Map<string, DbRow[]>;
+  documents: DbRow[];
+}) {
+  const activeEventIds = new Set(input.events.map((event) => String(event.id)));
+  const eventIdsByDocument = new Map<string, Set<string>>();
+  for (const [eventId, evidenceRows] of input.evidenceByEvent) {
+    if (!activeEventIds.has(eventId)) continue;
+    for (const row of evidenceRows) {
+      const documentId = String(row.document_id);
+      const values = eventIdsByDocument.get(documentId) ?? new Set<string>();
+      values.add(eventId);
+      eventIdsByDocument.set(documentId, values);
+    }
+  }
+  const documentById = new Map(input.documents.map((row) => [String(row.id), row]));
+  const keysByEvent = new Map<string, Map<string, Set<string>>>();
+  for (const event of input.events) {
+    const eventId = String(event.id);
+    const keys = new Map<string, Set<string>>();
+    const addKey = (identity: string, documentId: string) => {
+      const documents = keys.get(identity) ?? new Set<string>();
+      documents.add(documentId);
+      keys.set(identity, documents);
+    };
+    for (const evidence of input.evidenceByEvent.get(eventId) ?? []) {
+      const documentId = String(evidence.document_id);
+      const evidenceText = normalizedEvidenceText(evidence.evidence_text);
+      if (evidenceText.length >= 40 && normalizedWords(evidenceText).length >= 6) {
+        addKey(`evidence:${sha256Hex(evidenceText)}`, documentId);
+      }
+      // A document URL, content hash, or story ID is exact event evidence only
+      // when the document supports one active event. This excludes multi-story
+      // newsletters and roundups from becoming false duplicate bridges.
+      if ((eventIdsByDocument.get(documentId)?.size ?? 0) !== 1) continue;
+      const document = documentById.get(documentId) ?? {};
+      const url = normalizeSourceUrl(String(
+        document.canonical_url ?? document.original_url ?? "",
+      ));
+      if (url && isExactContentIdentityUrl(url)) addKey(`url:${url}`, documentId);
+      const contentHash = String(document.content_hash ?? "").trim();
+      if (contentHash) addKey(`content:${contentHash}`, documentId);
+    }
+    keysByEvent.set(eventId, keys);
+  }
+  return keysByEvent;
 }
 
 async function rebuildEventClusters(
@@ -524,28 +971,54 @@ async function rebuildEventClusters(
   ownerId: string,
   completeThrough: string,
   documentCohorts: Map<string, DedupCohort>,
+  lease: IntelligenceDedupLeaseContext,
+  renewLease: () => Promise<unknown>,
 ) {
   const [eventRows, evidenceRowsInput, entityRows, conceptRowsInput,
     allEventEntityRows, documentConceptRows,
-    documentEntityRows] = await Promise.all([
+    documentEntityRows, evidenceDocumentRows] = await Promise.all([
     fetchPages<DbRow>((from, to) => admin.from("intelligence_events")
       .select("id,title,event_type,announced_at,occurred_at,confidence,cluster_id,review_status,metadata")
       .eq("owner_id", ownerId).neq("event_type", "other").neq("review_status", "rejected")
+      .order("id", { ascending: true })
       .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_event_evidence").select("*")
-      .eq("owner_id", ownerId).range(from, to)),
-    fetchPages<DbRow>((from, to) => admin.from("intelligence_entities").select("id,entity_type")
-      .eq("owner_id", ownerId).range(from, to)),
+      .eq("owner_id", ownerId)
+      .order("event_id", { ascending: true })
+      .order("document_id", { ascending: true })
+      .range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("intelligence_entities")
+      .select("id,entity_type,canonical_name")
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_event_concepts").select("*")
-      .eq("owner_id", ownerId).range(from, to)),
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_event_entities").select("*")
-      .eq("owner_id", ownerId).range(from, to)),
+      .eq("owner_id", ownerId)
+      .order("event_id", { ascending: true })
+      .order("entity_id", { ascending: true })
+      .order("role", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_concepts")
-      .select("document_id,concept_id,confidence,evidence_text")
-      .eq("owner_id", ownerId).gte("confidence", 0.65).range(from, to)),
+      .select("id,document_id,concept_id,confidence,evidence_text")
+      .eq("owner_id", ownerId).gte("confidence", 0.65)
+      .order("id", { ascending: true })
+      .range(from, to)),
     fetchPages<DbRow>((from, to) => admin.from("intelligence_document_entities")
       .select("document_id,entity_id,role,confidence,evidence_text")
-      .eq("owner_id", ownerId).gte("confidence", 0.65).range(from, to)),
+      .eq("owner_id", ownerId).gte("confidence", 0.65)
+      .order("document_id", { ascending: true })
+      .order("entity_id", { ascending: true })
+      .order("role", { ascending: true })
+      .range(from, to)),
+    fetchPages<DbRow>((from, to) => admin.from("documents")
+      .select("id,canonical_url,original_url,content_hash")
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(from, to)),
   ]);
   const evidenceByEvent = new Map<string, DbRow[]>();
   for (const row of evidenceRowsInput) {
@@ -563,6 +1036,27 @@ async function rebuildEventClusters(
       ) ? "measurement" : "non_measurement",
     );
   }
+  const alignedEvidenceByEvent = new Map<string, DbRow[]>();
+  const eventIdsByAlignedDocument = new Map<string, Set<string>>();
+  for (const event of eventRows) {
+    const eventId = String(event.id);
+    const cohort = cohortByEvent.get(eventId) ?? "non_measurement";
+    const aligned = (evidenceByEvent.get(eventId) ?? []).filter((row) =>
+      (documentCohorts.get(String(row.document_id)) ?? "non_measurement") === cohort
+    );
+    alignedEvidenceByEvent.set(eventId, aligned);
+    for (const row of aligned) {
+      const documentId = String(row.document_id);
+      const ids = eventIdsByAlignedDocument.get(documentId) ?? new Set<string>();
+      ids.add(eventId);
+      eventIdsByAlignedDocument.set(documentId, ids);
+    }
+  }
+  const atomicEventDocumentIds = new Set(
+    [...eventIdsByAlignedDocument]
+      .filter(([, eventIds]) => eventIds.size === 1)
+      .map(([documentId]) => documentId),
+  );
   const documentConcepts = new Map<string, DbRow[]>();
   for (const row of documentConceptRows) {
     const values = documentConcepts.get(String(row.document_id)) ?? [];
@@ -643,18 +1137,19 @@ async function rebuildEventClusters(
   eventConceptRows.push(...inferredConceptRows);
   eventEntityRowsAll.push(...inferredEntityRows);
   const entityType = new Map(entityRows.map((row) => [String(row.id), String(row.entity_type)]));
-  const provenanceEntitiesByEvent = new Map<
+  const entityLabel = new Map(
+    entityRows.map((row) => [String(row.id), String(row.canonical_name ?? "")]),
+  );
+  const matchingPrincipalsByEvent = directEventPrincipals(eventEntityRowsAll, entityType);
+  const documentEntitiesByEvent = new Map<
     string,
     Array<{ id: string; type: string; role: string }>
   >();
   for (const event of eventRows) {
     const eventId = String(event.id);
-    const evidenceDocumentIds = cohortAlignedEvidenceDocumentIds({
-      eventId,
-      cohortByEvent,
-      evidenceByEvent,
-      documentCohorts,
-    });
+    const evidenceDocumentIds = (alignedEvidenceByEvent.get(eventId) ?? [])
+      .map((row) => String(row.document_id))
+      .filter((documentId) => atomicEventDocumentIds.has(documentId));
     const values = [...new Map(
       evidenceDocumentIds.flatMap((documentId) => documentEntities.get(documentId) ?? [])
         .map((row) => [
@@ -666,140 +1161,166 @@ async function rebuildEventClusters(
           },
         ] as const),
     ).values()];
-    provenanceEntitiesByEvent.set(eventId, values);
+    documentEntitiesByEvent.set(eventId, values);
   }
-  const principal = (eventId: string) =>
-    principalEntity(provenanceEntitiesByEvent.get(eventId) ?? []);
+  const matchingPrincipals = (eventId: string) =>
+    (matchingPrincipalsByEvent.get(eventId) ?? []).map((principal) => ({
+      ...principal,
+      label: entityLabel.get(principal.id) ?? "",
+    }));
+  const matchingPrincipal = (eventId: string) => matchingPrincipals(eventId)[0]?.id ?? null;
+  const procurementPrincipal = (eventId: string) =>
+    matchingPrincipal(eventId) ??
+    principalEntity(documentEntitiesByEvent.get(eventId) ?? []);
+  const exclusionByEvent = new Map(eventRows.map((event) => [
+    String(event.id),
+    qualifyingActionExclusion({
+      event,
+      completeThrough,
+      hasProcurementPrincipal: Boolean(procurementPrincipal(String(event.id))),
+    }),
+  ]));
   const genericIds = eventRows.filter((event) =>
-    /\b(?:daily|weekly) (?:brief|roundup)|\bnews digest\b|\btop stories\b/iu.test(String(event.title))
+    exclusionByEvent.get(String(event.id)) === "generic_summary"
   ).map((event) => String(event.id));
-  const futureIds = eventRows.filter((event) => {
-    const announced = String(event.announced_at ?? "").slice(0, 10);
-    const occurred = String(event.occurred_at ?? "").slice(0, 10);
-    return announced > completeThrough || occurred > completeThrough;
-  }).map((event) => String(event.id));
+  const futureIds = eventRows.filter((event) =>
+    exclusionByEvent.get(String(event.id)) === "future"
+  ).map((event) => String(event.id));
   const invalidProcurementIds = eventRows.filter((event) =>
-    event.event_type === "procurement_notice" && !principal(String(event.id))
+    exclusionByEvent.get(String(event.id)) === "invalid_procurement"
   ).map((event) => String(event.id));
-  const rejectedIds = [...new Set([...genericIds, ...futureIds, ...invalidProcurementIds])];
-  if (rejectedIds.length) {
-    const exclude = await admin.from("intelligence_events").update({ review_status: "rejected" })
-      .eq("owner_id", ownerId).in("id", rejectedIds);
-    if (exclude.error) throw new Error(exclude.error.message);
-  }
-  const events = eventRows.filter((event) => {
-    const date = eventDay(event);
-    const announced = String(event.announced_at ?? "").slice(0, 10);
-    const occurred = String(event.occurred_at ?? "").slice(0, 10);
-    if (
-      !date || announced > completeThrough || occurred > completeThrough ||
-      Number(event.confidence ?? 0) < 0.6 || genericIds.includes(String(event.id))
-    ) return false;
-    if (event.event_type === "procurement_notice" && !principal(String(event.id))) return false;
-    return true;
+  const events = eventRows.filter((event) => isQualifyingIntelligenceAction({
+    event,
+    completeThrough,
+    hasProcurementPrincipal: Boolean(procurementPrincipal(String(event.id))),
+  }));
+  const exactEvidenceKeysByEvent = buildExactEventEvidenceKeys({
+    events,
+    evidenceByEvent: alignedEvidenceByEvent,
+    documents: evidenceDocumentRows,
   });
-  const groups = groupEventCandidates({ events, cohortByEvent, principal });
-  let duplicateEventsCollapsed = 0;
-  for (const group of groups) {
-    // Existing ingestion already creates one event cluster per event. Only
-    // write when two or more extracted events resolve to the same story.
-    if (group.length < 2) continue;
-    const canonical = [...group].sort((a, b) =>
-      (evidenceByEvent.get(String(b.id))?.length ?? 0) -
-        (evidenceByEvent.get(String(a.id))?.length ?? 0) ||
-      Number(b.confidence ?? 0) - Number(a.confidence ?? 0)
-    )[0];
-    const canonicalId = String(canonical.id);
-    const cohort = cohortByEvent.get(canonicalId) ?? "non_measurement";
-    const fingerprint = sha256Hex(`event|${cohort}|${String(canonical.event_type)}|${principal(canonicalId) ?? normalizedWords(canonical.title).join(" ")}|${eventDay(canonical)}`);
-    const cluster = await admin.from("intelligence_clusters").upsert({
-      owner_id: ownerId,
-      cluster_type: "event",
-      fingerprint,
-      title: canonical.title,
-      metadata: {
-        member_count: group.length,
-        dedupe_version: "event-dedup-v2.0.0",
-        dedup_cohort: cohort,
-        measurement_eligible: cohort === "measurement",
-      },
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "owner_id,cluster_type,fingerprint" }).select("id").single();
-    if (cluster.error || !cluster.data?.id) throw new Error(cluster.error?.message ?? "Failed to create event cluster.");
-    const clusterId = String(cluster.data.id);
-    const updateCanonical = await admin.from("intelligence_events")
-      .update({ cluster_id: clusterId, updated_at: new Date().toISOString() })
-      .eq("owner_id", ownerId).eq("id", canonicalId);
-    if (updateCanonical.error) throw new Error(updateCanonical.error.message);
-    const duplicates = group.filter((event) => String(event.id) !== canonicalId);
-    const duplicateIds = duplicates.map((event) => String(event.id));
-    const evidenceRows: DbRow[] = [...new Map<string, DbRow>(
-      group.flatMap((event) => evidenceByEvent.get(String(event.id)) ?? [])
-        .map((row: DbRow): DbRow => ({ ...row, event_id: canonicalId }))
-        .map((row): [string, DbRow] => [String(row.document_id), row]),
-    ).values()];
-    if (evidenceRows.length) {
-      const writeEvidence = await admin.from("intelligence_event_evidence").upsert(evidenceRows, {
-        onConflict: "event_id,document_id",
-      });
-      if (writeEvidence.error) throw new Error(writeEvidence.error.message);
-      const memberships = evidenceRows.map((row: DbRow) => ({
+  const groups = groupEventCandidates({
+    events,
+    cohortByEvent,
+    principals: matchingPrincipals,
+    exactEvidenceKeys: (eventId) => exactEvidenceKeysByEvent.get(eventId) ?? new Map(),
+    evidenceDocumentIds: (eventId) => new Set(
+      (alignedEvidenceByEvent.get(eventId) ?? []).map((row) => String(row.document_id)),
+    ),
+  });
+  const clusterPlans = buildEventClusterPlans({
+    groups,
+    cohortByEvent,
+    principal: matchingPrincipal,
+    evidenceByEvent: alignedEvidenceByEvent,
+  });
+  const generationId = randomUUID();
+  const updatedAt = new Date().toISOString();
+  const expectedMembershipCount = clusterPlans.reduce(
+    (count, plan) => count + plan.memberCount,
+    0,
+  );
+  const stageGeneration = await admin.from("intelligence_event_dedup_generations").insert({
+    generation_id: generationId,
+    owner_id: ownerId,
+    match_version: INTELLIGENCE_EVENT_DEDUP_VERSION,
+    holder_run_id: lease.holderRunId,
+    complete_through: completeThrough,
+    expected_cluster_count: clusterPlans.length,
+    expected_membership_count: expectedMembershipCount,
+    status: "staging",
+    updated_at: updatedAt,
+  });
+  if (stageGeneration.error) throw new Error(stageGeneration.error.message);
+  const clusterIdByFingerprint = new Map<string, string>();
+  for (let index = 0; index < clusterPlans.length; index += EVENT_WRITE_CHUNK_SIZE) {
+    const write = await admin.from("intelligence_clusters").upsert(
+      clusterPlans.slice(index, index + EVENT_WRITE_CHUNK_SIZE).map((plan) => ({
         owner_id: ownerId,
-        cluster_id: clusterId,
-        document_id: row.document_id,
-        relationship: "supporting",
-      }));
-      const writeMemberships = await admin.from("intelligence_cluster_documents").upsert(memberships, {
-        onConflict: "cluster_id,document_id",
-      });
-      if (writeMemberships.error) throw new Error(writeMemberships.error.message);
+        cluster_type: "event",
+        fingerprint: plan.fingerprint,
+        title: plan.canonical.title,
+        metadata: {
+          member_count: plan.memberCount,
+          dedupe_version: INTELLIGENCE_EVENT_DEDUP_VERSION,
+          dedup_cohort: plan.cohort,
+          measurement_eligible: plan.cohort === "measurement",
+          canonical_event_id: plan.canonicalId,
+          reversible_membership: true,
+        },
+        updated_at: updatedAt,
+      })),
+      { onConflict: "owner_id,cluster_type,fingerprint" },
+    ).select("id,fingerprint");
+    if (write.error) throw new Error(write.error.message);
+    for (const row of write.data ?? []) {
+      clusterIdByFingerprint.set(String(row.fingerprint), String(row.id));
     }
-    if (duplicateIds.length) {
-      const conceptRows = [...new Map(
-        eventConceptRows.filter((row) => duplicateIds.includes(String(row.event_id)))
-        .map((row) => ({
-          ...row,
-          id: undefined,
-          event_id: canonicalId,
-          association_key: sha256Hex(`${canonicalId}|${row.concept_id}|${row.relation}|${row.source}`),
-        }))
-        .map((row) => [String(row.association_key), row]),
-      ).values()];
-      if (conceptRows.length) {
-        const write = await admin.from("intelligence_event_concepts").upsert(conceptRows, {
-          onConflict: "owner_id,association_key",
-        });
-        if (write.error) throw new Error(write.error.message);
-      }
-      const entityRows = [...new Map<string, DbRow>(
-        eventEntityRowsAll.filter((row) => duplicateIds.includes(String(row.event_id)))
-        .map((row): DbRow => ({ ...row, event_id: canonicalId }))
-        .map((row): [string, DbRow] => [`${row.entity_id}|${row.role}`, row]),
-      ).values()];
-      if (entityRows.length) {
-        const write = await admin.from("intelligence_event_entities").upsert(entityRows, {
-          onConflict: "event_id,entity_id,role",
-          ignoreDuplicates: true,
-        });
-        if (write.error) throw new Error(write.error.message);
-      }
-      const collapse = await admin.from("intelligence_events").update({
-        cluster_id: clusterId,
-        review_status: "rejected",
-        updated_at: new Date().toISOString(),
-      }).eq("owner_id", ownerId).in("id", duplicateIds);
-      if (collapse.error) throw new Error(collapse.error.message);
-      duplicateEventsCollapsed += duplicateIds.length;
+    await renewLease();
+  }
+  for (const plan of clusterPlans) {
+    if (!clusterIdByFingerprint.has(plan.fingerprint)) {
+      throw new Error(`Failed to resolve event cluster ${plan.fingerprint}.`);
     }
   }
+  const membershipRows = clusterPlans.flatMap((plan) => {
+    const clusterId = clusterIdByFingerprint.get(plan.fingerprint)!;
+    return plan.members.map((member) => ({
+      owner_id: ownerId,
+      generation_id: generationId,
+      cluster_id: clusterId,
+      event_id: member.eventId,
+      relationship: member.relationship,
+      match_metadata: {
+        ...member.matchMetadata,
+        fingerprint: plan.fingerprint,
+        member_count: plan.memberCount,
+      },
+      match_version: INTELLIGENCE_EVENT_DEDUP_VERSION,
+      updated_at: updatedAt,
+    }));
+  });
+  for (let index = 0; index < membershipRows.length; index += EVENT_WRITE_CHUNK_SIZE) {
+    const write = await admin.from("intelligence_event_cluster_memberships").upsert(
+      membershipRows.slice(index, index + EVENT_WRITE_CHUNK_SIZE),
+      { onConflict: "owner_id,generation_id,event_id" },
+    );
+    if (write.error) throw new Error(write.error.message);
+    await renewLease();
+  }
+  // The activation RPC verifies the complete staged generation and changes the
+  // one active pointer in its own transaction. Interrupted staging therefore
+  // leaves the previous active generation readable and untouched.
+  await renewLease();
+  const activation = await admin.rpc("activate_intelligence_event_dedup_generation", {
+    query_owner: ownerId,
+    query_match_version: INTELLIGENCE_EVENT_DEDUP_VERSION,
+    query_generation_id: generationId,
+    query_lease_token: lease.leaseToken,
+  });
+  if (activation.error) throw new Error(activation.error.message);
+  const activationResult = activation.data && typeof activation.data === "object"
+    ? activation.data as Record<string, unknown>
+    : {};
+  if (activationResult.activated !== true) {
+    throw new Error("The staged event membership generation was not activated.");
+  }
+  const duplicateEventsGrouped = clusterPlans.reduce(
+    (count, plan) => count + plan.memberCount - 1,
+    0,
+  );
   const linkedEventIds = new Set([
     ...eventConceptRows.map((row) => String(row.event_id)),
     ...eventEntityRowsAll.map((row) => String(row.event_id)),
   ]);
   return {
-    eventClusters: groups.length,
+    eventGroups: groups.length,
+    eventClusters: clusterPlans.length,
+    eventMemberships: membershipRows.length,
+    eventMembershipGeneration: generationId,
     duplicateEventsRemoved: 0,
-    duplicateEventsCollapsed,
+    duplicateEventsCollapsed: 0,
+    duplicateEventsGrouped,
     usableEvents: events.length,
     linkedUsableEvents: events.filter((event) => linkedEventIds.has(String(event.id))).length,
     inferredConceptLinks: inferredConceptRows.length,
@@ -813,21 +1334,53 @@ async function rebuildEventClusters(
 export async function rebuildStoryAndEventClustersV2(
   admin: SupabaseClient,
   ownerId: string,
-  options: { completeThrough?: string } = {},
+  options: {
+    completeThrough?: string;
+    lease: IntelligenceDedupLeaseContext;
+  },
 ) {
-  const completeThrough = options.completeThrough ?? new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
+  const completeThrough = options.completeThrough ?? latestCompleteDateKey();
+  const renewLease = () => requireSignalRefreshLease(admin, {
+    ownerId,
+    leaseToken: options.lease.leaseToken,
+    holderRunId: options.lease.holderRunId,
+    holderKind: options.lease.holderKind,
+    ttlSeconds: 1_800,
+  });
+  await renewLease();
   const documentCohorts = await loadDocumentCohorts(admin, ownerId);
-  const stories = await rebuildStoryClusters(admin, ownerId, documentCohorts);
-  const events = await rebuildEventClusters(admin, ownerId, completeThrough, documentCohorts);
+  const stories = await rebuildStoryClusters(
+    admin,
+    ownerId,
+    documentCohorts,
+    options.lease,
+    renewLease,
+  );
+  await renewLease();
+  const events = await rebuildEventClusters(
+    admin,
+    ownerId,
+    completeThrough,
+    documentCohorts,
+    options.lease,
+    renewLease,
+  );
   return { ...stories, ...events, completeThrough };
 }
 
 export const __testables = {
+  buildExactEventEvidenceKeys,
+  buildEventClusterPlans,
   cohortAlignedEvidenceDocumentIds,
   daysApart,
+  directEventPrincipals,
+  eventModelIdentifiers,
+  eventPairMatches,
   groupEventCandidates,
   groupStoryCandidates,
   normalizedWords,
+  principalEntities,
   principalEntity,
+  runInConcurrentBatches,
   storyExactKey,
 };

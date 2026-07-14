@@ -29,10 +29,20 @@ The migration set is:
 - `20260713221651_intelligence_term_processing_state.sql`
 - `20260713223000_intelligence_topic_merge_review.sql`
 - `20260713224702_intelligence_signal_daily_totals.sql`
+- `20260714053150_intelligence_v2_bounded_retention.sql`
+- `20260714053200_intelligence_signal_generations.sql`
+- `20260714060000_intelligence_v2_acceptance_snapshot.sql`
 
 The first migration is compatible with both the legacy production `documents` shape and the newer checked-in ingestion snapshot. It adds the intelligence document fields without removing legacy `url`, `content`, `summary`, or source behavior.
 
 Every intelligence table and owner-backed document row has RLS enabled with owner-specific select, insert, update, and delete policies. Server jobs use the service-role client and always filter or write the explicit owner ID.
+
+Canonical v2 signal rows are immutable by refresh ID. A writer builds a staging
+generation without touching the active series, validates its frozen term
+support, rows, and daily denominators, then switches one active pointer in the
+same database transaction. Overview, Explore, alerts, automatic research, and
+the morning brief always filter by that pointer, so a partial refresh cannot
+leak into a completed trend series.
 
 ## Required configuration
 
@@ -146,6 +156,202 @@ npm run intelligence:sync -- \
   --all
 ```
 
+### Local v2 maintenance with no OpenAI API calls
+
+The large deterministic v2 maintenance stages can run from this repository
+while continuing to read and write the configured Supabase project. Local in
+this context means that the job is orchestrated on this computer; it does not
+copy the production database locally.
+
+Use the dedicated deduplication command after changing story or event matching
+logic. It accepts an explicit owner and complete-day boundary and never uses
+OpenAI:
+
+```bash
+npm run intelligence:v2-dedupe -- \
+  --owner "<Supabase Auth user UUID>" \
+  --complete-through "<YYYY-MM-DD>"
+```
+
+Do not run deduplication concurrently with a backfill or scheduled signal
+refresh. The command rejects an invalid date and any date later than the latest
+complete Halifax day.
+
+Resume an unfinished v2 backfill without OpenAI API calls only after current
+segment and concept embeddings are complete:
+
+```bash
+npm run intelligence:v2-backfill -- \
+  --owner "<Supabase Auth user UUID>" \
+  --run-id "<unfinished v2 backfill run UUID>" \
+  --signal-term-batch 100
+```
+
+The local v2 backfill now disables OpenAI by default, removing
+`OPENAI_API_KEY` and `CODEX_API_KEY` from the process even when either is
+present in the environment or `.env.local`.
+`--no-openai` remains an explicit backwards-compatible spelling. Before moving
+past either embedding phase, the command verifies
+that every current eligible segment and every active or candidate concept has a
+production-compatible embedding. It stops with an explicit error if either set
+is incomplete; it never silently substitutes a different vector model or marks
+missing embeddings complete.
+
+Only `--allow-paid-openai` re-enables the backfill's missing segment or concept
+embedding calls. Use it only when Platform API spend is intentional; without
+that flag, incomplete embedding coverage stops the run with an exact count.
+
+Topic assignment, nearest-neighbour clustering, candidate creation, story and
+event deduplication, and signal calculation remain deterministic in this mode.
+Candidate topics receive deterministic names and are marked as pending a later
+local Codex review. `--codex-review-topics` remains a backwards-compatible alias
+for `--no-openai`; despite its historical name, it does not invoke Codex.
+
+After a completed backfill, create the first evaluation snapshot, then run and
+record each fixed-window validation refresh separately. The evaluator requires
+the exact completed run ID and complete-through date:
+
+```bash
+npm run intelligence:v2-evaluate -- init \
+  --owner "<Supabase Auth user UUID>" \
+  --run-id "<completed backfill run UUID>" \
+  --complete-through "<backfill YYYY-MM-DD>"
+
+npm run intelligence:v2-signal-refresh -- \
+  --owner "<Supabase Auth user UUID>" \
+  --target 1
+
+npm run intelligence:v2-evaluate -- refresh \
+  --owner "<Supabase Auth user UUID>" \
+  --run-id "<completed target-1 run UUID>" \
+  --complete-through "<backfill YYYY-MM-DD>"
+
+npm run intelligence:v2-evaluate -- report
+```
+
+Repeat the signal-refresh and evaluator pair through target 6, then run the
+separate current-window refresh. The complete command sequence and July 2026
+run identities are in `docs/INTELLIGENCE_V2_EVALUATION.md`.
+
+The local signal-refresh command deletes both `OPENAI_API_KEY` and
+`CODEX_API_KEY` from its own process after loading `.env.local`; neither the six
+cloned validations nor the final
+ordinary current-window refresh can make OpenAI API calls. Evaluation `init`,
+`refresh`, `quality`, `benchmark`, and `report` also remove those local keys and
+make no direct OpenAI calls. The benchmark can still cause the deployed search
+route to use the server's configured query-embedding key. Creating the evaluation
+snapshot before the later signal refreshes is required to measure topic-label
+stability.
+
+The six local validation refreshes reuse the completed backfill's finalized
+term-support snapshot. The local runner reads the backfill's exact refresh ID,
+extraction version, and date window, then copies eligible segments and retained
+term ordinals into each validation refresh in atomic batches of at most 2,000
+rows. Clone progress is stored in Postgres and mirrored into the run checkpoint,
+so an interrupted cursor-zero run resumes the same clone instead of restarting
+or re-aggregating the archive. A source with unprocessed segments or unfinished
+ordinals, a conflicting version/window, and a non-empty target not created by
+the clone RPC all fail closed. Once the clone is exact, scoring starts at the
+first term batch; Topics, Organizations, Systems, Programmes, and Events are
+still recalculated normally. Scheduled production refreshes and the backfill
+continue to build their own support snapshots.
+
+These six cloned runs are deterministic stability validation only. They remain
+pinned to the completed backfill's exact end date even when a newer complete day
+exists, and the clone refuses a mismatched window. `--require-current-window`
+first verifies all six exact-window runs, then creates or resumes exactly one
+ordinary zero-API refresh through the latest complete Halifax day. The final run
+does not clone term support because its date window differs. It is required
+before current production readiness and browser QA are claimed. Re-running the
+same command is idempotent: completed windows are reported without another run.
+
+Each cloned validation generation is temporary. After scoring, the runner
+stores the QA function's full-series and topic-label counts and fingerprints in
+the run checkpoint, then deletes that non-promoted generation in bounded pages
+before marking the run complete or starting the next clone. An interruption
+resumes from the saved fingerprint and deletion counters. Only the compact
+checkpoint remains; the six validations cannot accumulate more than a million
+wide daily rows or replace the active production generation.
+
+The cost boundary is explicit:
+
+| Work | OpenAI API use |
+|---|---|
+| Exact term extraction, deduplication, topic clustering with stored vectors, signal scoring, quality SQL, and evaluation files | None |
+| Codex review using the local Ollama runner | None; no ChatGPT/Codex plan quota |
+| Missing or changed segment embeddings | Required; must use the configured embedding model |
+| Missing or changed concept embeddings | Required; must use the configured embedding model |
+| Structured document enrichment, model-assisted segmentation, and automatic research | Responses API when enabled |
+| Production hybrid search | One query embedding per uncached search request |
+| Evaluation benchmark | Production search requests use the production server's key; an empty local key cannot disable them |
+
+Codex can review labels, classifications, and evaluation samples through the
+installed Ollama model without using a Platform API key or ChatGPT/Codex plan
+quota. The bundled Codex CLI still supplies the agent loop and file tools, but
+the model inference is on-device. Create the idempotent local alias, then run
+one bounded unresolved section at a time:
+
+```bash
+npm run intelligence:v2-local-review -- --setup
+npm run intelligence:v2-local-review -- --section story-duplicates
+npm run intelligence:v2-local-review -- --section event-duplicates
+npm run intelligence:v2-local-review -- --section segmentations
+npm run intelligence:v2-local-review -- --section event-topic-links
+```
+
+Add `--all-pending` to any one section for an unattended pass. Each accepted
+batch is merged independently, so an interruption preserves all prior batches
+and cannot leave a half-written review file.
+
+The local runner removes both API-key variables, uses a fresh temporary Codex
+home, disables web search and telemetry, blinds generated predictions, and
+gives the model no write access to the retained file. The host validates structured output and
+atomically merges only exact reviewer fields under an exclusive lock. It is
+slower than hosted inference on the current 24 GB M4 Mac, so ordinary sections
+default to batches of ten. Segmentation is fixed at one complete source per run
+and is never truncated; other sections support `--limit 1` through
+`--limit 20`.
+
+Hosted Codex through the saved ChatGPT login remains a zero-Platform-API
+alternative, but it is remote inference and consumes applicable ChatGPT/Codex
+plan quota. Neither local nor hosted Codex can
+replace the configured embedding model inside the existing index: changing to a
+local embedding model would require re-embedding the whole corpus and concepts,
+changing query embeddings, and recalibrating similarity thresholds.
+
+On this computer, the authenticated Codex binary is:
+
+```bash
+CODEX_BIN="/Applications/ChatGPT.app/Contents/Resources/codex"
+
+env -u OPENAI_API_KEY -u CODEX_API_KEY "$CODEX_BIN" login status
+```
+
+The status command must print `Logged in using ChatGPT` before a zero-Platform-
+API review. Use the bounded commands in `docs/INTELLIGENCE_V2_EVALUATION.md`;
+they confine each Codex pass to the private ignored evaluation directory.
+
+Do not run `/opt/homebrew/bin/codex` for this workflow; that installation is
+not the authenticated working binary. Do not run Codex as an embedding
+substitute, and do not add `--allow-paid-openai` to the backfill unless Platform
+API spend is explicitly intended: missing or
+changed production-compatible content embeddings still require the Platform
+API. Large deduplication, stored-vector clustering, signal refresh, quality SQL,
+evaluation generation, and human/Codex review remain zero-API local work.
+
+The manual research CLI is a paid boundary and fails closed unless the caller
+confirms that spend in the command itself:
+
+```bash
+npm run intelligence:research -- \
+  --owner "<Supabase Auth user UUID>" \
+  --allow-paid-openai
+```
+
+Do not add `--allow-paid-openai` during the local backfill, six-refresh, or
+evaluation workflow. The flag protects only the manual CLI; scheduled
+production research retains its separate feature flag and budget controls.
+
 Use `--reset` only when intentionally restarting that mode's checkpoint. Runs are idempotent by owner, source type, and Gmail message ID. Re-enrichment replaces the document's previous model-event evidence while retaining evidence contributed by other documents.
 
 Production syncs persist their Gmail page cursor, pending message IDs, counters, and heartbeat after every message. A worker stops before the Vercel hard limit and the next invocation resumes the saved pending IDs. A partial unique index permits only one running job per source; abandoned jobs are reconciled after their heartbeat expires.
@@ -158,7 +364,7 @@ npm run intelligence:import-connector -- --owner "$INTELLIGENCE_OWNER_ID"
 
 Do not store private mailbox exports in the repository. Pipe them directly and delete any temporary export after a verified import.
 
-Vercel calls external collection at 07:00 and 08:00 UTC, Gmail sync at 08:00 and 09:00 UTC, signal refresh at 09:00 and 10:00 UTC, research at 09:20 and 10:20 UTC, and digest delivery at 10:00 and 11:00 UTC. Weekly topic maintenance runs on Sunday at 09:40 and 10:40 UTC. Each endpoint checks `America/Halifax`, so only the trigger corresponding to 04:00, 05:00, 06:00, or 07:00 local time performs work through daylight-saving changes. The 20-minute research offset ensures the canonical signal refresh finishes first.
+Vercel calls external collection at 07:00 and 08:00 UTC, Gmail sync at 08:00 and 09:00 UTC, signal refresh every ten minutes during both the 09:00 and 10:00 UTC hours, research at 09:20 and 10:20 UTC, and digest delivery at 10:00 and 11:00 UTC. Weekly topic maintenance runs on Sunday at 09:40 and 10:40 UTC. Each endpoint checks `America/Halifax`, so only the trigger hour corresponding to 04:00, 05:00, 06:00, or 07:00 local time performs work through daylight-saving changes. During the valid 06:00 hour, the signal refresh resumes its saved maintenance or scoring cursor every ten minutes. Once the complete generation is current, later calls skip scoring and remove one bounded page of stale v2 staging data while preserving active, in-flight, signal-referenced, and recent rollback generations. The 20-minute research offset allows the first canonical refresh invocation to finish; research still reads only a completed generation and otherwise waits for the next schedule.
 
 Register the approved official source candidates without activating them:
 

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCanonicalSignalDailyRows,
+  buildSignalDailyTotals,
   dailyTotalsFromRows,
   retainGloballySupportedSignalObservations,
   summarizeCanonicalSignal,
+  summarizeCanonicalSignalHistory,
   type SignalMeasurementItem,
   type SignalMeasurementObservation,
 } from "@/lib/intelligence/signal-metrics-v2";
@@ -75,6 +77,32 @@ describe("canonical v2 signal metrics", () => {
     expect(row.sourceBalancedReach).toBeCloseTo(0.5, 5);
   });
 
+  it("retains denominator-only days even when no signal is observed", () => {
+    const items: SignalMeasurementItem[] = [
+      { id: "a", documentId: "d-a", date: day(1), tokenCount: 100, sourceFamily: "A", authorityTier: "primary", storyId: "s-a" },
+      { id: "b", documentId: "d-b", date: day(2), tokenCount: 250, sourceFamily: "B", authorityTier: "specialist", storyId: "s-b" },
+    ];
+    const signalRows = buildCanonicalSignalDailyRows({
+      items,
+      observations: [{
+        itemId: "a",
+        signalKey: "topic:only-on-day-one",
+        signalId: "only-on-day-one",
+        signalKind: "topic",
+        signalLabel: "Only on day one",
+        mentions: 1,
+        extractionConfidence: 0.9,
+        lensKeys: ["all"],
+      }],
+    });
+
+    expect(signalRows.map((row) => row.signalDate)).toEqual([day(1)]);
+    expect(buildSignalDailyTotals(items)).toEqual([
+      { date: day(1), items: 1, tokens: 100 },
+      { date: day(2), items: 1, tokens: 250 },
+    ]);
+  });
+
   it("classifies a supported breakout as new without corpus-volume inflation", () => {
     const items: SignalMeasurementItem[] = [];
     const observations: SignalMeasurementObservation[] = [];
@@ -107,11 +135,15 @@ describe("canonical v2 signal metrics", () => {
       }
     }
     const rows = buildCanonicalSignalDailyRows({ items, observations });
+    const dailyTotals = new Map(
+      [...new Set(items.map((item) => item.date))].map((date) => [
+        date,
+        { items: 10, tokens: 1_000 },
+      ]),
+    );
     const summary = summarizeCanonicalSignal({
       rows,
-      dailyTotals: new Map(
-        [...new Set(items.map((item) => item.date))].map((date) => [date, { items: 10, tokens: 1_000 }]),
-      ),
+      dailyTotals,
       completeThrough: "2026-07-12",
     });
     expect(summary?.direction).toBe("new");
@@ -119,6 +151,20 @@ describe("canonical v2 signal metrics", () => {
     expect(summary?.previousItems).toBe(0);
     expect(summary?.currentReach).toBeCloseTo(6 / 280, 8);
     expect(dailyTotalsFromRows(rows).size).toBe(6);
+
+    const history = summarizeCanonicalSignalHistory({
+      rows,
+      dailyTotals,
+      completeThrough: "2026-07-12",
+    });
+    expect(history.bySignalDate.get("topic:prsm|2026-07-07")).toMatchObject({
+      direction: "sustained",
+      currentItems: 1,
+    });
+    expect(history.latestByKey.get("topic:prsm")).toMatchObject({
+      direction: "new",
+      currentItems: 6,
+    });
   });
 
   it("does not call persistent but statistically flat coverage Strong evidence", () => {

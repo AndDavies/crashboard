@@ -5,6 +5,7 @@ import { getGmailMessage, gmailMessageToEnvelope } from "@/lib/intelligence/gmai
 import { getGmailSource, gmailAccessTokenForSource } from "@/lib/intelligence/jobs";
 import { persistIntelligenceDocument } from "@/lib/intelligence/persistence";
 import { bootstrapLongTailConcepts } from "@/lib/intelligence/long-tail";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -13,6 +14,15 @@ export async function POST(request: Request) {
   try {
     const ownerId = (await requireDashboardUser()).id;
     const body = (await request.json().catch(() => ({}))) as { offset?: number; limit?: number };
+    if (intelligenceUsesTurso()) {
+      const jobId = await getTursoIntelligenceStore().enqueueJob({
+        ownerId,
+        jobType: "backfill",
+        priority: 80,
+        payload: { requestedOffset: body.offset ?? 0, batchSize: body.limit ?? 25 },
+      });
+      return NextResponse.json({ result: { queued: true, jobId, hasMore: true, processed: 0 } }, { status: 202 });
+    }
     const requestedOffset = Math.max(0, Math.floor(Number(body.offset ?? 0)));
     let offset = requestedOffset;
     const limit = Math.max(1, Math.min(50, Math.floor(Number(body.limit ?? 25))));

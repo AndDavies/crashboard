@@ -1,12 +1,28 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   intelligenceAutomaticResearchEnabled,
+  completedIntelligenceV2SignalDate,
+  intelligenceSignalsV2DataState,
   intelligenceSignalsV2Enabled,
   isCompletedIntelligenceV2BackfillRun,
 } from "@/lib/intelligence/v2-readiness";
 
 const originalFlag = process.env.INTELLIGENCE_SIGNALS_V2;
 const originalResearchFlag = process.env.INTELLIGENCE_AUTOMATIC_RESEARCH_ENABLED;
+
+function queryResult(result: unknown) {
+  const query: Record<string, unknown> = {};
+  for (const method of [
+    "select", "eq", "in", "order", "limit", "maybeSingle",
+  ]) {
+    query[method] = vi.fn(() => query);
+  }
+  query.then = (
+    resolve: (value: unknown) => unknown,
+    reject: (reason: unknown) => unknown,
+  ) => Promise.resolve(result).then(resolve, reject);
+  return query;
+}
 
 afterEach(() => {
   if (originalFlag === undefined) delete process.env.INTELLIGENCE_SIGNALS_V2;
@@ -43,5 +59,78 @@ describe("Intelligence v2 activation gate", () => {
       status: "completed",
       checkpoint_after: { job: "legacy_backfill", phase: "complete" },
     })).toBe(false);
+  });
+
+  it("reads complete dates only from completed current-metric writers", () => {
+    expect(completedIntelligenceV2SignalDate({
+      run_type: "signal_refresh",
+      status: "completed",
+      checkpoint_after: {
+        metric_version: "signals-v2.1.0",
+        complete_through: "2026-07-13",
+      },
+    })).toBe("2026-07-13");
+    expect(completedIntelligenceV2SignalDate({
+      run_type: "signal_refresh",
+      status: "partial",
+      checkpoint_after: { complete_through: "2026-07-14" },
+    })).toBeNull();
+    expect(completedIntelligenceV2SignalDate({
+      run_type: "backfill",
+      status: "completed",
+      checkpoint_after: {
+        job: "intelligence_v2",
+        phase: "signals",
+        signal_complete_through: "2026-07-13",
+      },
+    })).toBeNull();
+  });
+
+  it("serves the latest completed day as explicitly stale while today's writer catches up", async () => {
+    process.env.INTELLIGENCE_SIGNALS_V2 = "true";
+    const completedBackfill = {
+      run_type: "backfill",
+      status: "completed",
+      completed_at: "2026-07-13T09:00:00.000Z",
+      checkpoint_after: {
+        job: "intelligence_v2",
+        phase: "complete",
+        metric_version: "signals-v2.1.0",
+        signal_complete_through: "2026-07-12",
+      },
+    };
+    const from = vi.fn()
+      .mockReturnValueOnce(queryResult({ data: [completedBackfill], error: null }))
+      .mockReturnValueOnce(queryResult({
+        data: { refresh_id: "completed-refresh" },
+        error: null,
+      }))
+      .mockReturnValueOnce(queryResult({
+        data: {
+          refresh_id: "completed-refresh",
+          metric_version: "signals-v2.1.0",
+          start_date: "2025-06-13",
+          complete_through: "2026-07-12",
+          generation_started_at: "2026-07-13T09:00:00.000Z",
+          status: "active",
+          promote: true,
+          signal_count: 599,
+          daily_row_count: 22_000,
+          activated_at: "2026-07-13T09:30:00.000Z",
+          retired_at: null,
+        },
+        error: null,
+      }));
+
+    await expect(intelligenceSignalsV2DataState(
+      { from } as never,
+      "owner",
+      "2026-07-13",
+    )).resolves.toEqual({
+      status: "stale",
+      completeThrough: "2026-07-12",
+      expectedCompleteThrough: "2026-07-13",
+      refreshId: "completed-refresh",
+    });
   });
 });

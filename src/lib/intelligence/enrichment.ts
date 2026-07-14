@@ -27,6 +27,8 @@ export const INTELLIGENCE_EMBEDDING_MODEL =
 // tokenizer differences while preserving long documents through a small batch.
 export const INTELLIGENCE_EMBEDDING_CHUNK_BYTES = 8_000;
 export const INTELLIGENCE_EMBEDDING_MAX_CHUNKS = 32;
+export const INTELLIGENCE_EMBEDDING_REQUEST_MAX_BYTES = 80_000;
+export const INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS = 20;
 export const INTELLIGENCE_EXTRACTION_TIMEOUT_MS = 105_000;
 export const INTELLIGENCE_EMBEDDING_TIMEOUT_MS = 30_000;
 // The job checkpoint is the retry boundary. SDK retries would multiply the
@@ -145,6 +147,47 @@ export function prepareEmbeddingInputs(content: string) {
     chunks.push(chunk);
   }
   return chunks;
+}
+
+function preparedEmbeddingByteLength(content: string) {
+  return prepareEmbeddingInputs(content).reduce(
+    (total, input) => total + textEncoder.encode(input).byteLength,
+    0,
+  );
+}
+
+export function groupEmbeddingRequestItems<T>(
+  items: readonly T[],
+  contentForItem: (item: T) => string,
+  options: { maxBytes?: number; maxSegments?: number } = {},
+) {
+  const maxBytes = Math.max(
+    1,
+    Math.floor(options.maxBytes ?? INTELLIGENCE_EMBEDDING_REQUEST_MAX_BYTES),
+  );
+  const maxSegments = Math.max(
+    1,
+    Math.floor(options.maxSegments ?? INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS),
+  );
+  const groups: T[][] = [];
+  let group: T[] = [];
+  let groupBytes = 0;
+
+  for (const item of items) {
+    const itemBytes = preparedEmbeddingByteLength(contentForItem(item));
+    if (
+      group.length > 0 &&
+      (group.length >= maxSegments || groupBytes + itemBytes > maxBytes)
+    ) {
+      groups.push(group);
+      group = [];
+      groupBytes = 0;
+    }
+    group.push(item);
+    groupBytes += itemBytes;
+  }
+  if (group.length) groups.push(group);
+  return groups;
 }
 
 function combineEmbeddings(

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crashboard Intelligence Worker"
+  short_description: "Refresh and research Intelligence safely"
+  default_prompt: "Use $crashboard-intelligence-worker to run the next due Intelligence job."

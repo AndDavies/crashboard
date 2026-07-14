@@ -4,6 +4,7 @@ import { getGmailSource, gmailAccessTokenForSource } from "@/lib/intelligence/jo
 import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
 import { latestCompleteDateKey, shiftDateKey } from "@/lib/intelligence/signal-metrics";
 import { intelligenceSignalsV2DataStatus } from "@/lib/intelligence/v2-readiness";
+import { loadActiveIntelligenceSignalGeneration } from "@/lib/intelligence/signal-generations-v2";
 
 export const MAX_IMMEDIATE_ALERTS_PER_DAY = 2;
 
@@ -225,17 +226,13 @@ export async function sendImmediateIntelligenceAlerts(
     };
   }
 
-  const latest = await admin
-    .from("intelligence_signal_daily")
-    .select("signal_date")
-    .eq("owner_id", ownerId)
-    .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
-    .order("signal_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (latest.error) throw new Error(latest.error.message);
-  if (!latest.data?.signal_date) return { skipped: true, reason: "No v2 signals are available.", sent: 0 };
-  if (latest.data.signal_date !== latestCompleteDateKey(anchor)) {
+  const generation = await loadActiveIntelligenceSignalGeneration(
+    admin,
+    ownerId,
+    INTELLIGENCE_SIGNAL_METRIC_VERSION,
+  );
+  if (!generation) return { skipped: true, reason: "No active v2 signal generation is available.", sent: 0 };
+  if (generation.completeThrough !== latestCompleteDateKey(anchor)) {
     return {
       skipped: true,
       reason: "The current complete-day v2 signal series is not ready.",
@@ -247,8 +244,9 @@ export async function sendImmediateIntelligenceAlerts(
     .from("intelligence_signal_daily")
     .select("signal_key,signal_kind,signal_id,signal_label,direction,evidence_strength,raw_reach,primary_source_count,unique_action_count,hidden_rank_score,metadata")
     .eq("owner_id", ownerId)
+    .eq("refresh_id", generation.refreshId)
     .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
-    .eq("signal_date", latest.data.signal_date)
+    .eq("signal_date", generation.completeThrough)
     .eq("evidence_strength", "strong")
     .in("direction", ["new", "rising"])
     .order("hidden_rank_score", { ascending: false })
@@ -263,9 +261,10 @@ export async function sendImmediateIntelligenceAlerts(
       .from("intelligence_signal_daily")
       .select("signal_key,primary_source_count")
       .eq("owner_id", ownerId)
+      .eq("refresh_id", generation.refreshId)
       .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
-      .gte("signal_date", shiftDateKey(latest.data.signal_date, -27))
-      .lte("signal_date", latest.data.signal_date)
+      .gte("signal_date", shiftDateKey(generation.completeThrough, -27))
+      .lte("signal_date", generation.completeThrough)
       .in("signal_key", signalKeys)
     : { data: [], error: null };
   if (primarySupport.error) throw new Error(primarySupport.error.message);

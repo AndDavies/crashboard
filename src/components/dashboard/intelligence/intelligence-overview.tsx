@@ -112,7 +112,7 @@ export function IntelligenceOverview({
   signals: TrendSignal[];
   completeThrough: string;
   completedResearch?: CompletedResearchItem[];
-  dataStatus?: "ready" | "disabled" | "building" | "schema_missing";
+  dataStatus?: "ready" | "stale" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback?: boolean;
 }) {
   const sorted = [...signals].sort((a, b) => {
@@ -141,6 +141,13 @@ export function IntelligenceOverview({
           </div>
         </div>
       </header>
+
+      {dataStatus === "stale" && !usesLegacyFallback ? (
+        <section className="border border-amber-500/50 bg-amber-500/10 p-4 text-sm leading-6" role="status">
+          <p className="font-semibold">The latest analysis refresh is still catching up.</p>
+          <p className="mt-1 text-muted-foreground">Showing the last fully completed series through {formatDate(completeThrough)}. Incomplete newer results remain hidden.</p>
+        </section>
+      ) : null}
 
       {usesLegacyFallback ? (
         <section className="border border-border bg-muted/20 p-4 text-sm leading-6">

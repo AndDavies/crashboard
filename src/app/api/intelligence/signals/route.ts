@@ -5,25 +5,31 @@ import type {
   IntelligenceSignalLens,
   IntelligenceSignalRange,
 } from "@/lib/intelligence/signals-v2-types";
+import { requireDashboardUser } from "@/lib/blog/data";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireDashboardUser();
     const params = request.nextUrl.searchParams;
     const compare = params.getAll("compare")
       .flatMap((value) => value.split(","))
       .map((value) => value.trim())
       .filter(Boolean)
       .slice(0, 5);
-    const result = await getIntelligenceSignals({
+    const options = {
       range: (params.get("range") ?? undefined) as IntelligenceSignalRange | undefined,
       lens: (params.get("lens") ?? undefined) as IntelligenceSignalLens | undefined,
       kind: (params.get("kind") ?? undefined) as IntelligenceSignalKind | "all" | undefined,
       q: params.get("q") ?? undefined,
       compare,
       limit: params.get("limit") ? Number(params.get("limit")) : undefined,
-    });
+    };
+    const result = intelligenceUsesTurso()
+      ? await getTursoIntelligenceStore().getSignals(options)
+      : await getIntelligenceSignals(options);
     return NextResponse.json(result);
   } catch (error) {
     console.error("[intelligence] Signal query failed.", error);
@@ -33,4 +39,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

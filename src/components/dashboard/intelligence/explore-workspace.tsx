@@ -181,7 +181,7 @@ export function ExploreWorkspace({
   initialQuery?: string;
   initialSignalId?: string;
   initialCompare?: string[];
-  dataStatus?: "ready" | "disabled" | "building" | "schema_missing";
+  dataStatus?: "ready" | "stale" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback?: boolean;
 }) {
   const query = initialQuery.trim();
@@ -239,6 +239,13 @@ export function ExploreWorkspace({
         <h1 className="mt-2 font-heading text-4xl font-semibold sm:text-5xl">Find what is moving—and why.</h1>
         <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">Compare topics, exact keywords, organizations, programmes, and systems. Every explanation stays connected to its source evidence.</p>
       </header>
+
+      {dataStatus === "stale" && !usesLegacyFallback ? (
+        <div className="border border-amber-500/50 bg-amber-500/10 p-4 text-sm leading-6" role="status">
+          <p className="font-semibold">The latest analysis refresh is still catching up.</p>
+          <p className="mt-1 text-muted-foreground">Search and charts are using the last fully completed series. Incomplete newer results remain hidden.</p>
+        </div>
+      ) : null}
 
       {usesLegacyFallback ? (
         <div className="border border-border bg-muted/20 p-4 text-sm leading-6">

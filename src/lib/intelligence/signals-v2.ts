@@ -5,13 +5,23 @@ import {
   INTELLIGENCE_SIGNAL_METRIC_VERSION,
   type CanonicalSignalDailyRow,
 } from "@/lib/intelligence/signal-metrics-v2";
-import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
-import { recentSignalEvidenceIds } from "@/lib/intelligence/signal-evidence";
+import {
+  recentSignalActionReferences,
+  recentSignalEvidenceIds,
+} from "@/lib/intelligence/signal-evidence";
+import {
+  actionRowsByAnalyticalKey,
+  INTELLIGENCE_EVENT_DEDUP_VERSION,
+  loadActiveEventMembershipGeneration,
+  loadEventMembershipGeneration,
+  type ActiveEventMembershipGeneration,
+} from "@/lib/intelligence/event-cluster-memberships";
 import {
   buildSignalQueryPlan,
   chunkSignalKeys,
   parseStoredSignalSummary,
 } from "@/lib/intelligence/signals-v2-query";
+import { buildSignalSeriesForRange } from "@/lib/intelligence/signal-series-v2";
 import {
   INTELLIGENCE_SIGNAL_KINDS,
   INTELLIGENCE_SIGNAL_LENSES,
@@ -22,13 +32,11 @@ import {
   type IntelligenceSignalLens,
   type IntelligenceSignalRange,
   type IntelligenceSignalsResponse,
-  type IntelligenceSignalSeriesPoint,
   type IntelligenceSignalSummary,
 } from "@/lib/intelligence/signals-v2-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  hasCompletedIntelligenceV2Backfill,
-  intelligenceSignalsV2Enabled,
+  intelligenceSignalsV2DataState,
 } from "@/lib/intelligence/v2-readiness";
 
 const PAGE_SIZE = 1_000;
@@ -131,6 +139,7 @@ async function mapWithConcurrency<T, R>(
 async function fetchSelectedSignalHistory(input: {
   admin: ReturnType<typeof createAdminClient>;
   ownerId: string;
+  refreshId: string;
   signalKeys: string[];
   start: string;
   end: string;
@@ -142,6 +151,7 @@ async function fetchSelectedSignalHistory(input: {
       .from("intelligence_signal_daily")
       .select(DAILY_COLUMNS)
       .eq("owner_id", input.ownerId)
+      .eq("refresh_id", input.refreshId)
       .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
       .in("signal_key", keys)
       .gte("signal_date", input.start)
@@ -167,44 +177,25 @@ function totalsFromRows(rows: DbRow[]) {
   return totals;
 }
 
-function missingTotalsFunction(error: { code?: string; message?: string } | null) {
-  return Boolean(error && (
-    error.code === "PGRST202" || error.code === "42883" ||
-    error.message?.includes("get_intelligence_signal_daily_totals")
-  ));
-}
-
 async function fetchSignalDailyTotals(input: {
   admin: ReturnType<typeof createAdminClient>;
   ownerId: string;
+  refreshId: string;
   start: string;
   end: string;
 }) {
-  const aggregated = await input.admin.rpc("get_intelligence_signal_daily_totals", {
-    query_owner: input.ownerId,
-    query_metric_version: INTELLIGENCE_SIGNAL_METRIC_VERSION,
-    query_start: input.start,
-    query_end: input.end,
-  });
-  if (!aggregated.error) {
-    return totalsFromRows(Array.isArray(aggregated.data) ? aggregated.data as DbRow[] : []);
-  }
-  if (!missingTotalsFunction(aggregated.error)) throw new Error(aggregated.error.message);
-
-  // Safe rolling-deploy fallback. The RPC removes this duplicate transfer once
-  // its ordinary migration is present, but old deployments remain readable.
-  const fallback = await fetchPages<DbRow>((from, to) => input.admin
-    .from("intelligence_signal_daily")
+  const result = await fetchPages<DbRow>((from, to) => input.admin
+    .from("intelligence_signal_daily_totals")
     .select("signal_date,eligible_items,eligible_tokens")
     .eq("owner_id", input.ownerId)
+    .eq("refresh_id", input.refreshId)
     .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
     .gte("signal_date", input.start)
     .lte("signal_date", input.end)
     .order("signal_date", { ascending: true })
-    .order("signal_key", { ascending: true })
     .range(from, to));
-  if (fallback.error) throw new Error(fallback.error.message);
-  return totalsFromRows(fallback.data ?? []);
+  if (result.error) throw new Error(result.error.message);
+  return totalsFromRows(result.data ?? []);
 }
 
 async function fetchSignalScopedRows(input: {
@@ -269,6 +260,18 @@ async function fetchSelectedRelatedRows(input: {
 
 function parseDailyRow(row: DbRow): CanonicalSignalDailyRow {
   const metadata = object(row.metadata);
+  const eventGeneration = Object.prototype.hasOwnProperty.call(
+    metadata,
+    "event_dedup_generation_id",
+  )
+    ? String(metadata.event_dedup_generation_id ?? "").trim() || null
+    : undefined;
+  const storyGeneration = Object.prototype.hasOwnProperty.call(
+    metadata,
+    "story_dedup_generation_id",
+  )
+    ? String(metadata.story_dedup_generation_id ?? "").trim() || null
+    : undefined;
   return {
     signalKey: String(row.signal_key),
     signalId: String(row.signal_id),
@@ -296,6 +299,12 @@ function parseDailyRow(row: DbRow): CanonicalSignalDailyRow {
       actionIds: strings(metadata.actionIds ?? metadata.action_ids),
       documentIds: strings(metadata.documentIds ?? metadata.document_ids),
       sourceCounts: object(metadata.sourceCounts ?? metadata.source_counts) as Record<string, number>,
+      ...(eventGeneration !== undefined
+        ? { eventDedupGenerationId: eventGeneration }
+        : {}),
+      ...(storyGeneration !== undefined
+        ? { storyDedupGenerationId: storyGeneration }
+        : {}),
     },
   };
 }
@@ -333,47 +342,6 @@ function explanation(input: {
   return { whyNow, whyItMatters, whatToWatch };
 }
 
-function seriesForRange(input: {
-  rows: CanonicalSignalDailyRow[];
-  totals: Map<string, { items: number; tokens: number }>;
-  start: string;
-  end: string;
-  daily: boolean;
-}) {
-  const byDate = new Map(input.rows.map((row) => [row.signalDate, row]));
-  const buckets = new Map<string, CanonicalSignalDailyRow[]>();
-  const eligibleByBucket = new Map<string, { items: number; tokens: number }>();
-  for (let date = input.start, index = 0; date <= input.end; date = addDays(date, 1), index += 1) {
-    const bucket = input.daily ? date : addDays(input.start, Math.floor(index / 7) * 7);
-    const row = byDate.get(date);
-    if (row) {
-      const rows = buckets.get(bucket) ?? [];
-      rows.push(row);
-      buckets.set(bucket, rows);
-    }
-    const total = eligibleByBucket.get(bucket) ?? { items: 0, tokens: 0 };
-    const dayTotal = input.totals.get(date);
-    total.items += dayTotal?.items ?? 0;
-    total.tokens += dayTotal?.tokens ?? 0;
-    eligibleByBucket.set(bucket, total);
-  }
-  return [...eligibleByBucket.entries()].filter(([, total]) => total.items > 0)
-    .map(([date, total]): IntelligenceSignalSeriesPoint => {
-      const rows = buckets.get(date) ?? [];
-      const support = rows.reduce((sum, row) => sum + row.supportingItems, 0);
-      const mentions = rows.reduce((sum, row) => sum + row.mentionCount, 0);
-      return {
-        date,
-        shareOfCoverage: 100 * support / Math.max(1, total.items),
-        items: support,
-        stories: new Set(rows.flatMap((row) => row.metadata.storyIds)).size,
-        sources: new Set(rows.flatMap((row) => row.metadata.sourceFamilies)).size,
-        actions: new Set(rows.flatMap((row) => row.metadata.actionIds)).size,
-        mentionsPer10k: 10_000 * mentions / Math.max(1, total.tokens),
-      };
-    });
-}
-
 async function supportingEvidence(
   ownerId: string,
   signalRows: Map<string, CanonicalSignalDailyRow[]>,
@@ -385,14 +353,63 @@ async function supportingEvidence(
     selectedKeys,
     "documentIds",
   );
-  const actionIdsByKey = recentSignalEvidenceIds(signalRows, selectedKeys, "actionIds");
+  const actionReferencesByKey = recentSignalActionReferences(
+    signalRows,
+    selectedKeys,
+  );
   const documentIds = [...new Set([...documentIdsByKey.values()].flat())];
-  const actionIds = [...new Set([...actionIdsByKey.values()].flat())];
+  const actionIds = [...new Set(
+    [...actionReferencesByKey.values()].flat().map((item) => item.actionId),
+  )];
+  const explicitGenerationIds = [...new Set(
+    [...actionReferencesByKey.values()].flat().flatMap((item) =>
+      item.eventDedupGenerationId ? [item.eventDedupGenerationId] : []
+    ),
+  )];
+  const needsLegacyGeneration = [...actionReferencesByKey.values()].some((items) =>
+    items.some((item) => !item.eventDedupGenerationId)
+  );
+  const [activeEventGeneration, explicitGenerations] = await Promise.all([
+    needsLegacyGeneration
+      ? loadActiveEventMembershipGeneration(admin, ownerId)
+      : Promise.resolve(null),
+    Promise.all(explicitGenerationIds.map(async (generationId) => {
+      const generation = await loadEventMembershipGeneration(
+        admin,
+        ownerId,
+        generationId,
+      );
+      if (!generation) {
+        throw new Error(
+          `Stored signal evidence references missing event-dedup generation ${generationId}.`,
+        );
+      }
+      return generation;
+    })),
+  ]);
+  const explicitGenerationById = new Map(
+    explicitGenerations.map((generation) => [generation.generationId, generation]),
+  );
+  const generationGroupKey = (generationId: string | null) => generationId
+    ? `generation:${generationId}`
+    : `legacy:${activeEventGeneration?.generationId ?? "none"}`;
+  const generationByGroupKey = new Map<string, ActiveEventMembershipGeneration | null>();
+  const actionIdsByGeneration = new Map<string, Set<string>>();
+  for (const reference of [...actionReferencesByKey.values()].flat()) {
+    const key = generationGroupKey(reference.eventDedupGenerationId);
+    const generation = reference.eventDedupGenerationId
+      ? explicitGenerationById.get(reference.eventDedupGenerationId) ?? null
+      : activeEventGeneration;
+    generationByGroupKey.set(key, generation);
+    const ids = actionIdsByGeneration.get(key) ?? new Set<string>();
+    ids.add(reference.actionId);
+    actionIdsByGeneration.set(key, ids);
+  }
   const batches = <T,>(values: T[]) => Array.from(
     { length: Math.ceil(values.length / 100) },
     (_, index) => values.slice(index * 100, index * 100 + 100),
   );
-  const [documentResults, actionIdResults, actionClusterResults] = await Promise.all([
+  const [documentResults, actionIdResults, actionClusterResults, membershipGroups] = await Promise.all([
     Promise.all(batches(documentIds).map((ids) => admin.from("documents")
       .select("id,title,summary_short,content_text,original_url,canonical_url,publisher_name,published_at,source_identity_id,metadata,intelligence_source_identities(source_family,authority_tier)")
       .eq("owner_id", ownerId).in("id", ids))),
@@ -402,17 +419,57 @@ async function supportingEvidence(
     Promise.all(batches(actionIds).map((ids) => admin.from("intelligence_events")
       .select("id,cluster_id,title,event_type,announced_at,occurred_at")
       .eq("owner_id", ownerId).in("cluster_id", ids))),
+    Promise.all([...actionIdsByGeneration.entries()].map(async ([key, ids]) => {
+      const generation = generationByGroupKey.get(key) ?? null;
+      if (generation?.matchVersion !== INTELLIGENCE_EVENT_DEDUP_VERSION) {
+        return { key, generation, rows: [] as DbRow[] };
+      }
+      const results = await Promise.all(batches([...ids]).map((batch) => admin
+        .from("intelligence_event_cluster_memberships")
+        .select("generation_id,cluster_id,event_id,relationship,match_version")
+        .eq("owner_id", ownerId)
+        .eq("generation_id", generation.generationId)
+        .eq("match_version", generation.matchVersion)
+        .eq("relationship", "canonical")
+        .in("cluster_id", batch)));
+      const error = results.find((result) => result.error)?.error;
+      if (error) throw new Error(error.message);
+      return {
+        key,
+        generation,
+        rows: results.flatMap((result) => result.data ?? []) as DbRow[],
+      };
+    })),
   ]);
-  const queryError = [...documentResults, ...actionIdResults, ...actionClusterResults]
+  const queryError = [
+    ...documentResults,
+    ...actionIdResults,
+    ...actionClusterResults,
+  ]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error(queryError.message);
+  const membershipRows = membershipGroups.flatMap((group) => group.rows);
+  const canonicalEventIds = [...new Set(membershipRows.map((row) => String(row.event_id)))];
+  const canonicalEventResults = await Promise.all(
+    batches(canonicalEventIds).map((ids) => admin.from("intelligence_events")
+      .select("id,cluster_id,title,event_type,announced_at,occurred_at")
+      .eq("owner_id", ownerId).in("id", ids)),
+  );
+  const canonicalQueryError = canonicalEventResults.find((result) => result.error)?.error;
+  if (canonicalQueryError) throw new Error(canonicalQueryError.message);
   const documentById = new Map(documentResults.flatMap((result) => result.data ?? [])
     .map((row) => [String(row.id), row as DbRow]));
-  const actionById = new Map<string, DbRow>();
-  for (const row of [...actionIdResults, ...actionClusterResults].flatMap((result) => result.data ?? [])) {
-    actionById.set(String(row.id), row as DbRow);
-    if (row.cluster_id) actionById.set(String(row.cluster_id), row as DbRow);
-  }
+  const actionRows = [...actionIdResults, ...actionClusterResults, ...canonicalEventResults]
+    .flatMap((result) => result.data ?? []) as DbRow[];
+  const actionsByGeneration = new Map(membershipGroups.map((group) => [
+    group.key,
+    actionRowsByAnalyticalKey(
+      [...(actionIdsByGeneration.get(group.key) ?? [])],
+      actionRows,
+      group.rows,
+      group.generation,
+    ),
+  ]));
   const evidenceByKey = new Map<string, IntelligenceSignalEvidence[]>();
   const annotationsByKey = new Map<string, IntelligenceSignalAnnotation[]>();
   for (const key of selectedKeys) {
@@ -438,11 +495,14 @@ async function supportingEvidence(
         isResearch: metadata.source_cohort === "research",
       } satisfies IntelligenceSignalEvidence];
     }).sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt))).slice(0, 8));
-    const actionsForSignal = actionIdsByKey.get(key) ?? [];
-    annotationsByKey.set(key, actionsForSignal.flatMap((id) => {
-      const action = actionById.get(id);
+    const annotationEventIds = new Set<string>();
+    annotationsByKey.set(key, (actionReferencesByKey.get(key) ?? []).flatMap((reference) => {
+      const groupKey = generationGroupKey(reference.eventDedupGenerationId);
+      const action = actionsByGeneration.get(groupKey)?.get(reference.actionId);
       if (!action) return [];
-      const eventId = String(action.id ?? id);
+      const eventId = String(action.id ?? reference.actionId);
+      if (annotationEventIds.has(eventId)) return [];
+      annotationEventIds.add(eventId);
       return [{
         id: eventId,
         date: String(action.announced_at ?? action.occurred_at ?? "").slice(0, 10),
@@ -466,14 +526,16 @@ export async function getIntelligenceSignals(
   const kind = options.kind === "all" || INTELLIGENCE_SIGNAL_KINDS.includes(options.kind as never)
     ? options.kind ?? "all"
     : "all";
-  const completeThrough = latestCompleteDateKey();
-  if (!intelligenceSignalsV2Enabled()) {
+  const readiness = await intelligenceSignalsV2DataState(admin, ownerId);
+  const completeThrough = readiness.completeThrough;
+  if (readiness.status !== "ready" && readiness.status !== "stale") {
     return {
       generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
-      total: 0, signals: [], comparison: [], dataStatus: "disabled",
+      total: 0, signals: [], comparison: [], dataStatus: readiness.status,
     };
   }
-  if (!(await hasCompletedIntelligenceV2Backfill(admin, ownerId))) {
+  const refreshId = readiness.refreshId;
+  if (!refreshId) {
     return {
       generatedAt: new Date().toISOString(), completeThrough, range, lens, kind,
       total: 0, signals: [], comparison: [], dataStatus: "building",
@@ -484,6 +546,7 @@ export async function getIntelligenceSignals(
     .from("intelligence_signal_daily")
     .select(SUMMARY_COLUMNS)
     .eq("owner_id", ownerId)
+    .eq("refresh_id", refreshId)
     .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
     .eq("signal_date", completeThrough)
     .order("hidden_rank_score", { ascending: false })
@@ -523,12 +586,19 @@ export async function getIntelligenceSignals(
     fetchSelectedSignalHistory({
       admin,
       ownerId,
+      refreshId,
       signalKeys: plan.historyKeys,
       start: chartStart,
       end: completeThrough,
     }),
     plan.historyKeys.length
-      ? fetchSignalDailyTotals({ admin, ownerId, start: chartStart, end: completeThrough })
+      ? fetchSignalDailyTotals({
+          admin,
+          ownerId,
+          refreshId,
+          start: chartStart,
+          end: completeThrough,
+        })
       : Promise.resolve(new Map<string, { items: number; tokens: number }>()),
   ]);
   if (historyResult.error) throw new Error(historyResult.error.message);
@@ -673,7 +743,7 @@ export async function getIntelligenceSignals(
         ? research.what_to_watch
         : explanations.whatToWatch,
       lensKeys: summary.lensKeys,
-      series: seriesForRange({
+      series: buildSignalSeriesForRange({
         rows: signalRows.filter((row) => row.signalDate >= chartStart),
         totals,
         start: chartStart,
@@ -700,7 +770,7 @@ export async function getIntelligenceSignals(
     total: plan.filtered.length,
     signals: mapped.filter((signal) => selectedKeySet.has(signal.key)),
     comparison: plan.compareKeys.flatMap((key) => byKey.get(key) ?? []),
-    dataStatus: "ready",
+    dataStatus: readiness.status,
   };
 }
 

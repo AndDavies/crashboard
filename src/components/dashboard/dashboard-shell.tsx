@@ -70,9 +70,10 @@ function usePersistedSidebarCollapsed() {
 type Props = {
   children: React.ReactNode;
   userEmail: string | null;
+  authMode: "google" | "supabase";
 };
 
-export function DashboardShell({ children, userEmail }: Props) {
+export function DashboardShell({ children, userEmail, authMode }: Props) {
   const pathname = usePathname() ?? "/dashboard";
   const [collapsed, setCollapsed] = usePersistedSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -150,11 +151,11 @@ export function DashboardShell({ children, userEmail }: Props) {
                 {userEmail}
               </span>
             ) : null}
-            <SignOutButton />
+            <SignOutButton authMode={authMode} />
           </div>
 
           <div className="flex shrink-0 sm:hidden">
-            <SignOutButton />
+            <SignOutButton authMode={authMode} />
           </div>
         </header>
 

@@ -253,15 +253,14 @@ function coerceDetail(row: Record<string, unknown>): BlogPostDetail {
 }
 
 export async function requireDashboardUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Authentication required.");
+  const { dashboardUsesGoogleAuth } = await import("@/lib/dashboard-auth/session");
+  if (dashboardUsesGoogleAuth()) {
+    const { requireSignedDashboardUser } = await import("@/lib/dashboard-auth/server");
+    return requireSignedDashboardUser();
   }
-
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Authentication required.");
   return user;
 }
 

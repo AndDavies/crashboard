@@ -1,19 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { recentSignalEvidenceIds } from "@/lib/intelligence/signal-evidence";
+import { recentSignalActionReferences } from "@/lib/intelligence/signal-evidence";
 
-describe("signal evidence selection", () => {
-  it("retains recent evidence for signals ranked beyond the first 30", () => {
-    const keys = Array.from({ length: 35 }, (_, index) => `topic:${index + 1}`);
-    const rows = new Map(keys.map((key, index) => [key, Array.from({ length: 20 }, (_, day) => ({
+describe("signal evidence generation identity", () => {
+  it("keeps the generation that produced each stored analytical action ID", () => {
+    const rows = new Map<string, Array<{
       metadata: {
-        documentIds: [`document-${index + 1}-${day + 1}`],
-        actionIds: [],
+        documentIds: string[];
+        actionIds: string[];
+        eventDedupGenerationId?: string | null;
+      };
+    }>>([["topic:radar", [
+      {
+        metadata: {
+          documentIds: [],
+          actionIds: ["shared-cluster", "old-only"],
+          eventDedupGenerationId: "generation-old",
+        },
       },
-    }))]));
+      {
+        metadata: {
+          documentIds: [],
+          actionIds: ["shared-cluster", "new-only"],
+          eventDedupGenerationId: "generation-new",
+        },
+      },
+    ]]]);
 
-    const selected = recentSignalEvidenceIds(rows, keys, "documentIds", 8);
-    expect(selected.get("topic:31")).toHaveLength(8);
-    expect(selected.get("topic:31")).toContain("document-31-20");
-    expect([...new Set([...selected.values()].flat())]).toHaveLength(35 * 8);
+    expect(recentSignalActionReferences(
+      rows,
+      ["topic:radar"],
+    ).get("topic:radar")).toEqual([
+      { actionId: "new-only", eventDedupGenerationId: "generation-new" },
+      { actionId: "shared-cluster", eventDedupGenerationId: "generation-new" },
+      { actionId: "old-only", eventDedupGenerationId: "generation-old" },
+      { actionId: "shared-cluster", eventDedupGenerationId: "generation-old" },
+    ]);
+  });
+
+  it("marks rows without recorded generation metadata for active-generation fallback", () => {
+    const rows = new Map([["keyword:c-uas", [{
+      metadata: { documentIds: [], actionIds: ["legacy-action"] },
+    }]]]);
+    expect(recentSignalActionReferences(rows, ["keyword:c-uas"]))
+      .toEqual(new Map([["keyword:c-uas", [{
+        actionId: "legacy-action",
+        eventDedupGenerationId: null,
+      }]]]));
   });
 });

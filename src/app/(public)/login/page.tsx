@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LoginForm } from "./login-form";
+import Link from "next/link";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import {
   Card,
@@ -7,6 +7,9 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LoginForm } from "./login-form";
+import { dashboardUsesGoogleAuth } from "@/lib/dashboard-auth/session";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -21,6 +24,7 @@ type Props = {
 export default async function LoginPage({ searchParams }: Props) {
   const { next, error } = await searchParams;
   const nextPath = next?.startsWith("/") ? next : "/dashboard";
+  const googleAuth = dashboardUsesGoogleAuth();
 
   return (
     <MarketingPageFrame className="flex min-h-[min(70vh,40rem)] flex-col justify-center py-16 md:py-24">
@@ -31,8 +35,9 @@ export default async function LoginPage({ searchParams }: Props) {
             Sign in
           </h1>
           <CardDescription>
-            Use the email and password for your Supabase user. You’ll stay signed
-            in until you sign out.
+            {googleAuth
+              ? "Use your approved Google account. Login does not depend on the Intelligence database."
+              : "Use the email and password for your existing dashboard account."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -54,7 +59,29 @@ export default async function LoginPage({ searchParams }: Props) {
               again.
             </p>
           ) : null}
-          <LoginForm nextPath={nextPath} />
+          {error === "account" ? (
+            <p role="alert" className="border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground">
+              That Google account is not approved for this dashboard.
+            </p>
+          ) : null}
+          {error === "config" || error === "state" ? (
+            <p role="alert" className="border border-border bg-muted/50 px-3 py-2 text-center text-sm text-foreground">
+              Sign-in could not start safely. Try again; if it persists, check the Google callback and session secret.
+            </p>
+          ) : null}
+          {googleAuth ? (
+            <>
+              <Button
+                nativeButton={false}
+                render={<Link href={`/api/auth/google/start?next=${encodeURIComponent(nextPath)}`} />}
+                className="w-full"
+                size="lg"
+              >
+                Continue with Google
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">Approved account: m.andrew.davies@gmail.com</p>
+            </>
+          ) : <LoginForm nextPath={nextPath} />}
         </CardContent>
       </Card>
     </MarketingPageFrame>

@@ -8,6 +8,7 @@ import { processIntelligenceDocument } from "@/lib/intelligence/pipeline";
 import { latestCompleteDateKey } from "@/lib/intelligence/signal-metrics";
 import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
 import { normalizeSourceUrl } from "@/lib/intelligence/source-url";
+import { loadActiveIntelligenceSignalGeneration } from "@/lib/intelligence/signal-generations-v2";
 
 export const INTELLIGENCE_RESEARCH_MODEL =
   process.env.OPENAI_INTELLIGENCE_RESEARCH_MODEL?.trim() || "gpt-5.6-terra";
@@ -753,12 +754,19 @@ export async function createAutomaticResearchLeads(
   );
   if (!remainingDailyLeads) return { created: 0 };
   const completeDate = latestCompleteDateKey(anchor);
+  const generation = await loadActiveIntelligenceSignalGeneration(
+    admin,
+    ownerId,
+    INTELLIGENCE_SIGNAL_METRIC_VERSION,
+  );
+  if (!generation || generation.completeThrough !== completeDate) return { created: 0 };
   const latest = await admin
     .from("intelligence_signal_daily")
     .select(
       "signal_kind,signal_id,signal_label,direction,evidence_strength,primary_source_count,unique_action_count,metadata,signal_date,hidden_rank_score",
     )
     .eq("owner_id", ownerId)
+    .eq("refresh_id", generation.refreshId)
     .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
     .eq("signal_date", completeDate)
     .eq("evidence_strength", "strong")

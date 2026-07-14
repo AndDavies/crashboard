@@ -14,6 +14,7 @@ import { getIntelligenceOperations } from "@/lib/intelligence/data";
 import { listTopicMergeSuggestions } from "@/lib/intelligence/topic-merge-reviews";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { IntelligenceRunDiagnostic } from "@/lib/intelligence/types";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const metadata: Metadata = {
   title: "Sources & Automations · Crashboard Intelligence",
@@ -68,8 +69,59 @@ function sourceType(value: string) {
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
+async function TursoSourcesAutomations({ ownerId }: { ownerId: string }) {
+  const store = getTursoIntelligenceStore();
+  const [health, gmail] = await Promise.all([
+    store.health(),
+    store.getSource(ownerId, "gmail"),
+  ]);
+  return (
+    <div className="space-y-10 pb-16">
+      <header className="border-b border-foreground pb-6">
+        <p className="editorial-kicker">Intelligence / sources &amp; automations</p>
+        <h1 className="mt-2 font-heading text-4xl font-semibold sm:text-5xl">Local agent, shared evidence.</h1>
+        <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">
+          Codex performs the heavy collection and analysis on your Mac. Turso keeps the latest validated result available to this dashboard.
+        </p>
+      </header>
+
+      {!gmail ? (
+        <section className="flex flex-col justify-between gap-5 border border-foreground bg-card p-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="editorial-kicker">Required connection</p>
+            <h2 className="mt-1 font-heading text-xl font-semibold">Connect Gmail newsletters</h2>
+            <p className="mt-1 text-sm text-muted-foreground">The encrypted refresh token is stored in Turso for the local worker.</p>
+          </div>
+          <Button nativeButton={false} render={<a href="/api/intelligence/google/start" />}><Mail className="size-4" /> Connect Gmail</Button>
+        </section>
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="border border-border bg-card p-4"><Database className="size-4 text-muted-foreground" /><p className="mt-5 text-sm font-semibold">{health.ok ? "Connected" : "Unavailable"}</p><p className="mt-1 text-xs text-muted-foreground">Turso Intelligence store</p></div>
+        <div className="border border-border bg-card p-4"><Mail className="size-4 text-muted-foreground" /><p className="mt-5 text-sm font-semibold">{gmail ? "Connected" : "Not connected"}</p><p className="mt-1 text-xs text-muted-foreground">{gmail?.name ?? "Gmail newsletters"}</p></div>
+        <div className="border border-border bg-card p-4"><Activity className="size-4 text-muted-foreground" /><p className="mt-5 font-mono text-3xl font-semibold">{health.pendingJobs}</p><p className="mt-1 text-sm font-medium">pending agent jobs</p></div>
+        <div className="border border-border bg-card p-4">{health.dailyRefreshDue ? <Clock3 className="size-4 text-muted-foreground" /> : <CheckCircle2 className="size-4 text-muted-foreground" />}<p className="mt-5 text-sm font-semibold">{health.dailyRefreshDue ? "Refresh due" : "Up to date"}</p><p className="mt-1 text-xs text-muted-foreground">Last active refresh {timestamp(health.activeRefreshCompletedAt)}</p></div>
+      </section>
+
+      <section className="border border-foreground bg-card p-5">
+        <p className="editorial-kicker">Codex worker</p>
+        <h2 className="mt-1 font-heading text-2xl font-semibold">Run or resume Intelligence</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+          In the Crashboard Codex project, invoke <strong className="font-medium text-foreground">$crashboard-intelligence-worker</strong>. It collects bounded batches, analyzes the prepared bundle, validates every result, and only then activates the new dashboard data.
+        </p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="border border-border p-3"><p className="font-semibold">1. Collect</p><p className="mt-1 text-xs text-muted-foreground">Gmail resumes from its saved page.</p></div>
+          <div className="border border-border p-3"><p className="font-semibold">2. Analyze</p><p className="mt-1 text-xs text-muted-foreground">Codex reviews at most 100 items at a time.</p></div>
+          <div className="border border-border p-3"><p className="font-semibold">3. Publish</p><p className="mt-1 text-xs text-muted-foreground">Only validated refreshes become active.</p></div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default async function SourcesAutomationsPage() {
   const user = await requireDashboardUser();
+  if (intelligenceUsesTurso()) return <TursoSourcesAutomations ownerId={user.id} />;
   const [data, topicMergeSuggestions] = await Promise.all([
     getIntelligenceOperations(),
     listTopicMergeSuggestions(createAdminClient(), user.id),
