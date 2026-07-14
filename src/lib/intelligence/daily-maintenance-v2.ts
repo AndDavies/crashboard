@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { rebuildStoryAndEventClustersV2 } from "@/lib/intelligence/dedup-v2";
+import {
+  rebuildStoryAndEventClustersV2,
+  type IntelligenceDedupLeaseContext,
+} from "@/lib/intelligence/dedup-v2";
 import { INTELLIGENCE_EMBEDDING_MODEL } from "@/lib/intelligence/enrichment";
 import { refreshSegmentEmbeddingsBatch } from "@/lib/intelligence/hybrid-search-v2";
 import {
@@ -324,7 +327,13 @@ export function buildDailyMaintenanceContinuation(input: {
 export async function runDailyIntelligenceV2Maintenance(
   admin: SupabaseClient,
   ownerId: string,
-  options: { since: string; segmentOffset?: number; conceptOffset?: number },
+  options: {
+    since: string;
+    completeThrough: string;
+    dedupeLease: IntelligenceDedupLeaseContext;
+    segmentOffset?: number;
+    conceptOffset?: number;
+  },
 ) {
   const segmentOffset = Math.max(0, Math.floor(options.segmentOffset ?? 0));
   const conceptOffset = Math.max(0, Math.floor(options.conceptOffset ?? 0));
@@ -383,7 +392,10 @@ export async function runDailyIntelligenceV2Maintenance(
   const dedupe = complete
     ? {
         status: "completed" as const,
-        result: await rebuildStoryAndEventClustersV2(admin, ownerId),
+        result: await rebuildStoryAndEventClustersV2(admin, ownerId, {
+          completeThrough: options.completeThrough,
+          lease: options.dedupeLease,
+        }),
       }
     : {
         status: "deferred" as const,
@@ -393,6 +405,7 @@ export async function runDailyIntelligenceV2Maintenance(
   return {
     maintenanceVersion: "daily-v2.0.0",
     since: options.since,
+    completeThrough: options.completeThrough,
     complete,
     limits: {
       segmentsPerRun: SEGMENT_LIMIT,

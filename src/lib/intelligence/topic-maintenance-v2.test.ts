@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   buildNearestNeighbourGraph,
+  buildTopicGraphFromEdges,
   classBasedTfidf,
+  decodeTopicMaintenanceCursor,
   decideSegmentTopicAssignment,
   decideTopicAssignment,
+  fallbackTopicSourceFamily,
   meanEmbedding,
   qualifyingTopicComponents,
+  resolveTopicWindowStart,
+  selectMeasurementTopicSegments,
   selectCurrentConceptEmbeddingRows,
+  TOPIC_DISCOVERY_CURSOR_BASE,
+  TOPIC_GRAPH_PAGE_LIMIT,
   TOPIC_ASSIGNMENT_SIMILARITY,
   topicMergeReviewMetadata,
   type TopicGraphNode,
@@ -68,6 +75,62 @@ describe("segment topic assignment order", () => {
 });
 
 describe("topic maintenance assignment guards", () => {
+  it("allows only active measurement documents after their activation date", () => {
+    const segments = [
+      {
+        id: "measurement",
+        documents: {
+          source_identity_id: "identity-measurement",
+          published_at: "2026-07-13T09:00:00.000Z",
+          metadata: {},
+        },
+      },
+      {
+        id: "research",
+        documents: {
+          source_identity_id: "identity-research",
+          published_at: "2026-07-13T09:00:00.000Z",
+          metadata: {},
+        },
+      },
+      {
+        id: "pre-activation",
+        documents: {
+          source_identity_id: "identity-promoted",
+          published_at: "2026-07-01T09:00:00.000Z",
+          metadata: {},
+        },
+      },
+      {
+        id: "metadata-research",
+        documents: {
+          published_at: "2026-07-13T09:00:00.000Z",
+          metadata: { source_cohort: "research" },
+        },
+      },
+    ];
+    const selected = selectMeasurementTopicSegments({
+      segments,
+      identities: [
+        { id: "identity-measurement", source_id: "source-measurement" },
+        { id: "identity-research", source_id: "source-research" },
+        { id: "identity-promoted", source_id: "source-promoted" },
+      ],
+      sources: [
+        { id: "source-measurement", status: "active", cohort: "measurement" },
+        { id: "source-research", status: "active", cohort: "research" },
+        {
+          id: "source-promoted",
+          status: "active",
+          cohort: "measurement",
+          measurement_active_from: "2026-07-10T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(selected.map((row) => row.id)).toEqual(["measurement"]);
+  });
+
   it("uses only the embedding for each concept's current taxonomy version", () => {
     expect(selectCurrentConceptEmbeddingRows(
       [
@@ -207,6 +270,63 @@ describe("stable topic graph", () => {
     const centroid = meanEmbedding([[1, 0], [0.8, 0.2]]);
     expect(Math.hypot(...centroid)).toBeCloseTo(1, 8);
     expect(centroid[0]).toBeGreaterThan(centroid[1]);
+  });
+
+  it("joins components across persisted neighbour pages without recomputing all pairs", () => {
+    const nodes = [
+      node("a1", "A", []),
+      node("a2", "A", []),
+      node("a3", "B", []),
+      node("a4", "C", []),
+      node("a5", "C", []),
+    ];
+    const graph = buildTopicGraphFromEdges(nodes, [
+      { left: "a1", right: "a2", similarity: 0.96 },
+      { left: "a2", right: "a3", similarity: 0.93 },
+      // This edge came from a later anchor page and bridges the boundary.
+      { left: "a3", right: "a4", similarity: 0.91 },
+      { left: "a4", right: "a5", similarity: 0.95 },
+      // Reversed duplicates are normalized to one strongest edge.
+      { left: "a5", right: "a4", similarity: 0.94 },
+    ]);
+
+    expect(graph.components).toHaveLength(1);
+    expect(graph.components[0].nodes.map((item) => item.id)).toEqual([
+      "a1", "a2", "a3", "a4", "a5",
+    ]);
+    expect(graph.edges).toHaveLength(4);
+    expect(qualifyingTopicComponents(graph.components)).toHaveLength(1);
+  });
+
+  it("encodes assignment and neighbour-discovery offsets in one resumable cursor", () => {
+    expect(TOPIC_GRAPH_PAGE_LIMIT).toBe(5);
+    expect(decodeTopicMaintenanceCursor(800)).toEqual({
+      stage: "assignment",
+      offset: 800,
+    });
+    expect(decodeTopicMaintenanceCursor(TOPIC_DISCOVERY_CURSOR_BASE + 1_200)).toEqual({
+      stage: "discovery",
+      offset: 1_200,
+    });
+  });
+
+  it("pins a valid topic window across later resumable pages", () => {
+    expect(resolveTopicWindowStart("2026-01-15", 90, Date.UTC(2026, 6, 13)))
+      .toBe("2026-01-15");
+    expect(resolveTopicWindowStart(undefined, 90, Date.UTC(2026, 6, 13)))
+      .toBe("2026-04-14");
+    expect(resolveTopicWindowStart("2026-02-30", 90, Date.UTC(2026, 6, 13)))
+      .toBe("2026-04-14");
+  });
+
+  it("does not treat missing source identities as one family per document", () => {
+    expect(fallbackTopicSourceFamily({ publisher_name: "Example Defence News" }))
+      .toBe("publisher:example defence news");
+    expect(fallbackTopicSourceFamily({ canonical_url: "https://www.example.com/story" }))
+      .toBe("domain:example.com");
+    expect(fallbackTopicSourceFamily({ original_url: "not a url" }))
+      .toBe("unknown source");
+    expect(fallbackTopicSourceFamily({})).toBe("unknown source");
   });
 });
 

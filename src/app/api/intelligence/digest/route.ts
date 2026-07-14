@@ -3,6 +3,7 @@ import { requireDashboardUser } from "@/lib/blog/data";
 import { requireBearerSecret } from "@/lib/http/verify-bearer-secret";
 import { createAndSendIntelligenceDigest } from "@/lib/intelligence/digest";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -20,6 +21,12 @@ async function ownerIdFor(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const ownerId = await ownerIdFor(request);
+    if (intelligenceUsesTurso()) {
+      return NextResponse.json({
+        error: "Morning briefs are sent by the local Codex Intelligence worker after validation.",
+        ownerId,
+      }, { status: 409 });
+    }
     const result = await createAndSendIntelligenceDigest(createAdminClient(), ownerId);
     return NextResponse.json({ result });
   } catch (error) {

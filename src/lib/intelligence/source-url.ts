@@ -81,6 +81,21 @@ export function isTrustworthyContentUrl(value: string | null | undefined) {
   return true;
 }
 
+export function isExactContentIdentityUrl(value: string | null | undefined) {
+  const normalized = normalizeSourceUrl(value);
+  if (!normalized || !isTrustworthyContentUrl(normalized)) return false;
+  const parsed = new URL(normalized);
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  if (!segments.length) return false;
+  const lastSegment = decodeURIComponent(segments.at(-1) ?? "")
+    .toLocaleLowerCase("en-CA");
+  if (
+    ["article", "articles", "blog", "home", "index", "news", "press", "releases"]
+      .includes(lastSegment)
+  ) return false;
+  return segments.length >= 2 || lastSegment.length >= 6 || /\d{3,}/u.test(lastSegment);
+}
+
 export function extractHttpLinks(value: string) {
   const matches = [
     ...value.matchAll(/(?:href=["']|\()(https?:\/\/[^"')\s<>]+)["')]/giu),

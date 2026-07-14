@@ -22,6 +22,10 @@ import { getTrendingAnalysis } from "@/lib/intelligence/trending-data";
 import { catalogMatchHref } from "@/lib/intelligence/catalog-profile";
 import { loadResearchCompletedSinceLastBrief } from "@/lib/intelligence/research-completions";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getTursoIntelligenceStore,
+  intelligenceUsesTurso,
+} from "@/lib/intelligence/store";
 
 export type IntelligenceUiData = {
   completeThrough: string;
@@ -30,7 +34,7 @@ export type IntelligenceUiData = {
   resolvedSignalIds: string[];
   searchResults: ExploreSearchResult[];
   completedResearch: CompletedResearchItem[];
-  dataStatus: "ready" | "disabled" | "building" | "schema_missing";
+  dataStatus: "ready" | "stale" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback: boolean;
 };
 
@@ -98,10 +102,44 @@ export async function getIntelligenceUiData(
   options: GetIntelligenceSignalsOptions = {},
 ): Promise<IntelligenceUiData> {
   const query = options.q?.trim() ?? "";
+  if (intelligenceUsesTurso()) {
+    await requireDashboardUser();
+    const store = getTursoIntelligenceStore();
+    const [response, search] = await Promise.all([
+      store.getSignals({
+        range: options.range,
+        lens: options.lens,
+        kind: options.kind,
+        compare: options.compare,
+        limit: options.limit,
+      }),
+      query ? store.searchDocuments(query, 50) : Promise.resolve([]),
+    ]);
+    const mapped = v2SignalsToUi([...response.signals, ...response.comparison]);
+    return {
+      completeThrough: response.completeThrough,
+      signals: uniqueSignals(mapped),
+      listedSignalIds: response.signals.map((signal) => signal.key || signal.id),
+      resolvedSignalIds: response.comparison.map((signal) => signal.key || signal.id),
+      searchResults: search.map((row) => ({
+        id: row.id,
+        title: row.title,
+        date: row.publishedAt ?? "",
+        source: row.publisher ?? row.sourceFamily,
+        sourceType: "source",
+        href: `/dashboard/intelligence/documents/${row.id}`,
+        passage: row.passage,
+        matchReason: row.whyMatched,
+      })),
+      completedResearch: [],
+      dataStatus: response.dataStatus,
+      usesLegacyFallback: false,
+    };
+  }
   // Search has its own lexical/semantic ranking. Keep the trend collection
   // intact here so a natural-language question cannot erase the chart.
   const response = await getIntelligenceSignals({ ...options, q: undefined });
-  if (response.dataStatus === "ready") {
+  if (response.dataStatus === "ready" || response.dataStatus === "stale") {
     const ownerId = (await requireDashboardUser()).id;
     const [search, completedResearch] = await Promise.all([
       query
@@ -117,7 +155,7 @@ export async function getIntelligenceUiData(
       resolvedSignalIds: response.comparison.map((signal) => signal.key || signal.id),
       searchResults: query ? normalizeV2SearchResults(search) : [],
       completedResearch,
-      dataStatus: "ready",
+      dataStatus: response.dataStatus,
       usesLegacyFallback: false,
     };
   }

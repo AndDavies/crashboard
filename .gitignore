@@ -37,6 +37,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Local Intelligence worker state and validated work bundles
+.data/
+.intelligence-worker/
+
 # vercel
 .vercel
 

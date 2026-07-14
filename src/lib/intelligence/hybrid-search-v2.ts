@@ -6,10 +6,13 @@ import { requireDashboardUser } from "@/lib/blog/data";
 import {
   createEmbedding,
   createEmbeddings,
+  groupEmbeddingRequestItems,
   INTELLIGENCE_EMBEDDING_MODEL,
+  INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS,
 } from "@/lib/intelligence/enrichment";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { procurementEventProfileHref } from "@/lib/intelligence/catalog-profile";
+import { unifiedRankedSearchResults } from "@/lib/intelligence/search-ranking-v2";
 
 export type IntelligenceSearchResult = {
   id: string;
@@ -117,7 +120,7 @@ async function catalogMatches(admin: SupabaseClient, ownerId: string, query: str
 
 export async function searchIntelligenceV2(query: string, options: { limit?: number } = {}) {
   const normalizedQuery = compactQuery(query);
-  if (!normalizedQuery) return { query: "", catalog: [], results: [] };
+  if (!normalizedQuery) return { query: "", catalog: [], results: [], ranked: [] };
   const ownerId = (await requireDashboardUser()).id;
   const admin = createAdminClient();
   const limit = Math.min(50, Math.max(1, options.limit ?? 30));
@@ -208,10 +211,12 @@ export async function searchIntelligenceV2(query: string, options: { limit?: num
     });
     if (results.length >= limit) break;
   }
+  const catalog = await catalogMatches(admin, ownerId, normalizedQuery);
   return {
     query: normalizedQuery,
-    catalog: await catalogMatches(admin, ownerId, normalizedQuery),
+    catalog,
     results,
+    ranked: unifiedRankedSearchResults(catalog, results, limit),
   };
 }
 
@@ -227,9 +232,15 @@ export async function refreshSegmentEmbeddingsBatch(
   const limit = explicitSegmentIds
     ? Math.max(1, explicitSegmentIds.length)
     : Math.min(100, Math.max(1, Math.floor(options.limit ?? 10)));
-  // Segment text can be large and createEmbeddings may expand one segment into
-  // multiple chunks. Keep request groups conservative until batching is token-aware.
-  const concurrency = Math.min(5, Math.max(1, Math.floor(options.concurrency ?? 5)));
+  // Keep the legacy option as the per-request segment cap. The default is now
+  // larger because the actual request groups are also bounded by prepared bytes.
+  const maxSegmentsPerRequest = Math.min(
+    INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS,
+    Math.max(
+      1,
+      Math.floor(options.concurrency ?? INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS),
+    ),
+  );
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY is required for segment embedding backfill.");
   if (explicitSegmentIds?.length === 0) {
@@ -275,8 +286,12 @@ export async function refreshSegmentEmbeddingsBatch(
     pending.push(segment);
   }
   const failures: string[] = [];
-  for (let offset = 0; offset < pending.length; offset += concurrency) {
-    const group = pending.slice(offset, offset + concurrency);
+  const requestGroups = groupEmbeddingRequestItems(
+    pending,
+    (segment) => String(segment.content_text),
+    { maxSegments: maxSegmentsPerRequest },
+  );
+  for (const group of requestGroups) {
     let groupEmbeddings: number[][];
     try {
       groupEmbeddings = await createEmbeddings(

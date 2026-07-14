@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createEmbedding,
   createEmbeddings,
+  groupEmbeddingRequestItems,
   INTELLIGENCE_EMBEDDING_CHUNK_BYTES,
   INTELLIGENCE_EMBEDDING_MAX_CHUNKS,
+  INTELLIGENCE_EMBEDDING_REQUEST_MAX_BYTES,
+  INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS,
   INTELLIGENCE_EMBEDDING_TIMEOUT_MS,
   INTELLIGENCE_OPENAI_MAX_RETRIES,
   prepareEmbeddingInputs,
@@ -94,5 +97,50 @@ describe("shouldDeeplyEnrich", () => {
 
     expect(create).toHaveBeenCalledOnce();
     expect(result).toEqual([[1, 0], [0, 1]]);
+  });
+
+  it("groups up to twenty prepared segments in one embedding request", () => {
+    const items = Array.from({ length: 21 }, (_, index) => ({
+      id: index,
+      content: `segment ${index}`,
+    }));
+
+    const groups = groupEmbeddingRequestItems(items, (item) => item.content);
+
+    expect(INTELLIGENCE_EMBEDDING_REQUEST_MAX_SEGMENTS).toBe(20);
+    expect(groups.map((group) => group.map((item) => item.id))).toEqual([
+      Array.from({ length: 20 }, (_, index) => index),
+      [20],
+    ]);
+  });
+
+  it("starts a new request before prepared text exceeds the byte ceiling", () => {
+    const items = [
+      { id: "one", content: "a".repeat(30_000) },
+      { id: "two", content: "b".repeat(30_000) },
+      { id: "three", content: "c".repeat(30_000) },
+    ];
+
+    const groups = groupEmbeddingRequestItems(items, (item) => item.content);
+
+    expect(INTELLIGENCE_EMBEDDING_REQUEST_MAX_BYTES).toBe(80_000);
+    expect(groups.map((group) => group.map((item) => item.id))).toEqual([
+      ["one", "two"],
+      ["three"],
+    ]);
+  });
+
+  it("allows one oversized prepared segment alone so progress can continue", () => {
+    const items = [
+      { id: "oversized", content: "😀".repeat(22_000) },
+      { id: "next", content: "small segment" },
+    ];
+
+    const groups = groupEmbeddingRequestItems(items, (item) => item.content);
+
+    expect(groups.map((group) => group.map((item) => item.id))).toEqual([
+      ["oversized"],
+      ["next"],
+    ]);
   });
 });

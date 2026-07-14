@@ -11,6 +11,7 @@ import {
   encryptedCredentialColumns,
   getGmailSource,
 } from "@/lib/intelligence/jobs";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const runtime = "nodejs";
 
@@ -31,8 +32,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const tokens = await exchangeGmailAuthorizationCode(code);
-    const admin = createAdminClient();
-    const existing = await getGmailSource(admin, user.id);
+    const store = intelligenceUsesTurso() ? getTursoIntelligenceStore() : null;
+    const admin = store ? null : createAdminClient();
+    const existing = store
+      ? await store.getSource(user.id, "gmail")
+      : await getGmailSource(admin!, user.id);
     const refreshToken = tokens.refresh_token;
     if (!refreshToken && existing) {
       return NextResponse.redirect(
@@ -47,7 +51,22 @@ export async function GET(request: NextRequest) {
       email: profile.emailAddress,
       scope: tokens.scope,
     });
-    const upsert = await admin.from("intelligence_sources").upsert(
+    if (store) {
+      await store.upsertSource({
+        ownerId: user.id,
+        sourceType: "gmail",
+        externalKey: profile.emailAddress.toLocaleLowerCase(),
+        name: `Gmail · ${profile.emailAddress}`,
+        status: "active",
+        config: { account_email: profile.emailAddress },
+        credential: encrypted,
+        checkpoint: existing?.checkpoint ?? {},
+      });
+      return NextResponse.redirect(
+        new URL("/dashboard/intelligence?gmail=connected", request.url),
+      );
+    }
+    const upsert = await admin!.from("intelligence_sources").upsert(
       {
         owner_id: user.id,
         source_type: "gmail",

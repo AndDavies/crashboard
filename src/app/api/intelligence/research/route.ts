@@ -8,6 +8,9 @@ import {
   type IntelligenceResearchSignalKind,
 } from "@/lib/intelligence/research";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
+import { loadActiveIntelligenceSignalGeneration } from "@/lib/intelligence/signal-generations-v2";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -48,16 +51,39 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (intelligenceUsesTurso()) {
+      const store = getTursoIntelligenceStore();
+      const signal = await store.getSignal(parsed.data.signalId);
+      const label = parsed.data.signalLabel?.trim() || signal?.label;
+      if (!label) return NextResponse.json({ error: "That signal is no longer available." }, { status: 404 });
+      const requestId = await store.enqueueResearch({
+        ownerId,
+        signalId: parsed.data.signalId,
+        signalLabel: label,
+        question: parsed.data.reason,
+      });
+      return NextResponse.json({ result: { id: requestId, queued: true, run: null } }, { status: 202 });
+    }
     const admin = createAdminClient();
     const stableId = parsed.data.signalId;
     const subjectId = rawSignalId(stableId);
     let label = parsed.data.signalLabel?.trim();
     let context = parsed.data.queryContext ?? {};
     if (!label) {
+      const generation = await loadActiveIntelligenceSignalGeneration(
+        admin,
+        ownerId,
+        INTELLIGENCE_SIGNAL_METRIC_VERSION,
+      );
+      if (!generation) {
+        return NextResponse.json({ error: "No completed signal generation is available." }, { status: 409 });
+      }
       const signal = await admin
         .from("intelligence_signal_daily")
         .select("signal_label,metadata")
         .eq("owner_id", ownerId)
+        .eq("refresh_id", generation.refreshId)
+        .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
         .eq("signal_kind", parsed.data.signalKind)
         .eq("signal_id", subjectId)
         .order("signal_date", { ascending: false })

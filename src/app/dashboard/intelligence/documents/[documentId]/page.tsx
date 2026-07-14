@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { conceptSignalKey, entitySignalKey } from "@/lib/intelligence/signal-keys";
 import { getIntelligenceDocument } from "@/lib/intelligence/signal-data";
+import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
 
 export const metadata: Metadata = { title: "Source · Intelligence" };
 export const dynamic = "force-dynamic";
@@ -29,6 +30,39 @@ export default async function IntelligenceDocumentPage({
   params: Promise<{ documentId: string }>;
 }) {
   const { documentId } = await params;
+  if (intelligenceUsesTurso()) {
+    const document = await getTursoIntelligenceStore().getDocument(documentId);
+    if (!document) notFound();
+    return (
+      <article className="space-y-8 pb-14">
+        <header className="border-b border-foreground/80 pb-7">
+          <Badge>{sourceTypeLabel(document.sourceType)}</Badge>
+          <h1 className="mt-5 max-w-5xl font-heading text-4xl font-semibold leading-tight">
+            {document.title || "Untitled source"}
+          </h1>
+          <div className="mt-5 flex flex-wrap items-center gap-5 font-mono text-xs text-muted-foreground">
+            <span>{document.publisher ?? document.sourceFamily}</span>
+            {document.publishedAt ? <span>{document.publishedAt.slice(0, 10)}</span> : null}
+            <span>{document.editorialTokens.toLocaleString()} editorial words and terms</span>
+            {document.canonicalUrl ? (
+              <a href={document.canonicalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-sans font-medium text-foreground hover:text-accent">
+                Open original <ExternalLink className="size-3" />
+              </a>
+            ) : null}
+          </div>
+        </header>
+        <section>
+          <div className="border-b border-foreground/80 pb-3">
+            <p className="editorial-kicker">Retained evidence</p>
+            <h2 className="mt-1 font-heading text-2xl font-semibold">Source text</h2>
+          </div>
+          <div className="whitespace-pre-wrap border border-t-0 border-border bg-card p-5 text-sm leading-7 text-muted-foreground">
+            {document.contentText}
+          </div>
+        </section>
+      </article>
+    );
+  }
   const data = await getIntelligenceDocument(documentId);
   if (!data) notFound();
 

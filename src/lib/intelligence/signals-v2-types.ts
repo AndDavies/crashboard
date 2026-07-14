@@ -97,5 +97,5 @@ export type IntelligenceSignalsResponse = {
   total: number;
   signals: IntelligenceSignalSummary[];
   comparison: IntelligenceSignalSummary[];
-  dataStatus: "ready" | "disabled" | "building" | "schema_missing";
+  dataStatus: "ready" | "stale" | "disabled" | "building" | "schema_missing";
 };

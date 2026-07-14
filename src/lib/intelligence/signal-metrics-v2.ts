@@ -6,7 +6,7 @@ import type {
   IntelligenceSignalSeriesPoint,
 } from "@/lib/intelligence/signals-v2-types";
 
-export const INTELLIGENCE_SIGNAL_METRIC_VERSION = "signals-v2.0.0";
+export const INTELLIGENCE_SIGNAL_METRIC_VERSION = "signals-v2.1.0";
 const DAY_MS = 86_400_000;
 
 export type SignalMeasurementItem = {
@@ -29,6 +29,12 @@ export type SignalMeasurementObservation = {
   extractionConfidence: number;
   lensKeys: IntelligenceSignalLens[];
   actionIds?: string[];
+};
+
+export type SignalDailyTotal = {
+  date: string;
+  items: number;
+  tokens: number;
 };
 
 type MergedObservation = Omit<SignalMeasurementObservation, "actionIds"> & {
@@ -62,6 +68,8 @@ export type CanonicalSignalDailyRow = {
     actionIds: string[];
     documentIds: string[];
     sourceCounts: Record<string, number>;
+    eventDedupGenerationId?: string | null;
+    storyDedupGenerationId?: string | null;
   };
 };
 
@@ -333,6 +341,19 @@ export function buildCanonicalSignalDailyRows(input: {
   );
 }
 
+export function buildSignalDailyTotals(items: SignalMeasurementItem[]): SignalDailyTotal[] {
+  const totals = new Map<string, { items: number; tokens: number }>();
+  for (const item of items) {
+    const total = totals.get(item.date) ?? { items: 0, tokens: 0 };
+    total.items += 1;
+    total.tokens += Math.max(0, item.tokenCount);
+    totals.set(item.date, total);
+  }
+  return [...totals.entries()]
+    .map(([date, total]) => ({ date, ...total }))
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
 export function summarizeCanonicalSignal(input: {
   rows: CanonicalSignalDailyRow[];
   dailyTotals: Map<string, { items: number; tokens: number }>;
@@ -496,6 +517,47 @@ export function summarizeCanonicalSignal(input: {
       mentionsPer10k: row.mentionsPer10k,
     })),
   };
+}
+
+/**
+ * Produces both the current product summary and the historically correct
+ * summary for every retained evidence date. Historical rows must be evaluated
+ * with that date as their cutoff; copying today's classification backwards
+ * would manufacture six-month surge examples.
+ */
+export function summarizeCanonicalSignalHistory(input: {
+  rows: CanonicalSignalDailyRow[];
+  dailyTotals: Map<string, { items: number; tokens: number }>;
+  completeThrough: string;
+}) {
+  const groups = new Map<string, CanonicalSignalDailyRow[]>();
+  for (const row of input.rows) {
+    const group = groups.get(row.signalKey) ?? [];
+    group.push(row);
+    groups.set(row.signalKey, group);
+  }
+  const latestByKey = new Map<string, CanonicalSignalSummary>();
+  const bySignalDate = new Map<string, CanonicalSignalSummary>();
+  for (const [signalKey, rows] of groups) {
+    const latest = summarizeCanonicalSignal({
+      rows,
+      dailyTotals: input.dailyTotals,
+      completeThrough: input.completeThrough,
+    });
+    if (latest) latestByKey.set(signalKey, latest);
+    const dates = [...new Set(rows.map((row) => row.signalDate))]
+      .filter((date) => date <= input.completeThrough)
+      .sort();
+    for (const date of dates) {
+      const historical = summarizeCanonicalSignal({
+        rows,
+        dailyTotals: input.dailyTotals,
+        completeThrough: date,
+      });
+      if (historical) bySignalDate.set(`${signalKey}|${date}`, historical);
+    }
+  }
+  return { latestByKey, bySignalDate };
 }
 
 export function dailyTotalsFromRows(rows: CanonicalSignalDailyRow[]) {

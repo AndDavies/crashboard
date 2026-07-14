@@ -11,9 +11,10 @@ import {
   digestSignalPassesHistoryGate,
 } from "@/lib/intelligence/digest-v2";
 import { latestCompleteDateKey, shiftDateKey } from "@/lib/intelligence/signal-metrics";
+import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
 import { latestSentIntelligenceDigestAt } from "@/lib/intelligence/research-completions";
 import {
-  hasCompletedIntelligenceV2Backfill,
+  intelligenceSignalsV2DataState,
   intelligenceSignalsV2Enabled,
 } from "@/lib/intelligence/v2-readiness";
 
@@ -131,16 +132,23 @@ export async function createAndSendIntelligenceDigest(
     if (result.error) throw new Error(result.error.message);
   }
 
-  const [signalsResult, researchResult, v2BackfillReady] = await Promise.all([
-    admin
-      .from("intelligence_signal_daily")
-      .select(
-        "signal_key,signal_id,signal_kind,signal_label,direction,evidence_strength,raw_reach,supporting_items,unique_stories,independent_source_count,unique_action_count,hidden_rank_score,signal_date,metadata",
-      )
-      .eq("owner_id", ownerId)
-      .order("signal_date", { ascending: false })
-      .order("hidden_rank_score", { ascending: false })
-      .limit(250),
+  const v2State = intelligenceSignalsV2Enabled()
+    ? await intelligenceSignalsV2DataState(admin, ownerId)
+    : null;
+  const [signalsResult, researchResult] = await Promise.all([
+    v2State?.refreshId
+      ? admin
+        .from("intelligence_signal_daily")
+        .select(
+          "signal_key,signal_id,signal_kind,signal_label,direction,evidence_strength,raw_reach,supporting_items,unique_stories,independent_source_count,unique_action_count,hidden_rank_score,signal_date,metadata",
+        )
+        .eq("owner_id", ownerId)
+        .eq("refresh_id", v2State.refreshId)
+        .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
+        .order("signal_date", { ascending: false })
+        .order("hidden_rank_score", { ascending: false })
+        .limit(250)
+      : Promise.resolve({ data: [] as DigestSignal[], error: null }),
     admin
       .from("intelligence_research_results")
       .select(
@@ -150,9 +158,6 @@ export async function createAndSendIntelligenceDigest(
       .gt("created_at", lastDigestAt ?? "1970-01-01T00:00:00.000Z")
       .order("created_at", { ascending: false })
       .limit(8),
-    intelligenceSignalsV2Enabled()
-      ? hasCompletedIntelligenceV2Backfill(admin, ownerId)
-      : Promise.resolve(false),
   ]);
 
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000").replace(
@@ -183,7 +188,7 @@ export async function createAndSendIntelligenceDigest(
     ? []
     : ((researchResult.data ?? []) as unknown as DigestResearchResult[]);
   const useV2 = intelligenceSignalsV2Enabled() &&
-    v2BackfillReady &&
+    v2State?.status === "ready" &&
     latestSignalDate === latestCompleteDateKey(anchor) &&
     topSignals.length > 0;
   const signalIds = [...new Set(topSignals.map((signal) => signal.signal_id))];
@@ -201,6 +206,8 @@ export async function createAndSendIntelligenceDigest(
           .from("intelligence_signal_daily")
           .select("signal_key,metadata,signal_date")
           .eq("owner_id", ownerId)
+          .eq("refresh_id", v2State!.refreshId!)
+          .eq("metric_version", INTELLIGENCE_SIGNAL_METRIC_VERSION)
           .in("signal_key", signalKeys)
           .gte("signal_date", shiftDateKey(latestSignalDate!, -27))
           .lte("signal_date", latestSignalDate!)
