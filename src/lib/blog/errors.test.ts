@@ -6,6 +6,7 @@ describe("public content outage handling", () => {
     expect(isTransientPublicContentError({ message: "supabase.co | 521: Web server is down" })).toBe(true);
     expect(isTransientPublicContentError(new Error("Connection terminated due to connection timeout"))).toBe(true);
     expect(isTransientPublicContentError(new Error("fetch failed"))).toBe(true);
+    expect(isTransientPublicContentError(new Error("The operation was aborted due to timeout"))).toBe(true);
   });
 
   it("does not hide data, authorization, or application errors", () => {

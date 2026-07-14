@@ -16,6 +16,7 @@ export function isTransientPublicContentError(error: unknown) {
     message.includes("connection terminated due to connection timeout") ||
     message.includes("fetch failed") ||
     message.includes("network error") ||
+    message.includes("timeout") ||
     message.includes("timed out")
   );
 }

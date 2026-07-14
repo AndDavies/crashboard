@@ -9,6 +9,15 @@ import { createClient } from "@/lib/supabase/server";
 import { isTransientPublicContentError } from "@/lib/blog/errors";
 
 export const BLOG_MEDIA_BUCKET = "blog-media";
+const PUBLIC_BLOG_FETCH_TIMEOUT_MS = 8_000;
+
+function publicBlogFetch(input: RequestInfo | URL, init?: RequestInit) {
+  const timeout = AbortSignal.timeout(PUBLIC_BLOG_FETCH_TIMEOUT_MS);
+  const signal = init?.signal
+    ? AbortSignal.any([init.signal, timeout])
+    : timeout;
+  return fetch(input, { ...init, signal });
+}
 
 const BLOG_SUMMARY_COLUMNS = [
   "id",
@@ -109,6 +118,9 @@ function createPublicBlogClient() {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
+      },
+      global: {
+        fetch: publicBlogFetch,
       },
     },
   );
