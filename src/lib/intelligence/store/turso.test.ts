@@ -42,6 +42,19 @@ describe("Turso Intelligence generations", () => {
     const response = await store.getSignals();
     expect(response.dataStatus).toBe("ready");
     expect(response.signals.length).toBeGreaterThan(0);
+    const storedSignal = buildDeterministicSignals(docs)[0]!;
+    const returnedSignal = response.signals.find((signal) => signal.id === storedSignal.id)!;
+    expect(returnedSignal.currentReach).toBeCloseTo(storedSignal.currentReach * 100);
+    expect(returnedSignal.previousReach).toBeCloseTo(storedSignal.previousReach * 100);
+    expect(returnedSignal.series[0]?.shareOfCoverage).toBeCloseTo(
+      storedSignal.series[0]!.shareOfCoverage * 100,
+    );
+
+    const detail = await store.getSignal(storedSignal.id);
+    expect(detail?.currentReach).toBeCloseTo(storedSignal.currentReach * 100);
+    expect(detail?.series[0]?.shareOfCoverage).toBeCloseTo(
+      storedSignal.series[0]!.shareOfCoverage * 100,
+    );
   });
 
   it("leases jobs once and persists checkpoints", async () => {

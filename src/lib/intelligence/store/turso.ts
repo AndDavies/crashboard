@@ -65,6 +65,24 @@ function trimSeries(series: IntelligenceSignalSeriesPoint[], days: number) {
   return series.filter((point) => Date.parse(`${point.date}T00:00:00Z`) >= cutoff);
 }
 
+/**
+ * Turso persists reach as a 0-1 proportion so refresh validation and trend
+ * calculations use one consistent unit. The public signals contract uses
+ * percentage points because that is what the dashboard and API consumers
+ * display (for example, 0.045 is returned as 4.5).
+ */
+function signalAsPercentage(signal: IntelligenceSignalSummary): IntelligenceSignalSummary {
+  return {
+    ...signal,
+    currentReach: signal.currentReach * 100,
+    previousReach: signal.previousReach * 100,
+    series: signal.series.map((point) => ({
+      ...point,
+      shareOfCoverage: point.shareOfCoverage * 100,
+    })),
+  };
+}
+
 function snippet(content: string, query: string) {
   const normalized = query.trim().toLocaleLowerCase();
   const index = content.toLocaleLowerCase().indexOf(normalized);
@@ -349,7 +367,7 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     const days = rangeDays(range);
     const signals = result.rows.map((row) => {
       const signal = parseJson<IntelligenceSignalSummary>(row.payload_json, null as never);
-      return { ...signal, series: trimSeries(signal.series, days) };
+      return signalAsPercentage({ ...signal, series: trimSeries(signal.series, days) });
     }).filter(Boolean);
     const compareIds = [...new Set(options.compare ?? [])].slice(0, 5);
     let comparison: IntelligenceSignalSummary[] = [];
@@ -361,7 +379,7 @@ export class TursoIntelligenceStore implements IntelligenceStore {
       });
       comparison = compared.rows.map((row) => {
         const signal = parseJson<IntelligenceSignalSummary>(row.payload_json, null as never);
-        return { ...signal, series: trimSeries(signal.series, days) };
+        return signalAsPercentage({ ...signal, series: trimSeries(signal.series, days) });
       }).filter(Boolean);
     }
     return {
@@ -380,7 +398,7 @@ export class TursoIntelligenceStore implements IntelligenceStore {
       args: [text(active.id), id, id],
     });
     return result.rows[0]
-      ? parseJson<IntelligenceSignalSummary>(result.rows[0].payload_json, null as never)
+      ? signalAsPercentage(parseJson<IntelligenceSignalSummary>(result.rows[0].payload_json, null as never))
       : null;
   }
 
