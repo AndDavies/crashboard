@@ -32,19 +32,23 @@ export function publicDocumentHref(document: { id: string; title: string }) {
 }
 
 const PUBLIC_NEWSLETTER_CHROME = [
-  /\bview (?:this email )?(?:online|in (?:your )?browser)\b(?:\s*\[?\d+\]?)?(?:\s*[|·•—–-]\s*)?/giu,
+  /\bview (?:this (?:email|post) )?(?:online|on the web|in (?:your )?browser)\b(?:\s+at)?(?:\s*\[?\d+\]?)?(?:\s*[|·•—–-]\s*)?/giu,
   /\b(?:manage (?:your )?preferences|update your profile|unsubscribe|forward to a friend)\b\s*:?\s*/giu,
   /\b(?:sign up|advertise(?: with us)?)\b(?:\s*\[?\d+\]?)?(?:\s*[|·•-]\s*)?/giu,
   /\bTLDR TOGETHER WITH\b(?:\s*\[[^\]]{1,80}\])?(?:\s*[|·•—–-]\s*)?/giu,
+  /\bfeature your business\b[^.!?]*(?:sponsorship|advertising)[^.!?]*(?:[.!?]|$)/giu,
+  /\(paste in (?:your )?web browser[^)]*\)/giu,
 ];
 
 function cleanPublicIntelligenceText(value: string) {
   let cleaned = value
     .replace(/[\u200B-\u200D\u2060\uFEFF]/gu, " ")
-    .replace(/https?:\/\/\S*(?:utm_[a-z]+|\/click|\/track)\S*/giu, " ")
+    .replace(/https?:\/\/\s*[^\s)\]}]+/giu, " ")
     .replace(/\b[a-f0-9]{8,}\?(?:j|m|u|utm_[a-z]+)=[^\s]*/giu, " ");
   for (const pattern of PUBLIC_NEWSLETTER_CHROME) cleaned = cleaned.replace(pattern, " ");
   return cleaned
+    .replace(/_{3,}|-{5,}/gu, " ")
+    .replace(/[[(]\s*[\])]/gu, " ")
     .replace(/(?:\s*[|·•]\s*){2,}/gu, " · ")
     .replace(/\s+([,.;:!?])/gu, "$1")
     .replace(/\s+/gu, " ")

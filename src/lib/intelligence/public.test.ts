@@ -29,6 +29,14 @@ describe("public Intelligence URLs and excerpts", () => {
     )).toBe("A procurement milestone was announced. The buyer expects proposals in September.");
     expect(publicIntelligenceExcerpt("Update your profile: The system entered trials this week.", 200))
       .toBe("The system entered trials this week.");
+    expect(publicIntelligenceExcerpt(
+      "View this post on the web at https://example.com/post Feature your business through sponsorship or advertising [ https://example.com/advertise ]. Editor’s Notes: A new contract was announced.",
+      500,
+    )).toBe("Editor’s Notes: A new contract was announced.");
+    expect(publicIntelligenceExcerpt(
+      "A weekly roundup. _______________________ Read the full story: https://example.com/story",
+      500,
+    )).toBe("A weekly roundup. Read the full story:");
     expect(publicIntelligenceTitle("🚀 Fwd: NATO procurement update"))
       .toBe("NATO procurement update");
   });
