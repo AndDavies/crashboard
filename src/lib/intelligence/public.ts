@@ -32,7 +32,7 @@ export function publicDocumentHref(document: { id: string; title: string }) {
 }
 
 const PUBLIC_NEWSLETTER_CHROME = [
-  /\bview (?:this (?:email|post) )?(?:online|on the web|in (?:your )?browser)\b(?:\s+at)?(?:\s*\[?\d+\]?)?(?:\s*[|·•—–-]\s*)?/giu,
+  /\bview (?:(?:this (?:email|post)|it all) )?(?:online|on the web|in (?:your )?browser)\b(?:\s+at)?(?:\s*\[?\d+\]?)?(?:\s*[|·•—–-]\s*)?/giu,
   /\b(?:manage (?:your )?preferences|update your profile|unsubscribe|forward to a friend)\b\s*:?\s*/giu,
   /\b(?:sign up|advertise(?: with us)?)\b(?:\s*\[?\d+\]?)?(?:\s*[|·•-]\s*)?/giu,
   /\bTLDR TOGETHER WITH\b(?:\s*\[[^\]]{1,80}\])?(?:\s*[|·•—–-]\s*)?/giu,
@@ -40,7 +40,7 @@ const PUBLIC_NEWSLETTER_CHROME = [
   /\(paste in (?:your )?web browser[^)]*\)/giu,
   /\((?:news coverage )?sponsored by[^)]*\)/giu,
   /\bsponsored by:\s*register now\s*👈?/giu,
-  /\b[A-Z0-9][A-Z0-9 '&:+/—–-]{6,120}\s+\(SPONSOR\)[\s\S]{0,2200}?(?=\s[🚀🔓📈📱📰⚡🛡️🤖📢])/gu,
+  /\b[A-Z0-9][A-Z0-9 $'&:+/(),.—–-]{6,180}\(SPONSOR\)[\s\S]{0,2200}?(?=\s[🚀🔓📈📱📰⚡🛡️🤖📢])/gu,
   /\[(?:read|view) (?:the )?(?:full story|article|post)[^\]]*\]/giu,
 ];
 
