@@ -52,7 +52,7 @@ export async function getPublicIntelligenceUiData(
       compare: options.compare,
       limit: options.limit,
     }),
-    query ? store.searchDocuments(query, 50) : Promise.resolve([]),
+    query ? store.searchSignalDocuments(query, 50) : Promise.resolve([]),
     store.listResearchRequests(canonicalIntelligenceOwnerId(), 20),
   ]);
   const mapped = v2SignalsToUi([...response.signals, ...response.comparison], {

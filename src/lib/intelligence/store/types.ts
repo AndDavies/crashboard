@@ -147,6 +147,7 @@ export interface IntelligenceStore {
   getSignals(options?: IntelligenceBrowseOptions): Promise<IntelligenceSignalsResponse>;
   getSignal(id: string): Promise<IntelligenceSignalSummary | null>;
   searchDocuments(query: string, limit?: number): Promise<IntelligenceDocumentSearchResult[]>;
+  searchSignalDocuments(query: string, limit?: number): Promise<IntelligenceDocumentSearchResult[]>;
   getDocument(id: string): Promise<IntelligenceStoredDocument | null>;
   getDocumentSignals(id: string, limit?: number): Promise<IntelligenceDocumentSignal[]>;
   listDocuments(input?: { limit?: number; before?: string | null }): Promise<IntelligenceStoredDocument[]>;

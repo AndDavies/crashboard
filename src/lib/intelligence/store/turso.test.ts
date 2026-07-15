@@ -65,6 +65,9 @@ describe("Turso Intelligence generations", () => {
     expect(publicDocuments.length).toBeGreaterThan(0);
     const evidenceDocumentIds = new Set(buildDeterministicSignals(docs).flatMap((signal) => signal.evidence.map((item) => item.documentId)));
     expect(publicDocuments.every((document) => evidenceDocumentIds.has(document.id))).toBe(true);
+    const publicSearch = await store.searchSignalDocuments("C-UAS", 100);
+    expect(publicSearch.length).toBeGreaterThan(0);
+    expect(publicSearch.every((document) => evidenceDocumentIds.has(document.id))).toBe(true);
   });
 
   it("leases jobs once and persists checkpoints", async () => {

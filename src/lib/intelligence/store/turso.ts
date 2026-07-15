@@ -519,6 +519,49 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     }
   }
 
+  async searchSignalDocuments(query: string, limit = 25): Promise<IntelligenceDocumentSearchResult[]> {
+    await this.initialize();
+    const cleaned = query.trim().slice(0, 240);
+    if (!cleaned) return [];
+    const ftsQuery = cleaned.split(/\s+/u).filter(Boolean).map((term) => `"${term.replaceAll('"', '""')}"*`).join(" OR ");
+    const activeEvidence = `EXISTS (
+      SELECT 1 FROM intelligence_evidence e
+      JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
+      WHERE e.document_id=d.id
+    )`;
+    try {
+      const result = await this.client.execute({
+        sql: `SELECT d.id,d.title,d.content_text,d.publisher,d.source_family,d.published_at,d.canonical_url
+          FROM intelligence_documents_fts f
+          JOIN intelligence_documents d ON d.id=f.document_id
+          WHERE intelligence_documents_fts MATCH ? AND ${activeEvidence}
+          ORDER BY bm25(intelligence_documents_fts, 0.0, 4.0, 1.0, 0.5), d.published_at DESC
+          LIMIT ?`,
+        args: [ftsQuery, Math.max(1, Math.min(limit, 100))],
+      });
+      return result.rows.map((row) => ({
+        id: text(row.id), title: text(row.title), passage: snippet(text(row.content_text), cleaned),
+        publisher: nullableText(row.publisher), sourceFamily: text(row.source_family),
+        publishedAt: nullableText(row.published_at), canonicalUrl: nullableText(row.canonical_url),
+        whyMatched: "Exact terms in this source",
+      }));
+    } catch {
+      const result = await this.client.execute({
+        sql: `SELECT d.id,d.title,d.content_text,d.publisher,d.source_family,d.published_at,d.canonical_url
+          FROM intelligence_documents d
+          WHERE lower(d.title || ' ' || d.content_text) LIKE ? AND ${activeEvidence}
+          ORDER BY d.published_at DESC LIMIT ?`,
+        args: [`%${cleaned.toLocaleLowerCase()}%`, Math.max(1, Math.min(limit, 100))],
+      });
+      return result.rows.map((row) => ({
+        id: text(row.id), title: text(row.title), passage: snippet(text(row.content_text), cleaned),
+        publisher: nullableText(row.publisher), sourceFamily: text(row.source_family),
+        publishedAt: nullableText(row.published_at), canonicalUrl: nullableText(row.canonical_url),
+        whyMatched: "Exact terms in this source",
+      }));
+    }
+  }
+
   async getDocument(id: string): Promise<IntelligenceStoredDocument | null> {
     await this.initialize();
     const result = await this.client.execute({ sql: `SELECT * FROM intelligence_documents WHERE id=? LIMIT 1`, args: [id] });
