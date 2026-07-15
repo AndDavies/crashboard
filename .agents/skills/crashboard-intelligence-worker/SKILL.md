@@ -12,24 +12,26 @@ Operate the local Codex worker through the deterministic commands in `scripts/in
 1. Work from the Crashboard repository root.
 2. Read [references/worker-contract.md](references/worker-contract.md).
 3. Run `npm run intelligence:agent -- status`.
-4. Stop with a clear configuration report when Turso or Gmail is unavailable. Never substitute Supabase.
-5. Report a no-op when `dailyRefreshDue` is false and there are no pending jobs or explicit user requests.
+4. When signal quality is in question, run `npm run intelligence:agent -- audit-signals` before publishing. The audit must report zero blocked labels and a corpus-scale refresh must represent at least three signal types.
+5. Stop with a clear configuration report when Turso or Gmail is unavailable. Never substitute Supabase.
+6. Report a no-op when `dailyRefreshDue` is false and there are no pending jobs or explicit user requests.
 
 ## Daily refresh
 
 1. Run `npm run intelligence:agent -- collect-gmail --mode incremental --batch 25`.
 2. Repeat only while `hasMore` is true and the current task budget permits. Checkpointing makes continuation safe.
 3. Run `npm run intelligence:agent -- refresh --kind daily` to calculate and publish the complete deterministic trend series after validation.
-4. Run `npm run intelligence:agent -- prepare --batch 100` when Codex judgment or explanation enrichment is due.
-5. Read the generated inbox bundle. Do not load unrelated archive material.
-6. Analyze the documents and create one outbox JSON file matching `crashboard-intelligence-analysis.v1`.
-7. Keep persistent signal IDs when the bundle supplies an existing signal. Count each editorial item once. Treat chunks only as passages, never as trend votes.
-8. Use plain explanations for `whyNow`, `whyItMatters`, and `whatToWatch`. Link every claimed cause to evidence; state that the cause is unknown when it is not established.
-9. Import with `npm run intelligence:agent -- import --file <outbox-file>`.
-10. Validate with `npm run intelligence:agent -- validate --refresh <refresh-id>`.
-11. Publish only when validation returns `ok: true`, using `npm run intelligence:agent -- publish --refresh <refresh-id> --job <job-id>`.
-12. For the scheduled morning run, send the validated brief with `npm run intelligence:agent -- send-brief`.
-13. Run `npm run intelligence:agent -- status` again and return the run report.
+4. Run `npm run intelligence:agent -- audit-signals` and stop if blocked generic labels, missing signal types, or implausible source concentration remain.
+5. Run `npm run intelligence:agent -- prepare --batch 100` when Codex judgment or explanation enrichment is due.
+6. Read the generated inbox bundle. Do not load unrelated archive material.
+7. Analyze the documents and create one outbox JSON file matching `crashboard-intelligence-analysis.v1`.
+8. Keep persistent signal IDs when the bundle supplies an existing signal. Count each editorial item once. Treat chunks only as passages, never as trend votes.
+9. Use plain explanations for `whyNow`, `whyItMatters`, and `whatToWatch`. Link every claimed cause to evidence; state that the cause is unknown when it is not established.
+10. Import with `npm run intelligence:agent -- import --file <outbox-file>`.
+11. Validate with `npm run intelligence:agent -- validate --refresh <refresh-id>`.
+12. Publish only when validation returns `ok: true`, using `npm run intelligence:agent -- publish --refresh <refresh-id> --job <job-id>`.
+13. For the scheduled morning run, send the validated brief with `npm run intelligence:agent -- send-brief`.
+14. Run `npm run intelligence:agent -- status` again and return the run report.
 
 ## Backfill
 

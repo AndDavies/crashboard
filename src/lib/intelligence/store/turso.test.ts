@@ -55,4 +55,18 @@ describe("Turso Intelligence generations", () => {
     await store.completeJob(jobId);
     expect((await store.health()).pendingJobs).toBe(0);
   });
+
+  it("rejects a refresh containing a blocked generic signal label", async () => {
+    const store = new TursoIntelligenceStore(createClient({ url: ":memory:" }));
+    await store.initialize();
+    const docs = documents(12);
+    await store.putDocuments(docs);
+    const refreshId = await store.beginRefresh("test");
+    const signal = buildDeterministicSignals(docs)[0]!;
+    await store.putSignals(refreshId, [{ ...signal, label: "July" }]);
+
+    const validation = await store.validateRefresh(refreshId);
+    expect(validation.ok).toBe(false);
+    expect(validation.errors.join(" ")).toContain("blocked generic signal labels: July");
+  });
 });

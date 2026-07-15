@@ -20,6 +20,7 @@ import type {
   IntelligenceSignalSummary,
   IntelligenceSignalsResponse,
 } from "@/lib/intelligence/signals-v2-types";
+import { auditSignalLabels, normalizeSignalText } from "@/lib/intelligence/agent-worker/signal-language";
 
 const DAY_MS = 86_400_000;
 
@@ -70,6 +71,18 @@ function snippet(content: string, query: string) {
   const start = Math.max(0, index < 0 ? 0 : index - 180);
   const end = Math.min(content.length, start + 520);
   return `${start ? "…" : ""}${content.slice(start, end).trim()}${end < content.length ? "…" : ""}`;
+}
+
+function storedDocument(row: Row): IntelligenceStoredDocument {
+  return {
+    id: text(row.id), externalId: text(row.external_id), sourceType: text(row.source_type),
+    sourceFamily: text(row.source_family), title: text(row.title), publisher: nullableText(row.publisher),
+    author: nullableText(row.author), publishedAt: nullableText(row.published_at),
+    canonicalUrl: nullableText(row.canonical_url), contentText: text(row.content_text),
+    contentHash: text(row.content_hash), editorialTokens: number(row.editorial_tokens),
+    segmentationConfidence: row.segmentation_confidence == null ? null : number(row.segmentation_confidence),
+    parserVersion: nullableText(row.parser_version), raw: parseJson(row.raw_json, {}),
+  };
 }
 
 export class TursoIntelligenceStore implements IntelligenceStore {
@@ -207,13 +220,25 @@ export class TursoIntelligenceStore implements IntelligenceStore {
   }
 
   async validateRefresh(refreshId: string): Promise<IntelligenceValidation> {
-    const [signalResult, documentResult, evidenceResult, badSignalResult] = await Promise.all([
+    const [signalResult, documentResult, evidenceResult, badSignalResult, signalRowsResult, missingEvidenceResult] = await Promise.all([
       this.client.execute({ sql: `SELECT count(*) AS count FROM intelligence_signals WHERE refresh_id=?`, args: [refreshId] }),
       this.client.execute(`SELECT count(*) AS count FROM intelligence_documents`),
       this.client.execute({ sql: `SELECT count(*) AS count FROM intelligence_evidence WHERE refresh_id=?`, args: [refreshId] }),
       this.client.execute({
         sql: `SELECT count(*) AS count FROM intelligence_signals
           WHERE refresh_id=? AND (label='' OR payload_json='' OR current_reach < 0 OR current_reach > 1)`,
+        args: [refreshId],
+      }),
+      this.client.execute({
+        sql: `SELECT label,kind FROM intelligence_signals WHERE refresh_id=?`,
+        args: [refreshId],
+      }),
+      this.client.execute({
+        sql: `SELECT count(*) AS count FROM intelligence_signals s
+          WHERE s.refresh_id=? AND NOT EXISTS (
+            SELECT 1 FROM intelligence_evidence e
+            WHERE e.refresh_id=s.refresh_id AND e.signal_id=s.signal_id
+          )`,
         args: [refreshId],
       }),
     ]);
@@ -224,8 +249,27 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     };
     const errors: string[] = [];
     const warnings: string[] = [];
+    const labelRows = signalRowsResult.rows.map((row) => ({
+      label: text(row.label),
+      kind: text(row.kind) as IntelligenceSignalSummary["kind"],
+    }));
+    const labelAudit = auditSignalLabels(labelRows);
+    const uniqueLabels = new Set(labelRows.map((row) => normalizeSignalText(row.label)));
     if (!counts.signals) errors.push("Refresh contains no signals.");
     if (number(badSignalResult.rows[0]?.count)) errors.push("Refresh contains malformed signal rows.");
+    if (labelAudit.blocked.length) {
+      errors.push(`Refresh contains blocked generic signal labels: ${labelAudit.blocked.map((row) => row.label).join(", ")}.`);
+    }
+    if (uniqueLabels.size !== labelRows.length) errors.push("Refresh contains duplicate normalized signal labels.");
+    if (number(missingEvidenceResult.rows[0]?.count)) errors.push("Every signal must retain at least one evidence link.");
+    if (counts.documents >= 100 && counts.signals >= 10) {
+      const representedKinds = Object.values(labelAudit.kindCounts).filter((count) => count > 0).length;
+      if (representedKinds < 3) errors.push("Corpus-scale refreshes must contain at least three signal types.");
+      if (!labelAudit.kindCounts.topic) errors.push("Corpus-scale refreshes must contain stable topics.");
+      if (!(labelAudit.kindCounts.organization || labelAudit.kindCounts.system || labelAudit.kindCounts.programme)) {
+        errors.push("Corpus-scale refreshes must contain organizations, systems, or programmes.");
+      }
+    }
     if (!counts.documents) warnings.push("No retained documents are available for evidence search.");
     if (!counts.evidenceLinks) warnings.push("No signal-to-document evidence links are present.");
     const validation = { ok: errors.length === 0, errors, warnings, counts };
@@ -379,16 +423,7 @@ export class TursoIntelligenceStore implements IntelligenceStore {
   async getDocument(id: string): Promise<IntelligenceStoredDocument | null> {
     const result = await this.client.execute({ sql: `SELECT * FROM intelligence_documents WHERE id=? LIMIT 1`, args: [id] });
     const row = result.rows[0];
-    if (!row) return null;
-    return {
-      id: text(row.id), externalId: text(row.external_id), sourceType: text(row.source_type),
-      sourceFamily: text(row.source_family), title: text(row.title), publisher: nullableText(row.publisher),
-      author: nullableText(row.author), publishedAt: nullableText(row.published_at),
-      canonicalUrl: nullableText(row.canonical_url), contentText: text(row.content_text),
-      contentHash: text(row.content_hash), editorialTokens: number(row.editorial_tokens),
-      segmentationConfidence: row.segmentation_confidence == null ? null : number(row.segmentation_confidence),
-      parserVersion: nullableText(row.parser_version), raw: parseJson(row.raw_json, {}),
-    };
+    return row ? storedDocument(row) : null;
   }
 
   async listDocuments(input: { limit?: number; before?: string | null } = {}) {
@@ -397,12 +432,11 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     if (input.before) args.push(input.before);
     args.push(Math.max(1, Math.min(input.limit ?? 100, 10_000)));
     const result = await this.client.execute({
-      sql: `SELECT id FROM intelligence_documents ${where}
+      sql: `SELECT * FROM intelligence_documents ${where}
         ORDER BY published_at DESC, id DESC LIMIT ?`,
       args,
     });
-    const documents = await Promise.all(result.rows.map((row) => this.getDocument(text(row.id))));
-    return documents.filter((document): document is IntelligenceStoredDocument => Boolean(document));
+    return result.rows.map(storedDocument);
   }
 
   async enqueueJob(input: { ownerId: string; jobType: IntelligenceJob["jobType"]; payload?: Record<string, unknown>; priority?: number }) {

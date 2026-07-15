@@ -3,7 +3,7 @@ import { config as loadEnvironment } from "dotenv";
 loadEnvironment({ path: ".env.local", quiet: true });
 loadEnvironment({ quiet: true });
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { decryptCredential, type EncryptedCredential } from "../src/lib/intelligence/oauth-crypto";
@@ -21,9 +21,12 @@ import { getTursoIntelligenceStore, type IntelligenceStoredDocument } from "../s
 import {
   IntelligenceAnalysisOutputSchema,
   IntelligenceWorkBundleSchema,
-  type IntelligenceAnalysisOutput,
 } from "../src/lib/intelligence/agent-worker/contracts";
-import { buildDeterministicSignals } from "../src/lib/intelligence/agent-worker/deterministic";
+import {
+  auditDeterministicSignalQuality,
+  buildDeterministicSignals,
+} from "../src/lib/intelligence/agent-worker/deterministic";
+import { auditSignalLabels } from "../src/lib/intelligence/agent-worker/signal-language";
 import { loadLocalIntelligenceKeychain } from "../src/lib/intelligence/agent-worker/local-keychain";
 
 loadLocalIntelligenceKeychain();
@@ -272,6 +275,27 @@ async function refreshDeterministicSignals() {
   }
 }
 
+async function auditSignals() {
+  const store = getTursoIntelligenceStore();
+  await store.initialize();
+  const documents = await store.listDocuments({ limit: 10_000 });
+  const proposed = buildDeterministicSignals(documents);
+  const active = await store.getSignals({ limit: 250 });
+  const activeAudit = auditSignalLabels(active.signals);
+  return {
+    active: {
+      refreshId: (await store.health()).activeRefreshId,
+      completeThrough: active.completeThrough,
+      total: activeAudit.total,
+      meaningfulRate: activeAudit.meaningfulRate,
+      blockedLabels: activeAudit.blocked.map((signal) => signal.label),
+      kindCounts: activeAudit.kindCounts,
+      labels: active.signals.map((signal) => signal.label),
+    },
+    proposed: auditDeterministicSignalQuality(documents, proposed),
+  };
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/gu, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -328,6 +352,7 @@ async function main() {
     await store.publishRefresh(refreshId); if (jobId) await store.completeJob(jobId);
     result = { refreshId, published: true, jobId: jobId ?? null };
   } else if (command === "smoke") result = await deterministicRun(intArgument("--documents", 10, 100));
+  else if (command === "audit-signals") result = await auditSignals();
   else if (command === "refresh") result = await refreshDeterministicSignals();
   else if (command === "send-brief") result = await sendBrief();
   else throw new Error(`Unknown command: ${command}`);

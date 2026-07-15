@@ -25,6 +25,7 @@ The Google dashboard client defaults to the Gmail client ID and secret. The auth
 ```text
 npm run intelligence:agent -- init
 npm run intelligence:agent -- status
+npm run intelligence:agent -- audit-signals
 npm run intelligence:agent -- collect-gmail --mode incremental|backfill --batch 1..100
 npm run intelligence:agent -- prepare --batch 1..100 [--kind backfill]
 npm run intelligence:agent -- import --file <analysis.json>
@@ -41,6 +42,8 @@ All commands print JSON. A non-zero exit means the step failed and must not be s
 Inbox files use `crashboard-intelligence-work-bundle.v1` and contain no more than 100 editorial documents. Outbox files must use `crashboard-intelligence-analysis.v1`. The application validates all fields with Zod before any signal is imported.
 
 Every signal must include a stable ID, kind, label, direction, evidence strength, current and previous share of coverage, item/story/source/action counts, a daily or weekly series, short explanations, and evidence rows whose `documentId` exists in Turso.
+
+Generic calendar terms, interface language, newsletter boilerplate, and ordinary verbs are invalid signal labels. Corpus-scale refreshes must include stable topics plus at least two other supported signal types among keywords, organizations, systems, and programmes. The deterministic layer uses source-balanced ranking so one high-volume newsletter cannot manufacture a top signal.
 
 ## Publication invariant
 
