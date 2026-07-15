@@ -37,6 +37,18 @@ describe("public Intelligence URLs and excerpts", () => {
       "A weekly roundup. _______________________ Read the full story: https://example.com/story",
       500,
     )).toBe("A weekly roundup. Read the full story:");
+    expect(publicIntelligenceExcerpt(
+      "A real editorial lead. This message was sent to m.andrew.davies@gmail.com. Manage subscription: unsubscribe",
+      500,
+    )).toBe("A real editorial lead.");
+    expect(publicIntelligenceExcerpt(
+      "Lead signal. COMBINE AI REASONING WITH DETERMINISTIC EXECUTION (SPONSOR) Promotional copy that should not appear. 🚀 HEADLINES & TRENDS A contract was awarded.",
+      500,
+    )).toBe("Lead signal. 🚀 HEADLINES & TRENDS A contract was awarded.");
+    expect(publicIntelligenceExcerpt(
+      "Everything changed …Vd68lgcPW6xYH7h4drcRwW4PSrZH741nBtW5S5BF82cvhhqN6qZ6pBM66d3W4VZD8G5_t6jmVZsm0n6SHg0cW NATO remains central.",
+      500,
+    )).toBe("Everything changed … NATO remains central.");
     expect(publicIntelligenceTitle("🚀 Fwd: NATO procurement update"))
       .toBe("NATO procurement update");
   });

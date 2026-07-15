@@ -38,17 +38,31 @@ const PUBLIC_NEWSLETTER_CHROME = [
   /\bTLDR TOGETHER WITH\b(?:\s*\[[^\]]{1,80}\])?(?:\s*[|·•—–-]\s*)?/giu,
   /\bfeature your business\b[^.!?]*(?:sponsorship|advertising)[^.!?]*(?:[.!?]|$)/giu,
   /\(paste in (?:your )?web browser[^)]*\)/giu,
+  /\((?:news coverage )?sponsored by[^)]*\)/giu,
+  /\bsponsored by:\s*register now\s*👈?/giu,
+  /\b[A-Z0-9][A-Z0-9 '&:+/—–-]{6,120}\s+\(SPONSOR\)[\s\S]{0,2200}?(?=\s[🚀🔓📈📱📰⚡🛡️🤖📢])/gu,
+  /\[(?:read|view) (?:the )?(?:full story|article|post)[^\]]*\]/giu,
+];
+
+const PUBLIC_NEWSLETTER_TAILS = [
+  /\bthis email is not formatted for viewing in a text email client\b[\s\S]*$/giu,
+  /\b(?:you are receiving this (?:message|email)|this message was sent to|we value your privacy|manage (?:your )?subscription|see our full privacy policy|dark reading is a product of)\b[\s\S]*$/giu,
 ];
 
 function cleanPublicIntelligenceText(value: string) {
   let cleaned = value
     .replace(/[\u200B-\u200D\u2060\uFEFF]/gu, " ")
     .replace(/https?:\/\/\s*[^\s)\]}]+/giu, " ")
+    .replace(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/giu, " ")
     .replace(/\b[a-f0-9]{8,}\?(?:j|m|u|utm_[a-z]+)=[^\s]*/giu, " ");
   for (const pattern of PUBLIC_NEWSLETTER_CHROME) cleaned = cleaned.replace(pattern, " ");
+  for (const pattern of PUBLIC_NEWSLETTER_TAILS) cleaned = cleaned.replace(pattern, " ");
   return cleaned
-    .replace(/_{3,}|-{5,}/gu, " ")
+    .replace(/_{3,}|-{5,}|={5,}/gu, " ")
+    .replace(/\b[A-Za-z0-9_-]{24,}\b/gu, " ")
+    .replace(/\[\s*\d+\s*\]/gu, " ")
     .replace(/[[(]\s*[\])]/gu, " ")
+    .replace(/\b(?:read|open) in (?:the )?app\b/giu, " ")
     .replace(/(?:\s*[|·•]\s*){2,}/gu, " · ")
     .replace(/\s+([,.;:!?])/gu, "$1")
     .replace(/\s+/gu, " ")
