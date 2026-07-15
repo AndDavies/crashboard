@@ -50,14 +50,14 @@ function SignalSummary({ signal, publicView }: { signal: TrendSignal; publicView
     ? publicSignalHref(signal)
     : `/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.id)}`;
   return (
-    <article className="border-t border-foreground py-5 first:border-t-0 first:pt-0">
+    <Link href={href} className="group block border-t border-foreground px-2 py-5 outline-none motion-safe:transition-colors first:border-t-0 first:pt-0 hover:bg-card/80 focus-visible:bg-card/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_210px]">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={signal.evidenceStrength === "Early" ? "outline" : "secondary"}>{signal.evidenceStrength} evidence</Badge>
             <span className="text-xs text-muted-foreground">{KIND_LABELS[signal.kind]}</span>
           </div>
-          <h3 className="mt-2 font-heading text-2xl font-semibold">{titleCase(signal.label)}</h3>
+          <h3 className="mt-2 font-heading text-2xl font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent">{titleCase(signal.label)}</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{signal.whyNow}</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="border-l-2 border-accent pl-3">
@@ -75,12 +75,12 @@ function SignalSummary({ signal, publicView }: { signal: TrendSignal; publicView
           <p className="mt-1 text-xs text-muted-foreground">Previously {signal.previousReach.toFixed(1)}% · {change >= 0 ? "+" : ""}{change.toFixed(1)} points</p>
           <p className="mt-4 text-xs text-muted-foreground">{signal.stories} unique stories · {signal.sources} independent sources</p>
           <p className="mt-1 text-xs text-muted-foreground">{signal.actions ? `${signal.actions} related actions` : "No concrete action confirmed yet"}</p>
-          <Link href={href} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold hover:text-accent">
-            Open signal <ArrowRight className="size-3" />
-          </Link>
+          <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold underline decoration-accent/40 decoration-2 underline-offset-4 group-hover:decoration-accent">
+            View trend <ArrowRight className="size-3" />
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -170,31 +170,35 @@ export function IntelligenceOverview({
             <p className="editorial-kicker">Today’s analyst view</p>
             <h2 className="mt-1 font-heading text-3xl font-semibold">Three things worth attention</h2>
           </div>
-          <Link href={publicView ? "/intelligence/explore" : "/dashboard/intelligence/explore"} className="inline-flex items-center gap-1 text-sm font-semibold hover:text-accent">Explore everything <ArrowRight className="size-4" /></Link>
+          <Link href={publicView ? "/intelligence/explore" : "/dashboard/intelligence/explore"} className="link-accent inline-flex min-h-10 items-center gap-1 text-sm">Explore everything <ArrowRight className="size-4" /></Link>
         </div>
         {topThree.length ? (
           <div className="grid border-l border-t border-border lg:grid-cols-3">
             {topThree.map((signal, index) => {
               const change = signalChange(signal);
               return (
-                <article key={signal.id} className="flex min-h-[360px] flex-col border-b border-r border-border bg-card p-5">
+                <Link
+                  key={signal.id}
+                  href={publicView ? publicSignalHref(signal) : `/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.id)}`}
+                  className="group flex min-h-[360px] flex-col border-b border-r border-border bg-card p-5 outline-none motion-safe:transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
                     <Badge variant={signal.evidenceStrength === "Early" ? "outline" : "default"}>{signal.evidenceStrength}</Badge>
                   </div>
                   <p className="mt-7 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em]"><DirectionIcon direction={signal.direction} /> {DIRECTION_LABELS[signal.direction]}</p>
-                  <h3 className="mt-2 font-heading text-2xl font-semibold">{titleCase(signal.label)}</h3>
+                  <h3 className="mt-2 font-heading text-2xl font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent">{titleCase(signal.label)}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">{KIND_LABELS[signal.kind]}</p>
                   <p className="mt-5 text-sm leading-6 text-muted-foreground">{signal.whyNow}</p>
                   <div className="mt-auto pt-6">
                     <p className="font-mono text-2xl font-semibold">{signal.currentReach.toFixed(1)}%</p>
                     <p className="mt-1 text-xs text-muted-foreground">of coverage, previously {signal.previousReach.toFixed(1)}% ({change >= 0 ? "+" : ""}{change.toFixed(1)} points)</p>
                     <p className="mt-3 text-xs text-muted-foreground">{signal.stories} stories · {signal.sources} sources · {signal.actions} actions</p>
-                    <Link href={publicView ? publicSignalHref(signal) : `/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.id)}`} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold hover:text-accent">
-                      Open signal <ArrowRight className="size-3" />
-                    </Link>
+                    <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold underline decoration-accent/40 decoration-2 underline-offset-4 group-hover:decoration-accent">
+                      View trend <ArrowRight className="size-3" />
+                    </span>
                   </div>
-                </article>
+                </Link>
               );
             })}
           </div>
@@ -231,7 +235,7 @@ export function IntelligenceOverview({
               <article key={item.id} className="grid gap-3 py-4 md:grid-cols-[220px_minmax(0,1fr)_auto] md:items-start">
                 <div><p className="font-semibold">{item.signalLabel}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(item.completedAt)}</p></div>
                 <p className="text-sm leading-6 text-muted-foreground">{item.summary}</p>
-                {item.href ? <Link href={item.href} className="inline-flex items-center gap-1 text-xs font-semibold hover:text-accent">Read research <ArrowRight className="size-3" /></Link> : null}
+                {item.href ? <Link href={item.href} className="link-accent inline-flex items-center gap-1 text-xs">Read research <ArrowRight className="size-3" /></Link> : null}
               </article>
             ))}
           </div>

@@ -77,9 +77,10 @@ export function PublicSignalDetail({ signal }: { signal: TrendSignal }) {
           <div className="border-b border-foreground pb-3"><p className="editorial-kicker">Related</p><h2 className="mt-1 font-heading text-2xl font-semibold">Signals and terms</h2></div>
           <div className="mt-4 flex flex-wrap gap-2">
             {signal.related.map((related) => (
-              <Link key={`${related.kind}:${related.id}`} href={publicSignalHref(related)} className="border border-border bg-card px-3 py-2 text-sm hover:border-foreground">
+              <Link key={`${related.kind}:${related.id}`} href={publicSignalHref(related)} className="group inline-flex min-h-10 items-center border border-border bg-card px-3 py-2 text-sm outline-none motion-safe:transition-colors hover:border-foreground hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="font-semibold">{related.label}</span>
                 <span className="ml-2 text-xs text-muted-foreground">{KIND_LABELS[related.kind]}</span>
+                <ArrowRight className="ml-2 size-3 text-muted-foreground motion-safe:transition-transform group-hover:translate-x-0.5" aria-hidden />
               </Link>
             ))}
           </div>
@@ -98,10 +99,10 @@ export function PublicSignalDetail({ signal }: { signal: TrendSignal }) {
           <ol className="divide-y divide-border border-b border-border">
             {evidence.map((item) => (
               <li key={item.id}>
-                <Link href={item.href} className="group grid gap-3 py-5 sm:grid-cols-[8rem_minmax(0,1fr)_auto]">
+                <Link href={item.href} className="group grid gap-3 px-2 py-5 outline-none motion-safe:transition-colors hover:bg-card/80 focus-visible:bg-card/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[8rem_minmax(0,1fr)_auto]">
                   <span className="text-xs text-muted-foreground">{formatDate(item.date)}</span>
                   <span>
-                    <span className="block font-heading text-xl font-semibold group-hover:text-accent">{item.title}</span>
+                    <span className="block font-heading text-xl font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent">{item.title}</span>
                     <span className="mt-1 block text-xs text-muted-foreground">{item.source}</span>
                     {item.passage ? <span className="mt-2 line-clamp-3 block text-sm leading-6 text-muted-foreground">{item.passage}</span> : null}
                   </span>

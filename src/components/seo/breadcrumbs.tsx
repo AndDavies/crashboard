@@ -16,7 +16,13 @@ export type SeoBreadcrumbItem = {
   href: string;
 };
 
-export function SeoBreadcrumbs({ items }: { items: SeoBreadcrumbItem[] }) {
+export function SeoBreadcrumbs({
+  items,
+  compactCurrent = false,
+}: {
+  items: SeoBreadcrumbItem[];
+  compactCurrent?: boolean;
+}) {
   return (
     <>
       <StructuredData
@@ -39,7 +45,12 @@ export function SeoBreadcrumbs({ items }: { items: SeoBreadcrumbItem[] }) {
               <Fragment key={`${item.href}-${item.label}`}>
                 <BreadcrumbItem>
                   {isCurrent ? (
-                    <BreadcrumbPage className="max-w-[60vw] break-words whitespace-normal sm:max-w-none">
+                    <BreadcrumbPage
+                      className={compactCurrent
+                        ? "max-w-[48vw] truncate whitespace-nowrap sm:max-w-[32rem]"
+                        : "max-w-[60vw] break-words whitespace-normal sm:max-w-none"}
+                      title={compactCurrent ? item.label : undefined}
+                    >
                       {item.label}
                     </BreadcrumbPage>
                   ) : (

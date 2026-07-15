@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { IntelligenceUiData } from "@/components/dashboard/intelligence/intelligence-ui-data";
-import { v2SignalToUi, v2SignalsToUi } from "@/components/dashboard/intelligence/trend-ui-model";
+import {
+  v2SignalToUi,
+  v2SignalsToUi,
+  type TrendSignal,
+} from "@/components/dashboard/intelligence/trend-ui-model";
 import type { GetIntelligenceSignalsOptions } from "@/lib/intelligence/signals-v2";
 import {
   getTursoIntelligenceStore,
@@ -12,6 +16,7 @@ import { canonicalIntelligenceOwnerId } from "@/lib/intelligence/owner";
 import {
   publicDocumentHref,
   publicIntelligenceExcerpt,
+  publicIntelligenceTitle,
   publicOriginalUrl,
   publicSignalHref,
   publicSignalSlug,
@@ -38,6 +43,17 @@ function publicEvidenceHref(item: {
   return publicDocumentHref({ id: item.documentId, title: item.title });
 }
 
+function cleanPublicSignal(signal: TrendSignal): TrendSignal {
+  return {
+    ...signal,
+    evidence: signal.evidence.map((item) => ({
+      ...item,
+      title: publicIntelligenceTitle(item.title),
+      passage: item.passage ? publicIntelligenceExcerpt(item.passage, 520) : item.passage,
+    })),
+  };
+}
+
 export async function getPublicIntelligenceUiData(
   options: GetIntelligenceSignalsOptions = {},
 ): Promise<IntelligenceUiData> {
@@ -57,7 +73,7 @@ export async function getPublicIntelligenceUiData(
   ]);
   const mapped = v2SignalsToUi([...response.signals, ...response.comparison], {
     evidenceHref: publicEvidenceHref,
-  });
+  }).map(cleanPublicSignal);
   const uniqueSignals = [...new Map(mapped.map((signal) => [signal.id, signal])).values()];
   return {
     completeThrough: response.completeThrough,
@@ -66,7 +82,7 @@ export async function getPublicIntelligenceUiData(
     resolvedSignalIds: response.comparison.map((signal) => signal.key || signal.id),
     searchResults: search.map((row) => ({
       id: row.id,
-      title: row.title,
+      title: publicIntelligenceTitle(row.title),
       date: row.publishedAt ?? "",
       source: row.publisher ?? row.sourceFamily,
       sourceType: "source",
@@ -100,7 +116,7 @@ export async function getPublicSignalBySlug(slug: string) {
   return {
     completeThrough: response.completeThrough,
     generatedAt: response.generatedAt,
-    signal: v2SignalToUi(signal, { evidenceHref: publicEvidenceHref }),
+    signal: cleanPublicSignal(v2SignalToUi(signal, { evidenceHref: publicEvidenceHref })),
   };
 }
 
@@ -121,23 +137,60 @@ export async function listPublicSignals() {
 }
 
 export type PublicIntelligenceDocument = IntelligenceStoredDocument & {
+  displayTitle: string;
   excerpt: string;
   href: string;
   originalUrl: string | null;
+  signals: Array<{
+    id: string;
+    kind: "topic" | "keyword" | "organization" | "system" | "programme";
+    label: string;
+    href: string;
+  }>;
 };
 
-function publicDocument(document: IntelligenceStoredDocument): PublicIntelligenceDocument {
+function publicDocument(
+  document: IntelligenceStoredDocument,
+  signals: PublicIntelligenceDocument["signals"] = [],
+): PublicIntelligenceDocument {
   return {
     ...document,
+    displayTitle: publicIntelligenceTitle(document.title),
     excerpt: publicIntelligenceExcerpt(document.contentText),
     href: publicDocumentHref(document),
     originalUrl: publicOriginalUrl(document.canonicalUrl),
+    signals,
   };
 }
 
-export async function listPublicIntelligenceDocuments(input: { limit?: number; before?: string | null } = {}) {
+export async function listPublicIntelligenceDocuments(input: {
+  limit?: number;
+  offset?: number;
+  before?: string | null;
+  after?: string | null;
+  query?: string;
+  sourceType?: string;
+  sourceFamily?: string;
+  sort?: "newest" | "oldest";
+} = {}) {
   if (!intelligenceUsesTurso()) return [];
-  return (await getTursoIntelligenceStore().listSignalDocuments(input)).map(publicDocument);
+  const store = getTursoIntelligenceStore();
+  const documents = await store.listSignalDocuments(input);
+  const groupedSignals = await store.getDocumentSignalsForDocuments(documents.map((document) => document.id), 3);
+  return documents.map((document) => publicDocument(
+    document,
+    (groupedSignals[document.id] ?? []).map((signal) => ({
+      id: signal.key || signal.id,
+      kind: signal.kind,
+      label: signal.label,
+      href: publicSignalHref({ id: signal.key || signal.id, label: signal.label }),
+    })),
+  ));
+}
+
+export async function listPublicIntelligenceDocumentFacets() {
+  if (!intelligenceUsesTurso()) return { sourceTypes: [], sourceFamilies: [] };
+  return getTursoIntelligenceStore().listSignalDocumentFacets();
 }
 
 export async function getPublicIntelligenceDocument(id: string) {
@@ -150,7 +203,12 @@ export async function getPublicIntelligenceDocument(id: string) {
   if (!document) return null;
   if (!signals.length) return null;
   return {
-    document: publicDocument(document),
+    document: publicDocument(document, signals.map((signal) => ({
+      id: signal.key || signal.id,
+      kind: signal.kind,
+      label: signal.label,
+      href: publicSignalHref({ id: signal.key || signal.id, label: signal.label }),
+    }))),
     signals: signals.map((signal) => ({
       ...signal,
       href: publicSignalHref({ id: signal.key || signal.id, label: signal.label }),

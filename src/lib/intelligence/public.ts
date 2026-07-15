@@ -31,11 +31,36 @@ export function publicDocumentHref(document: { id: string; title: string }) {
   return `/intelligence/articles/${encodeURIComponent(document.id)}/${publicIntelligenceSlug(document.title)}`;
 }
 
-export function publicIntelligenceExcerpt(value: string, maxLength = 1_000) {
-  const cleaned = value
-    .replace(/[\u200B-\u200D\u2060\uFEFF]/gu, "")
+const PUBLIC_NEWSLETTER_CHROME = [
+  /\bview (?:this email )?(?:online|in (?:your )?browser)\b(?:\s*\[?\d+\]?)?(?:\s*[|·•—–-]\s*)?/giu,
+  /\b(?:manage (?:your )?preferences|update your profile|unsubscribe|forward to a friend)\b\s*:?\s*/giu,
+  /\b(?:sign up|advertise(?: with us)?)\b(?:\s*\[?\d+\]?)?(?:\s*[|·•-]\s*)?/giu,
+  /\bTLDR TOGETHER WITH\b(?:\s*\[[^\]]{1,80}\])?(?:\s*[|·•—–-]\s*)?/giu,
+];
+
+function cleanPublicIntelligenceText(value: string) {
+  let cleaned = value
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/gu, " ")
+    .replace(/https?:\/\/\S*(?:utm_[a-z]+|\/click|\/track)\S*/giu, " ")
+    .replace(/\b[a-f0-9]{8,}\?(?:j|m|u|utm_[a-z]+)=[^\s]*/giu, " ");
+  for (const pattern of PUBLIC_NEWSLETTER_CHROME) cleaned = cleaned.replace(pattern, " ");
+  return cleaned
+    .replace(/(?:\s*[|·•]\s*){2,}/gu, " · ")
+    .replace(/\s+([,.;:!?])/gu, "$1")
     .replace(/\s+/gu, " ")
     .trim();
+}
+
+export function publicIntelligenceTitle(value: string | null | undefined) {
+  const cleaned = cleanPublicIntelligenceText(value ?? "")
+    .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s|·•—–-]+/gu, "")
+    .replace(/^(?:fwd?|re):\s*/giu, "")
+    .trim();
+  return cleaned || "Untitled source";
+}
+
+export function publicIntelligenceExcerpt(value: string, maxLength = 1_000) {
+  const cleaned = cleanPublicIntelligenceText(value);
   if (cleaned.length <= maxLength) return cleaned;
   const slice = cleaned.slice(0, maxLength - 1);
   const lastSpace = slice.lastIndexOf(" ");
@@ -55,4 +80,3 @@ export function publicOriginalUrl(value: string | null | undefined) {
     return null;
   }
 }
-

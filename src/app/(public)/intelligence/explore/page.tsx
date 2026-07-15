@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ExploreWorkspace } from "@/components/dashboard/intelligence/explore-workspace";
+import { IntelligenceSectionNav } from "@/components/intelligence/intelligence-section-nav";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { SeoBreadcrumbs } from "@/components/seo/breadcrumbs";
 import { getPublicIntelligenceUiData } from "@/lib/intelligence/public-data";
@@ -40,19 +40,15 @@ export default async function PublicExplorePage({ searchParams }: Props) {
   const lens = (LENSES.has(lensValue) ? lensValue : "all") as "all" | "defence" | "ai" | "cyber" | "canada-allies";
   const kind = (KINDS.has(kindValue) ? kindValue : "all") as "all" | "topic" | "keyword" | "organization" | "system";
   const range = (RANGES.has(rangeValue) ? rangeValue : "90d") as "30d" | "90d" | "180d" | "365d";
-  const loadComparison = [...new Set([requestedSignal, ...compare].filter(Boolean))].slice(0, 5);
+  const loadComparison = q ? [] : [...new Set([requestedSignal, ...compare].filter(Boolean))].slice(0, 5);
   const data = await getPublicIntelligenceUiData({ range, lens, kind, q: q || undefined, compare: loadComparison });
-  const resolvedRequestedSignal = requestedSignal ? data.resolvedSignalIds[0] ?? requestedSignal : undefined;
-  const resolvedCompare = requestedSignal ? data.resolvedSignalIds.slice(1) : data.resolvedSignalIds;
+  const resolvedRequestedSignal = !q && requestedSignal ? data.resolvedSignalIds[0] ?? requestedSignal : undefined;
+  const resolvedCompare = q ? [] : requestedSignal ? data.resolvedSignalIds.slice(1) : data.resolvedSignalIds;
 
   return (
     <MarketingPageFrame>
       <SeoBreadcrumbs items={[{ label: "Home", href: "/" }, { label: "Intelligence", href: "/intelligence" }, { label: "Explore", href: "/intelligence/explore" }]} />
-      <nav className="mb-9 flex flex-wrap gap-3 border-y border-border py-3 text-sm" aria-label="Intelligence">
-        <Link href="/intelligence" className="font-semibold hover:text-accent">Overview</Link>
-        <Link href="/intelligence/explore" className="font-semibold text-accent" aria-current="page">Explore trends</Link>
-        <Link href="/intelligence/articles" className="font-semibold hover:text-accent">Browse sources</Link>
-      </nav>
+      <IntelligenceSectionNav />
       <ExploreWorkspace
         key={[lens, kind, range, q, requestedSignal, compare.join(",")].join(":")}
         signals={data.signals}

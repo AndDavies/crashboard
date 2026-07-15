@@ -7,6 +7,7 @@ import { dirname } from "node:path";
 import { INTELLIGENCE_TURSO_SCHEMA, INTELLIGENCE_TURSO_SCHEMA_VERSION } from "./schema";
 import type {
   IntelligenceBrowseOptions,
+  IntelligenceDocumentListOptions,
   IntelligenceDocumentSignal,
   IntelligenceDocumentSearchResult,
   IntelligenceJob,
@@ -590,6 +591,37 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     }));
   }
 
+  async getDocumentSignalsForDocuments(ids: string[], limitPerDocument = 3): Promise<Record<string, IntelligenceDocumentSignal[]>> {
+    await this.initialize();
+    const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 100);
+    const grouped: Record<string, IntelligenceDocumentSignal[]> = Object.fromEntries(uniqueIds.map((id) => [id, []]));
+    if (!uniqueIds.length) return grouped;
+    const result = await this.client.execute({
+      sql: `SELECT document_id,signal_id,signal_key,kind,label,passage,why_matched FROM (
+          SELECT e.document_id,s.signal_id,s.signal_key,s.kind,s.label,e.passage,e.why_matched,
+            ROW_NUMBER() OVER (PARTITION BY e.document_id ORDER BY e.rank ASC) AS document_rank
+          FROM intelligence_evidence e
+          JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
+          JOIN intelligence_signals s ON s.refresh_id=e.refresh_id AND s.signal_id=e.signal_id
+          WHERE e.document_id IN (${placeholders(uniqueIds.length)})
+        ) WHERE document_rank<=?
+        ORDER BY document_id ASC,document_rank ASC`,
+      args: [...uniqueIds, Math.max(1, Math.min(limitPerDocument, 10))],
+    });
+    for (const row of result.rows) {
+      const documentId = text(row.document_id);
+      (grouped[documentId] ??= []).push({
+        id: text(row.signal_id),
+        key: text(row.signal_key),
+        kind: text(row.kind) as IntelligenceDocumentSignal["kind"],
+        label: text(row.label),
+        passage: nullableText(row.passage),
+        whyMatched: nullableText(row.why_matched),
+      });
+    }
+    return grouped;
+  }
+
   async listDocuments(input: { limit?: number; before?: string | null } = {}) {
     await this.initialize();
     const args: Array<string | number> = [];
@@ -604,23 +636,61 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     return result.rows.map(storedDocument);
   }
 
-  async listSignalDocuments(input: { limit?: number; before?: string | null } = {}) {
+  async listSignalDocuments(input: IntelligenceDocumentListOptions = {}) {
     await this.initialize();
     const args: Array<string | number> = [];
-    const before = input.before ? "AND d.published_at < ?" : "";
-    if (input.before) args.push(input.before);
+    const clauses = [`EXISTS (
+      SELECT 1 FROM intelligence_evidence e
+      JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
+      WHERE e.document_id=d.id
+    )`];
+    if (input.before) {
+      clauses.push("d.published_at < ?");
+      args.push(input.before);
+    }
+    if (input.after) {
+      clauses.push("d.published_at >= ?");
+      args.push(input.after);
+    }
+    if (input.query?.trim()) {
+      clauses.push("lower(d.title || ' ' || d.content_text || ' ' || coalesce(d.publisher,'') || ' ' || d.source_family) LIKE ?");
+      args.push(`%${input.query.trim().slice(0, 160).toLocaleLowerCase()}%`);
+    }
+    if (input.sourceType) {
+      clauses.push("d.source_type = ?");
+      args.push(input.sourceType.slice(0, 80));
+    }
+    if (input.sourceFamily) {
+      clauses.push("coalesce(nullif(d.publisher,''),d.source_family) = ?");
+      args.push(input.sourceFamily.slice(0, 160));
+    }
     args.push(Math.max(1, Math.min(input.limit ?? 100, 10_000)));
+    args.push(Math.max(0, Math.min(input.offset ?? 0, 100_000)));
+    const direction = input.sort === "oldest" ? "ASC" : "DESC";
     const result = await this.client.execute({
       sql: `SELECT d.* FROM intelligence_documents d
-        WHERE EXISTS (
-          SELECT 1 FROM intelligence_evidence e
-          JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
-          WHERE e.document_id=d.id
-        ) ${before}
-        ORDER BY d.published_at DESC, d.id DESC LIMIT ?`,
+        WHERE ${clauses.join(" AND ")}
+        ORDER BY d.published_at ${direction}, d.id ${direction} LIMIT ? OFFSET ?`,
       args,
     });
     return result.rows.map(storedDocument);
+  }
+
+  async listSignalDocumentFacets() {
+    await this.initialize();
+    const activeEvidence = `EXISTS (
+      SELECT 1 FROM intelligence_evidence e
+      JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
+      WHERE e.document_id=d.id
+    )`;
+    const [types, families] = await Promise.all([
+      this.client.execute(`SELECT DISTINCT d.source_type AS value FROM intelligence_documents d WHERE ${activeEvidence} ORDER BY value ASC`),
+      this.client.execute(`SELECT DISTINCT coalesce(nullif(d.publisher,''),d.source_family) AS value FROM intelligence_documents d WHERE ${activeEvidence} ORDER BY value ASC LIMIT 200`),
+    ]);
+    return {
+      sourceTypes: types.rows.map((row) => text(row.value)).filter(Boolean),
+      sourceFamilies: families.rows.map((row) => text(row.value)).filter(Boolean),
+    };
   }
 
   async enqueueJob(input: { ownerId: string; jobType: IntelligenceJob["jobType"]; payload?: Record<string, unknown>; priority?: number }) {

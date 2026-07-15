@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   publicDocumentHref,
   publicIntelligenceExcerpt,
+  publicIntelligenceTitle,
   publicOriginalUrl,
   publicSignalHref,
 } from "./public";
@@ -19,6 +20,17 @@ describe("public Intelligence URLs and excerpts", () => {
     const excerpt = publicIntelligenceExcerpt("word ".repeat(300), 100);
     expect(excerpt.length).toBeLessThanOrEqual(100);
     expect(excerpt.endsWith("…")).toBe(true);
+  });
+
+  it("removes presentation-only newsletter chrome without mutating stored content", () => {
+    expect(publicIntelligenceExcerpt(
+      "A procurement milestone was announced. Sign Up [1] | Advertise [2] | View Online [3] TLDR TOGETHER WITH [Sponsor] The buyer expects proposals in September.",
+      500,
+    )).toBe("A procurement milestone was announced. The buyer expects proposals in September.");
+    expect(publicIntelligenceExcerpt("Update your profile: The system entered trials this week.", 200))
+      .toBe("The system entered trials this week.");
+    expect(publicIntelligenceTitle("🚀 Fwd: NATO procurement update"))
+      .toBe("NATO procurement update");
   });
 
   it("blocks private Gmail and newsletter tracking URLs", () => {

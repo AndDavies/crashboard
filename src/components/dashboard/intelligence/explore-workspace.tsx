@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   BookOpen,
   Check,
   FlaskConical,
@@ -35,7 +36,7 @@ type KindFilter = "all" | "topic" | "keyword" | "organization" | "system";
 type Range = "30d" | "90d" | "180d" | "365d";
 
 const LENSES: Array<{ id: Lens; label: string }> = [
-  { id: "all", label: "All" },
+  { id: "all", label: "All areas" },
   { id: "defence", label: "Defence & Security" },
   { id: "ai", label: "AI" },
   { id: "cyber", label: "Cyber" },
@@ -43,7 +44,7 @@ const LENSES: Array<{ id: Lens; label: string }> = [
 ];
 
 const KINDS: Array<{ id: KindFilter; label: string }> = [
-  { id: "all", label: "All" },
+  { id: "all", label: "All types" },
   { id: "topic", label: "Topics" },
   { id: "keyword", label: "Keywords" },
   { id: "organization", label: "Organizations" },
@@ -97,6 +98,20 @@ function matchesQuery(signal: TrendSignal, query: string) {
   ].join(" ").toLocaleLowerCase("en-CA");
   const tokens = query.toLocaleLowerCase("en-CA").split(/[^a-z0-9-]+/).filter((token) => token.length > 2);
   return text.includes(query.toLocaleLowerCase("en-CA")) || tokens.some((token) => text.includes(token));
+}
+
+function queryTerms(query: string) {
+  return [...new Set(query.trim().split(/[^a-z0-9-]+/iu).filter((term) => term.length > 1))];
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  const terms = queryTerms(query);
+  if (!terms.length) return text;
+  const escaped = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"));
+  const pattern = new RegExp(`(${escaped.join("|")})`, "giu");
+  return text.split(pattern).map((part, index) => terms.some((term) => part.toLocaleLowerCase() === term.toLocaleLowerCase())
+    ? <mark key={`${part}-${index}`} className="bg-accent/15 text-inherit">{part}</mark>
+    : part);
 }
 
 function hrefWith(
@@ -208,11 +223,14 @@ export function ExploreWorkspace({
       ? matchesLens(signal, initialLens)
       : listedSignalIds.includes(signal.id))
     .filter((signal) => !usesLegacyFallback || initialKind === "all" || signal.kind === initialKind || (initialKind === "system" && signal.kind === "programme"))
-    .filter((signal) => !usesLegacyFallback || matchesQuery(signal, query))
     .sort((a, b) => {
       const direction = { new: 4, rising: 3, sustained: 2, cooling: 1 };
       return direction[b.direction] - direction[a.direction] || signalChange(b) - signalChange(a);
-    }), [initialKind, initialLens, listedSignalIds, query, signals, usesLegacyFallback]);
+    }), [initialKind, initialLens, listedSignalIds, signals, usesLegacyFallback]);
+  const matchingSignals = useMemo(
+    () => query ? visibleSignals.filter((signal) => matchesQuery(signal, query)).slice(0, 12) : [],
+    [query, visibleSignals],
+  );
   const firstSignal = signals.find((signal) => signal.id === initialSignalId)
     ?? visibleSignals[0]
     ?? signals[0]
@@ -238,8 +256,8 @@ export function ExploreWorkspace({
     kind: initialKind,
     range: initialRange,
     q: query,
-    compare: compareIds,
-    signal: selected?.id,
+    compare: query ? [] : compareIds,
+    signal: query ? undefined : selected?.id,
   };
 
   function toggleComparison(id: string) {
@@ -274,28 +292,100 @@ export function ExploreWorkspace({
 
       <form action={basePath} className="grid gap-2 border border-foreground bg-card p-3 md:grid-cols-[minmax(0,1fr)_auto]">
         <label className="sr-only" htmlFor="intelligence-search">Search signals and evidence</label>
-        <Input id="intelligence-search" name="q" defaultValue={query} placeholder="Name, acronym, system, programme, solicitation ID, or a question" className="h-11 border-0 bg-transparent shadow-none" />
-        {initialLens !== "all" ? <input type="hidden" name="lens" value={initialLens} /> : null}
-        {initialKind !== "all" ? <input type="hidden" name="kind" value={initialKind} /> : null}
-        {initialRange !== "90d" ? <input type="hidden" name="range" value={initialRange} /> : null}
-        {compareIds.length ? <input type="hidden" name="compare" value={compareIds.join(",")} /> : null}
-        {selected ? <input type="hidden" name="signal" value={selected.id} /> : null}
+        <Input id="intelligence-search" name="q" defaultValue={query} placeholder="Search a name, acronym, system, programme, ID, or question" className="h-11 border-0 bg-transparent shadow-none" />
         <Button type="submit" className="h-11"><Search className="size-4" /> Search</Button>
       </form>
 
-      <section className="space-y-4" aria-label="Explore filters">
+      {query ? (
+        <section aria-labelledby="search-results-heading">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-foreground pb-4">
+            <div>
+              <p className="editorial-kicker">Search results</p>
+              <h2 id="search-results-heading" className="mt-1 font-heading text-3xl font-semibold">Results for “{query}”</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{matchingSignals.length} matching {matchingSignals.length === 1 ? "trend" : "trends"} · {searchResults.length} matching {searchResults.length === 1 ? "source" : "sources"}</p>
+            </div>
+            <Link href={basePath} className="cta-secondary"><X className="size-4" aria-hidden /> Clear search</Link>
+          </div>
+
+          <div className="grid gap-8 pt-6 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
+            <div>
+              <div className="border-b border-foreground pb-3">
+                <p className="editorial-kicker">Trends</p>
+                <h3 className="mt-1 font-heading text-2xl font-semibold">Matching analysis</h3>
+              </div>
+              {matchingSignals.length ? (
+                <div className="divide-y divide-border border-x border-b border-border">
+                  {matchingSignals.map((signal) => (
+                    <Link
+                      key={signal.id}
+                      href={researchEnabled
+                        ? hrefWith(basePath, { ...current, q: "", compare: [], signal: undefined }, { q: "", signal: signal.id, compare: [signal.id] })
+                        : publicSignalHref(signal)}
+                      className="group block p-4 outline-none motion-safe:transition-colors hover:bg-card/80 focus-visible:bg-card/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    >
+                      <span className="flex items-start justify-between gap-3">
+                        <span>
+                          <span className="block text-xs text-muted-foreground">{KIND_LABELS[signal.kind]} · {DIRECTION_LABELS[signal.direction]}</span>
+                          <span className="mt-1 block font-heading text-xl font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent"><HighlightedText text={titleCase(signal.label)} query={query} /></span>
+                        </span>
+                        <ArrowRight className="mt-1 size-4 shrink-0" aria-hidden />
+                      </span>
+                      <span className="mt-3 line-clamp-3 block text-sm leading-6 text-muted-foreground"><HighlightedText text={signal.whyNow} query={query} /></span>
+                    </Link>
+                  ))}
+                </div>
+              ) : <p className="border-x border-b border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">No trend title or analysis matched this search.</p>}
+            </div>
+
+            <div>
+              <div className="border-b border-foreground pb-3">
+                <p className="editorial-kicker">Sources</p>
+                <h3 className="mt-1 font-heading text-2xl font-semibold">Matching evidence</h3>
+              </div>
+              {searchResults.length ? (
+                <div className="divide-y divide-border border-x border-b border-border">
+                  {searchResults.slice(0, 20).map((result) => (
+                    <Link key={result.id} href={result.href} className="group grid gap-3 p-4 outline-none motion-safe:transition-colors hover:bg-card/80 focus-visible:bg-card/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <span>
+                        <span className="flex flex-wrap items-center gap-2"><Badge variant="outline">{result.matchReason === "Exact terms in this source" ? "Exact match" : result.matchReason ?? "Relevant passage"}</Badge>{result.sourceType && result.sourceType !== "source" ? <span className="text-xs capitalize text-muted-foreground">{result.sourceType.replaceAll("_", " ")}</span> : null}</span>
+                        <span className="mt-2 block font-heading text-xl font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent"><HighlightedText text={result.title} query={query} /></span>
+                        {result.passage ? <span className="mt-2 line-clamp-3 block text-sm leading-6 text-muted-foreground"><HighlightedText text={result.passage} query={query} /></span> : null}
+                        <span className="mt-3 block text-xs text-muted-foreground">{result.source} · {formatDate(result.date)}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 self-start text-xs font-semibold">Open <ArrowRight className="size-4" aria-hidden /></span>
+                    </Link>
+                  ))}
+                </div>
+              ) : <div className="border-x border-b border-dashed border-border px-6 py-12 text-center"><BookOpen className="mx-auto size-5 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">No retained evidence matched. Try a shorter name, acronym, system, or buyer.</p></div>}
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" aria-label="Suggested searches">
+          <span className="font-semibold text-foreground">Try a search:</span>
+          {["NATO", "C-UAS", "procurement"].map((suggestion) => (
+            <Link key={suggestion} href={`${basePath}?q=${encodeURIComponent(suggestion)}`} className="link-accent px-1 py-2">{suggestion}</Link>
+          ))}
+        </div>
+      )}
+
+      {!query ? <>
+      <section className="space-y-4 border-y border-border py-5" aria-label="Explore filters">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Lens</span>
+          <span className="mr-2 min-w-12 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Focus</span>
           {LENSES.map((lens) => (
-            <Link key={lens.id} href={hrefWith(basePath, current, { lens: lens.id })} className={cn("border px-3 py-1.5 text-sm transition-colors", lens.id === initialLens ? "border-foreground bg-foreground text-background" : "border-border bg-background hover:border-foreground")} aria-current={lens.id === initialLens ? "page" : undefined}>{lens.label}</Link>
+            <Link key={lens.id} href={hrefWith(basePath, current, { lens: lens.id })} className={cn("inline-flex min-h-10 items-center border px-3 py-2 text-sm outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring", lens.id === initialLens ? "border-foreground bg-foreground text-background" : "border-border bg-background hover:border-foreground hover:bg-card")} aria-current={lens.id === initialLens ? "page" : undefined}>{lens.label}</Link>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Show</span>
+          <span className="mr-2 min-w-12 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Type</span>
           {KINDS.map((kind) => (
-            <Link key={kind.id} href={hrefWith(basePath, current, { kind: kind.id })} className={cn("border-b-2 px-2 py-1 text-sm", kind.id === initialKind ? "border-accent font-semibold" : "border-transparent text-muted-foreground hover:text-foreground")} aria-current={kind.id === initialKind ? "page" : undefined}>{kind.label}</Link>
+            <Link key={kind.id} href={hrefWith(basePath, current, { kind: kind.id })} className={cn("inline-flex min-h-10 items-center border px-3 py-2 text-sm outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring", kind.id === initialKind ? "border-foreground bg-card font-semibold shadow-[inset_0_-2px_0_var(--accent)]" : "border-border text-muted-foreground hover:border-foreground hover:bg-card hover:text-foreground")} aria-current={kind.id === initialKind ? "page" : undefined}>{kind.label}</Link>
           ))}
-          <span className="ml-auto text-xs text-muted-foreground">{visibleSignals.length} signals</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
+          <p>Showing <strong className="text-foreground">{LENSES.find((item) => item.id === initialLens)?.label}</strong> · <strong className="text-foreground">{KINDS.find((item) => item.id === initialKind)?.label}</strong> · <strong className="text-foreground">{RANGES.find((item) => item.id === initialRange)?.label}</strong> · {visibleSignals.length} signals</p>
+          {initialLens !== "all" || initialKind !== "all" ? <Link href={hrefWith(basePath, current, { lens: "all", kind: "all" })} className="link-accent py-2">Clear filters</Link> : null}
         </div>
       </section>
 
@@ -307,13 +397,13 @@ export function ExploreWorkspace({
           </div>
           <div className="flex flex-wrap gap-1" aria-label="Time range">
             {RANGES.map((range) => (
-              <Link key={range.id} href={hrefWith(basePath, current, { range: range.id })} className={cn("border px-3 py-1.5 text-xs", range.id === initialRange ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground")} aria-current={range.id === initialRange ? "page" : undefined}>{range.label}</Link>
+              <Link key={range.id} href={hrefWith(basePath, current, { range: range.id })} className={cn("inline-flex min-h-10 items-center border px-3 py-2 text-xs outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring", range.id === initialRange ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground hover:bg-card")} aria-current={range.id === initialRange ? "page" : undefined}>{range.label}</Link>
             ))}
           </div>
         </div>
         <div className="mt-4 flex min-h-9 flex-wrap gap-2">
           {comparedSignals.map((signal) => (
-            <button key={signal.id} type="button" onClick={() => toggleComparison(signal.id)} className="inline-flex items-center gap-2 border border-border bg-card px-2.5 py-1.5 text-xs font-medium hover:border-foreground"><span>{titleCase(signal.label)}</span><X className="size-3" aria-hidden /></button>
+            <button key={signal.id} type="button" onClick={() => toggleComparison(signal.id)} className="inline-flex min-h-9 items-center gap-2 border border-border bg-card px-2.5 py-1.5 text-xs font-medium outline-none motion-safe:transition-colors hover:border-foreground focus-visible:ring-2 focus-visible:ring-ring"><span>{titleCase(signal.label)}</span><X className="size-3" aria-hidden /></button>
           ))}
           {compareIds.length < 5 ? <span className="self-center text-xs text-muted-foreground">Add up to {5 - compareIds.length} more from the signal list below.</span> : <span className="self-center text-xs text-muted-foreground">Comparison is full.</span>}
         </div>
@@ -333,16 +423,17 @@ export function ExploreWorkspace({
               const compared = compareIds.includes(signal.id);
               const change = signalChange(signal);
               return (
-                <article key={signal.id} className={cn("border-t border-border bg-card p-4", selected?.id === signal.id && "bg-muted/50")}>
-                  <button type="button" className="w-full text-left" onClick={() => setSelectedId(signal.id)}>
+                <article key={signal.id} className={cn("relative border-t border-border bg-card p-4 motion-safe:transition-colors hover:bg-muted/30", selected?.id === signal.id && "bg-muted/50 shadow-[inset_2px_0_0_var(--accent)]")}>
+                  <button type="button" className="group w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setSelectedId(signal.id)} aria-pressed={selected?.id === signal.id}>
                     <div className="flex items-start justify-between gap-4">
-                      <div><p className="text-xs text-muted-foreground">{KIND_LABELS[signal.kind]} · {DIRECTION_LABELS[signal.direction]}</p><h3 className="mt-1 font-heading text-lg font-semibold">{titleCase(signal.label)}</h3></div>
+                      <div><p className="text-xs text-muted-foreground">{KIND_LABELS[signal.kind]} · {DIRECTION_LABELS[signal.direction]}</p><h3 className="mt-1 font-heading text-lg font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent">{titleCase(signal.label)}</h3></div>
                       <Badge variant={signal.evidenceStrength === "Early" ? "outline" : "secondary"}>{signal.evidenceStrength}</Badge>
                     </div>
                     <p className="mt-3 text-sm"><strong>{signal.currentReach.toFixed(1)}%</strong> of coverage, previously {signal.previousReach.toFixed(1)}% <span className={change < 0 ? "text-muted-foreground" : ""}>({change >= 0 ? "+" : ""}{change.toFixed(1)} points)</span></p>
                     <p className="mt-2 text-xs text-muted-foreground">{signal.stories} stories · {signal.sources} sources · {signal.actions} actions</p>
+                    <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold underline decoration-accent/40 decoration-2 underline-offset-4 group-hover:decoration-accent">View details <ArrowRight className="size-3" aria-hidden /></span>
                   </button>
-                  <button type="button" onClick={() => toggleComparison(signal.id)} disabled={!compared && compareIds.length >= 5} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold hover:text-accent disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="button" onClick={() => toggleComparison(signal.id)} disabled={!compared && compareIds.length >= 5} className="mt-3 inline-flex min-h-9 items-center gap-1 border border-border px-2.5 py-1.5 text-xs font-semibold outline-none motion-safe:transition-colors hover:border-foreground hover:bg-background focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40">
                     {compared ? <><Check className="size-3" /> In comparison</> : <><Plus className="size-3" /> Add to comparison</>}
                   </button>
                 </article>
@@ -365,7 +456,7 @@ export function ExploreWorkspace({
                   <ResearchButton key={selected.id} signal={selected} />
                 ) : (
                   <Button render={<Link href={publicSignalHref(selected)} />} variant="outline">
-                    Open trend page
+                    Open trend page <ArrowRight className="size-4" aria-hidden />
                   </Button>
                 )}
               </div>
@@ -392,7 +483,7 @@ export function ExploreWorkspace({
                       <Link
                         key={`${related.kind}:${related.id}`}
                         href={hrefWith(basePath, current, { signal: related.id })}
-                        className="border border-border bg-background px-3 py-2 text-sm hover:border-foreground"
+                        className="border border-border bg-background px-3 py-2 text-sm outline-none motion-safe:transition-colors hover:border-foreground hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span className="font-semibold">{related.label}</span>
                         <span className="ml-2 text-xs text-muted-foreground">{KIND_LABELS[related.kind]}</span>
@@ -408,8 +499,8 @@ export function ExploreWorkspace({
                   <ul className="mt-3 divide-y divide-border border-t border-border">
                     {selectedEvidence.map((item) => (
                       <li key={item.id} className="py-3">
-                        <Link href={item.href} className="group block">
-                          <p className="text-sm font-semibold group-hover:text-accent">{item.title}</p>
+                        <Link href={item.href} className="group block outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          <p className="text-sm font-semibold motion-safe:transition-colors group-hover:text-accent group-focus-visible:text-accent">{item.title}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{formatDate(item.date)} · {item.source}</p>
                           {item.passage ? <p className="mt-2 line-clamp-3 text-sm leading-5 text-muted-foreground">{item.passage}</p> : null}
                         </Link>
@@ -423,21 +514,7 @@ export function ExploreWorkspace({
         </div>
       </section>
 
-      {query ? (
-        <section>
-          <div className="border-b border-foreground pb-3"><p className="editorial-kicker">Archive search</p><h2 className="mt-1 font-heading text-2xl font-semibold">Evidence matching “{query}”</h2><p className="mt-1 text-sm text-muted-foreground">Results explain why they matched and link to the retained source.</p></div>
-          <div className="border-x border-b border-border">
-            {searchResults.length ? searchResults.map((result) => (
-              <Link key={result.id} href={result.href} className="block border-t border-border bg-card p-4 hover:bg-muted/50">
-                <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{result.matchReason ?? "Relevant passage"}</Badge>{result.sourceType ? <span className="text-xs text-muted-foreground">{result.sourceType}</span> : null}</div>
-                <h3 className="mt-2 font-heading text-xl font-semibold">{result.title}</h3>
-                {result.passage ? <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{result.passage}</p> : null}
-                <p className="mt-3 text-xs text-muted-foreground">{result.source} · {formatDate(result.date)}</p>
-              </Link>
-            )) : <div className="border-t border-border px-6 py-14 text-center"><BookOpen className="mx-auto size-5 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">No retained evidence matched. Try a shorter name, acronym, system, or buyer.</p></div>}
-          </div>
-        </section>
-      ) : null}
+      </> : null}
     </div>
   );
 }

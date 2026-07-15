@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowLeft, ChartNoAxesCombined, LibraryBig } from "lucide-react";
 import { notFound } from "next/navigation";
 import { MarketingPageFrame } from "@/components/marketing/page-frame";
 import { PublicSignalDetail } from "@/components/intelligence/public-signal-detail";
+import { IntelligenceSectionNav } from "@/components/intelligence/intelligence-section-nav";
 import { SeoBreadcrumbs } from "@/components/seo/breadcrumbs";
 import { StructuredData } from "@/components/seo/structured-data";
 import { getPublicSignalBySlug } from "@/lib/intelligence/public-data";
@@ -47,6 +50,12 @@ export default async function PublicTrendPage({ params }: Props) {
         }}
       />
       <SeoBreadcrumbs items={[{ label: "Home", href: "/" }, { label: "Intelligence", href: "/intelligence" }, { label: result.signal.label, href }]} />
+      <IntelligenceSectionNav />
+      <nav className="mb-8 flex flex-wrap gap-2 border-b border-border pb-5" aria-label="Trend actions">
+        <Link href="/intelligence/explore" className="cta-secondary"><ArrowLeft className="size-4" aria-hidden /> Back to Explore</Link>
+        <Link href={`/intelligence/explore?signal=${encodeURIComponent(result.signal.id)}&compare=${encodeURIComponent(result.signal.id)}`} className="cta-primary"><ChartNoAxesCombined className="size-4" aria-hidden /> Compare this trend</Link>
+        <Link href="/intelligence/articles" className="cta-secondary"><LibraryBig className="size-4" aria-hidden /> Browse supporting sources</Link>
+      </nav>
       <PublicSignalDetail signal={result.signal} />
     </MarketingPageFrame>
   );

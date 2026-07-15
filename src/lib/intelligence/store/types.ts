@@ -52,6 +52,22 @@ export type IntelligenceDocumentSignal = {
   whyMatched: string | null;
 };
 
+export type IntelligenceDocumentListOptions = {
+  limit?: number;
+  offset?: number;
+  before?: string | null;
+  after?: string | null;
+  query?: string;
+  sourceType?: string;
+  sourceFamily?: string;
+  sort?: "newest" | "oldest";
+};
+
+export type IntelligenceDocumentFacets = {
+  sourceTypes: string[];
+  sourceFamilies: string[];
+};
+
 export type IntelligenceBrowseOptions = {
   range?: IntelligenceSignalRange;
   lens?: IntelligenceSignalLens;
@@ -150,8 +166,10 @@ export interface IntelligenceStore {
   searchSignalDocuments(query: string, limit?: number): Promise<IntelligenceDocumentSearchResult[]>;
   getDocument(id: string): Promise<IntelligenceStoredDocument | null>;
   getDocumentSignals(id: string, limit?: number): Promise<IntelligenceDocumentSignal[]>;
+  getDocumentSignalsForDocuments(ids: string[], limitPerDocument?: number): Promise<Record<string, IntelligenceDocumentSignal[]>>;
   listDocuments(input?: { limit?: number; before?: string | null }): Promise<IntelligenceStoredDocument[]>;
-  listSignalDocuments(input?: { limit?: number; before?: string | null }): Promise<IntelligenceStoredDocument[]>;
+  listSignalDocuments(input?: IntelligenceDocumentListOptions): Promise<IntelligenceStoredDocument[]>;
+  listSignalDocumentFacets(): Promise<IntelligenceDocumentFacets>;
   enqueueJob(input: {
     ownerId: string;
     jobType: IntelligenceJobType;
