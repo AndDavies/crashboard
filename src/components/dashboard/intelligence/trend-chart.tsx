@@ -17,8 +17,8 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import {
+  chartAnnotationGroups,
   chartActionRows,
-  chartBucketForDate,
   type TrendSeriesPoint,
   type TrendSignal,
 } from "./trend-ui-model";
@@ -108,6 +108,7 @@ export function InteractiveTrendChart({
   } | null>(null);
   const data = useMemo(() => mergeSeries(signals), [signals]);
   const actionRows = useMemo(() => chartActionRows(signals), [signals]);
+  const annotationGroups = useMemo(() => chartAnnotationGroups(signals), [signals]);
 
   if (!signals.length || !data.length) {
     return (
@@ -195,29 +196,22 @@ export function InteractiveTrendChart({
                 </div>
               )}
             />
-            {signals.flatMap((signal) =>
-              signal.annotations.flatMap((annotation) => {
-                const chartDate = chartBucketForDate(
-                  signal.series.map((point) => point.date),
-                  annotation.date,
-                );
-                if (!chartDate) return [];
-                return [(
-                <ReferenceLine
-                  key={`${signal.id}:${annotation.date}:${annotation.type}`}
-                  x={chartDate}
-                  stroke="var(--muted-foreground)"
-                  strokeDasharray="2 4"
-                  label={{
-                    value: annotation.label,
-                    position: "insideTopRight",
-                    fontSize: 10,
-                    fill: "var(--muted-foreground)",
-                  }}
-                />
-                )];
-              }),
-            )}
+            {annotationGroups.map((group) => (
+              <ReferenceLine
+                key={group.date}
+                x={group.date}
+                stroke="var(--muted-foreground)"
+                strokeDasharray="2 4"
+                label={{
+                  value: `${group.count} ${group.count === 1 ? "action" : "actions"}`,
+                  position: "insideTopRight",
+                  angle: -90,
+                  offset: 8,
+                  fontSize: 10,
+                  fill: "var(--muted-foreground)",
+                }}
+              />
+            ))}
             {selectedPeriod ? (
               <ReferenceLine x={selectedPeriod} stroke="var(--foreground)" strokeWidth={2} />
             ) : null}

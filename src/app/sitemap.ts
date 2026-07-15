@@ -2,14 +2,16 @@ import type { MetadataRoute } from "next";
 import { getPublishedBlogPosts } from "@/lib/blog/data";
 import { blogTopics, getBlogTopicsForPost } from "@/lib/blog/topics";
 import { getPublicWikiIndex } from "@/lib/public-wiki/data";
+import { listPublicSignals } from "@/lib/intelligence/public-data";
 import { absoluteSiteUrl } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [posts, wikiIndex] = await Promise.all([
+  const [posts, wikiIndex, signals] = await Promise.all([
     getPublishedBlogPosts(),
     Promise.resolve(getPublicWikiIndex()),
+    listPublicSignals(),
   ]);
 
   const wikiGeneratedAt = new Date(wikiIndex.generatedAt);
@@ -19,6 +21,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: absoluteSiteUrl("/"),
       changeFrequency: "weekly",
       priority: 1,
+    },
+    {
+      url: absoluteSiteUrl("/intelligence"),
+      ...(signals[0]?.updatedAt ? { lastModified: new Date(signals[0].updatedAt) } : {}),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: absoluteSiteUrl("/intelligence/explore"),
+      ...(signals[0]?.updatedAt ? { lastModified: new Date(signals[0].updatedAt) } : {}),
+      changeFrequency: "daily",
+      priority: 0.85,
+    },
+    {
+      url: absoluteSiteUrl("/intelligence/articles"),
+      ...(signals[0]?.updatedAt ? { lastModified: new Date(signals[0].updatedAt) } : {}),
+      changeFrequency: "daily",
+      priority: 0.7,
     },
     {
       url: absoluteSiteUrl("/blog"),
@@ -88,5 +108,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     images: [absoluteSiteUrl(page.heroImage)],
   }));
 
-  return [...staticRoutes, ...topicRoutes, ...blogRoutes, ...wikiRoutes];
+  const intelligenceRoutes: MetadataRoute.Sitemap = signals.map((signal) => ({
+    url: absoluteSiteUrl(signal.href),
+    lastModified: new Date(signal.updatedAt),
+    changeFrequency: "weekly",
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...intelligenceRoutes, ...topicRoutes, ...blogRoutes, ...wikiRoutes];
 }

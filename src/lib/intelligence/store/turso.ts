@@ -7,6 +7,7 @@ import { dirname } from "node:path";
 import { INTELLIGENCE_TURSO_SCHEMA, INTELLIGENCE_TURSO_SCHEMA_VERSION } from "./schema";
 import type {
   IntelligenceBrowseOptions,
+  IntelligenceDocumentSignal,
   IntelligenceDocumentSearchResult,
   IntelligenceJob,
   IntelligenceRefreshKind,
@@ -519,12 +520,35 @@ export class TursoIntelligenceStore implements IntelligenceStore {
   }
 
   async getDocument(id: string): Promise<IntelligenceStoredDocument | null> {
+    await this.initialize();
     const result = await this.client.execute({ sql: `SELECT * FROM intelligence_documents WHERE id=? LIMIT 1`, args: [id] });
     const row = result.rows[0];
     return row ? storedDocument(row) : null;
   }
 
+  async getDocumentSignals(id: string, limit = 20): Promise<IntelligenceDocumentSignal[]> {
+    await this.initialize();
+    const result = await this.client.execute({
+      sql: `SELECT s.signal_id,s.signal_key,s.kind,s.label,e.passage,e.why_matched
+        FROM intelligence_evidence e
+        JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
+        JOIN intelligence_signals s ON s.refresh_id=e.refresh_id AND s.signal_id=e.signal_id
+        WHERE e.document_id=?
+        ORDER BY e.rank ASC LIMIT ?`,
+      args: [id, Math.max(1, Math.min(limit, 100))],
+    });
+    return result.rows.map((row) => ({
+      id: text(row.signal_id),
+      key: text(row.signal_key),
+      kind: text(row.kind) as IntelligenceDocumentSignal["kind"],
+      label: text(row.label),
+      passage: nullableText(row.passage),
+      whyMatched: nullableText(row.why_matched),
+    }));
+  }
+
   async listDocuments(input: { limit?: number; before?: string | null } = {}) {
+    await this.initialize();
     const args: Array<string | number> = [];
     const where = input.before ? "WHERE published_at < ?" : "";
     if (input.before) args.push(input.before);
@@ -532,6 +556,25 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     const result = await this.client.execute({
       sql: `SELECT * FROM intelligence_documents ${where}
         ORDER BY published_at DESC, id DESC LIMIT ?`,
+      args,
+    });
+    return result.rows.map(storedDocument);
+  }
+
+  async listSignalDocuments(input: { limit?: number; before?: string | null } = {}) {
+    await this.initialize();
+    const args: Array<string | number> = [];
+    const before = input.before ? "AND d.published_at < ?" : "";
+    if (input.before) args.push(input.before);
+    args.push(Math.max(1, Math.min(input.limit ?? 100, 10_000)));
+    const result = await this.client.execute({
+      sql: `SELECT d.* FROM intelligence_documents d
+        WHERE EXISTS (
+          SELECT 1 FROM intelligence_evidence e
+          JOIN intelligence_active_refresh a ON a.refresh_id=e.refresh_id
+          WHERE e.document_id=d.id
+        ) ${before}
+        ORDER BY d.published_at DESC, d.id DESC LIMIT ?`,
       args,
     });
     return result.rows.map(storedDocument);

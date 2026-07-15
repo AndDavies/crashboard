@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { publicSignalHref } from "@/lib/intelligence/public";
 import { cn } from "@/lib/utils";
 import { InteractiveTrendChart } from "./trend-chart";
 import {
@@ -99,6 +100,7 @@ function matchesQuery(signal: TrendSignal, query: string) {
 }
 
 function hrefWith(
+  basePath: string,
   current: { lens: Lens; kind: KindFilter; range: Range; q: string; compare?: string[]; signal?: string },
   update: Partial<{ lens: Lens; kind: KindFilter; range: Range; q: string; compare: string[]; signal: string }>,
 ) {
@@ -111,7 +113,7 @@ function hrefWith(
   if (next.compare?.length) params.set("compare", next.compare.slice(0, 5).join(","));
   if (next.signal) params.set("signal", next.signal);
   const query = params.toString();
-  return `/dashboard/intelligence/explore${query ? `?${query}` : ""}`;
+  return `${basePath}${query ? `?${query}` : ""}`;
 }
 
 function filteredSeries(signal: TrendSignal, range: Range) {
@@ -183,6 +185,8 @@ export function ExploreWorkspace({
   initialCompare = [],
   dataStatus = "ready",
   usesLegacyFallback = false,
+  basePath = "/dashboard/intelligence/explore",
+  researchEnabled = true,
 }: {
   signals: TrendSignal[];
   listedSignalIds: string[];
@@ -195,6 +199,8 @@ export function ExploreWorkspace({
   initialCompare?: string[];
   dataStatus?: "ready" | "stale" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback?: boolean;
+  basePath?: string;
+  researchEnabled?: boolean;
 }) {
   const query = initialQuery.trim();
   const visibleSignals = useMemo(() => signals
@@ -266,7 +272,7 @@ export function ExploreWorkspace({
         </div>
       ) : null}
 
-      <form action="/dashboard/intelligence/explore" className="grid gap-2 border border-foreground bg-card p-3 md:grid-cols-[minmax(0,1fr)_auto]">
+      <form action={basePath} className="grid gap-2 border border-foreground bg-card p-3 md:grid-cols-[minmax(0,1fr)_auto]">
         <label className="sr-only" htmlFor="intelligence-search">Search signals and evidence</label>
         <Input id="intelligence-search" name="q" defaultValue={query} placeholder="Name, acronym, system, programme, solicitation ID, or a question" className="h-11 border-0 bg-transparent shadow-none" />
         {initialLens !== "all" ? <input type="hidden" name="lens" value={initialLens} /> : null}
@@ -281,13 +287,13 @@ export function ExploreWorkspace({
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Lens</span>
           {LENSES.map((lens) => (
-            <Link key={lens.id} href={hrefWith(current, { lens: lens.id })} className={cn("border px-3 py-1.5 text-sm transition-colors", lens.id === initialLens ? "border-foreground bg-foreground text-background" : "border-border bg-background hover:border-foreground")} aria-current={lens.id === initialLens ? "page" : undefined}>{lens.label}</Link>
+            <Link key={lens.id} href={hrefWith(basePath, current, { lens: lens.id })} className={cn("border px-3 py-1.5 text-sm transition-colors", lens.id === initialLens ? "border-foreground bg-foreground text-background" : "border-border bg-background hover:border-foreground")} aria-current={lens.id === initialLens ? "page" : undefined}>{lens.label}</Link>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Show</span>
           {KINDS.map((kind) => (
-            <Link key={kind.id} href={hrefWith(current, { kind: kind.id })} className={cn("border-b-2 px-2 py-1 text-sm", kind.id === initialKind ? "border-accent font-semibold" : "border-transparent text-muted-foreground hover:text-foreground")} aria-current={kind.id === initialKind ? "page" : undefined}>{kind.label}</Link>
+            <Link key={kind.id} href={hrefWith(basePath, current, { kind: kind.id })} className={cn("border-b-2 px-2 py-1 text-sm", kind.id === initialKind ? "border-accent font-semibold" : "border-transparent text-muted-foreground hover:text-foreground")} aria-current={kind.id === initialKind ? "page" : undefined}>{kind.label}</Link>
           ))}
           <span className="ml-auto text-xs text-muted-foreground">{visibleSignals.length} signals</span>
         </div>
@@ -301,7 +307,7 @@ export function ExploreWorkspace({
           </div>
           <div className="flex flex-wrap gap-1" aria-label="Time range">
             {RANGES.map((range) => (
-              <Link key={range.id} href={hrefWith(current, { range: range.id })} className={cn("border px-3 py-1.5 text-xs", range.id === initialRange ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground")} aria-current={range.id === initialRange ? "page" : undefined}>{range.label}</Link>
+              <Link key={range.id} href={hrefWith(basePath, current, { range: range.id })} className={cn("border px-3 py-1.5 text-xs", range.id === initialRange ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground")} aria-current={range.id === initialRange ? "page" : undefined}>{range.label}</Link>
             ))}
           </div>
         </div>
@@ -355,7 +361,13 @@ export function ExploreWorkspace({
                   <div className="flex flex-wrap items-center gap-2"><Badge>{DIRECTION_LABELS[selected.direction]}</Badge><span className="text-xs text-muted-foreground">{KIND_LABELS[selected.kind]} · {selected.evidenceStrength} evidence</span></div>
                   <h2 className="mt-3 font-heading text-3xl font-semibold">{titleCase(selected.label)}</h2>
                 </div>
-                <ResearchButton key={selected.id} signal={selected} />
+                {researchEnabled ? (
+                  <ResearchButton key={selected.id} signal={selected} />
+                ) : (
+                  <Button render={<Link href={publicSignalHref(selected)} />} variant="outline">
+                    Open trend page
+                  </Button>
+                )}
               </div>
 
               <div className="mt-6 grid gap-3 border-y border-border py-4 sm:grid-cols-4">
@@ -379,7 +391,7 @@ export function ExploreWorkspace({
                     {selected.related.map((related) => (
                       <Link
                         key={`${related.kind}:${related.id}`}
-                        href={hrefWith(current, { signal: related.id })}
+                        href={hrefWith(basePath, current, { signal: related.id })}
                         className="border border-border bg-background px-3 py-2 text-sm hover:border-foreground"
                       >
                         <span className="font-semibold">{related.label}</span>

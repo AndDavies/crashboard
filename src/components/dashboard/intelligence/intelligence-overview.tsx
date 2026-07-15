@@ -7,6 +7,7 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { publicSignalHref } from "@/lib/intelligence/public";
 import { OverviewTrendChart } from "./overview-trend-chart";
 import {
   DIRECTION_LABELS,
@@ -43,8 +44,11 @@ function DirectionIcon({ direction }: { direction: TrendSignal["direction"] }) {
   return <ArrowUpRight className="size-4" aria-hidden />;
 }
 
-function SignalSummary({ signal }: { signal: TrendSignal }) {
+function SignalSummary({ signal, publicView }: { signal: TrendSignal; publicView: boolean }) {
   const change = signalChange(signal);
+  const href = publicView
+    ? publicSignalHref(signal)
+    : `/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.id)}`;
   return (
     <article className="border-t border-foreground py-5 first:border-t-0 first:pt-0">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_210px]">
@@ -71,7 +75,7 @@ function SignalSummary({ signal }: { signal: TrendSignal }) {
           <p className="mt-1 text-xs text-muted-foreground">Previously {signal.previousReach.toFixed(1)}% · {change >= 0 ? "+" : ""}{change.toFixed(1)} points</p>
           <p className="mt-4 text-xs text-muted-foreground">{signal.stories} unique stories · {signal.sources} independent sources</p>
           <p className="mt-1 text-xs text-muted-foreground">{signal.actions ? `${signal.actions} related actions` : "No concrete action confirmed yet"}</p>
-          <Link href={`/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.id)}`} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold hover:text-accent">
+          <Link href={href} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold hover:text-accent">
             Open signal <ArrowRight className="size-3" />
           </Link>
         </div>
@@ -84,10 +88,12 @@ function MovementSection({
   title,
   description,
   signals,
+  publicView,
 }: {
   title: string;
   description: string;
   signals: TrendSignal[];
+  publicView: boolean;
 }) {
   return (
     <section>
@@ -95,7 +101,7 @@ function MovementSection({
         <h2 className="font-heading text-3xl font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
-      {signals.length ? signals.slice(0, 5).map((signal) => <SignalSummary key={signal.id} signal={signal} />) : (
+      {signals.length ? signals.slice(0, 5).map((signal) => <SignalSummary key={signal.id} signal={signal} publicView={publicView} />) : (
         <p className="border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">Nothing meets the evidence threshold for this section today.</p>
       )}
     </section>
@@ -108,12 +114,14 @@ export function IntelligenceOverview({
   completedResearch = [],
   dataStatus = "ready",
   usesLegacyFallback = false,
+  publicView = false,
 }: {
   signals: TrendSignal[];
   completeThrough: string;
   completedResearch?: CompletedResearchItem[];
   dataStatus?: "ready" | "stale" | "disabled" | "building" | "schema_missing";
   usesLegacyFallback?: boolean;
+  publicView?: boolean;
 }) {
   const sorted = [...signals].sort((a, b) => {
     const evidence = { Strong: 3, Moderate: 2, Early: 1 };
@@ -133,7 +141,7 @@ export function IntelligenceOverview({
         <div className="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
           <div>
             <h1 className="max-w-4xl font-heading text-4xl font-semibold leading-tight sm:text-5xl">What deserves attention?</h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">A quick read of what is new, building, holding, or cooling across your coverage—and why it matters.</p>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">A quick read of what is new, building, holding, or cooling across {publicView ? "the monitored source coverage" : "your coverage"}—and why it matters.</p>
           </div>
           <div className="border-l-2 border-accent pl-4 text-sm">
             <p className="font-semibold">Share of all eligible coverage</p>
@@ -162,7 +170,7 @@ export function IntelligenceOverview({
             <p className="editorial-kicker">Today’s analyst view</p>
             <h2 className="mt-1 font-heading text-3xl font-semibold">Three things worth attention</h2>
           </div>
-          <Link href="/dashboard/intelligence/explore" className="inline-flex items-center gap-1 text-sm font-semibold hover:text-accent">Explore everything <ArrowRight className="size-4" /></Link>
+          <Link href={publicView ? "/intelligence/explore" : "/dashboard/intelligence/explore"} className="inline-flex items-center gap-1 text-sm font-semibold hover:text-accent">Explore everything <ArrowRight className="size-4" /></Link>
         </div>
         {topThree.length ? (
           <div className="grid border-l border-t border-border lg:grid-cols-3">
@@ -182,6 +190,9 @@ export function IntelligenceOverview({
                     <p className="font-mono text-2xl font-semibold">{signal.currentReach.toFixed(1)}%</p>
                     <p className="mt-1 text-xs text-muted-foreground">of coverage, previously {signal.previousReach.toFixed(1)}% ({change >= 0 ? "+" : ""}{change.toFixed(1)} points)</p>
                     <p className="mt-3 text-xs text-muted-foreground">{signal.stories} stories · {signal.sources} sources · {signal.actions} actions</p>
+                    <Link href={publicView ? publicSignalHref(signal) : `/dashboard/intelligence/explore?signal=${encodeURIComponent(signal.id)}`} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold hover:text-accent">
+                      Open signal <ArrowRight className="size-3" />
+                    </Link>
                   </div>
                 </article>
               );
@@ -201,10 +212,10 @@ export function IntelligenceOverview({
         <OverviewTrendChart signals={topThree} />
       </section>
 
-      <MovementSection title="New this week" description="Signals with little or no earlier coverage that now appear across more than one source." signals={byDirection("new")} />
-      <MovementSection title="Building momentum" description="Signals taking a meaningfully larger share of coverage than in the previous period." signals={byDirection("rising")} />
-      <MovementSection title="Sustained attention" description="Signals that remain consistently prominent without a clear rise or decline." signals={byDirection("sustained")} />
-      <MovementSection title="Cooling" description="Signals receiving a smaller share of coverage than in the previous period." signals={byDirection("cooling").reverse()} />
+      <MovementSection title="New this week" description="Signals with little or no earlier coverage that now appear across more than one source." signals={byDirection("new")} publicView={publicView} />
+      <MovementSection title="Building momentum" description="Signals taking a meaningfully larger share of coverage than in the previous period." signals={byDirection("rising")} publicView={publicView} />
+      <MovementSection title="Sustained attention" description="Signals that remain consistently prominent without a clear rise or decline." signals={byDirection("sustained")} publicView={publicView} />
+      <MovementSection title="Cooling" description="Signals receiving a smaller share of coverage than in the previous period." signals={byDirection("cooling").reverse()} publicView={publicView} />
 
       <section>
         <div className="mb-4 flex items-center gap-2 border-b border-foreground pb-3">

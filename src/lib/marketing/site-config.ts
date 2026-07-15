@@ -24,6 +24,12 @@ export type HomeLink = {
 
 export const homeLinks: HomeLink[] = [
   {
+    title: "Trend intelligence",
+    body: "Interactive, evidence-backed tracking of the topics, keywords, organizations, systems, and real-world actions moving across monitored coverage.",
+    href: "/intelligence",
+    label: "Explore trends",
+  },
+  {
     title: "Public wiki",
     body: "Compiled notes that have survived a second pass: concepts, workflows, source trails, and links between related ideas.",
     href: "/wiki",
@@ -47,5 +53,5 @@ export const operatingNotes = [
   "Name the question before publishing.",
   "Show the source trail when it matters.",
   "Prefer durable notes over daily takes.",
-  "Keep the dashboard private; make the synthesis public.",
+  "Keep operations private; make the synthesis public.",
 ];

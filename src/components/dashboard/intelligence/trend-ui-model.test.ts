@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chartAnnotationGroups,
   chartActionRows,
   chartBucketForDate,
   evidenceForChartPeriod,
@@ -112,6 +113,25 @@ describe("interactive chart periods", () => {
         type: "award",
         label: "Contract awarded",
       }),
+    ]);
+  });
+
+  it("collapses same-period annotations into one readable chart marker", () => {
+    const signal = {
+      id: "system:c-uas",
+      label: "C-UAS",
+      series: [
+        { date: "2026-07-01" },
+        { date: "2026-07-08" },
+        { date: "2026-07-15" },
+      ],
+      annotations: [
+        { date: "2026-07-10", type: "award", label: "Contract awarded" },
+        { date: "2026-07-12", type: "trial_pilot", label: "Being tested" },
+      ],
+    } as never;
+    expect(chartAnnotationGroups([signal])).toEqual([
+      { date: "2026-07-08", count: 2 },
     ]);
   });
 });

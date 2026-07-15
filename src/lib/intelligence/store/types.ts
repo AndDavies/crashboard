@@ -43,6 +43,15 @@ export type IntelligenceDocumentSearchResult = {
   whyMatched: string;
 };
 
+export type IntelligenceDocumentSignal = {
+  id: string;
+  key: string;
+  kind: "topic" | "keyword" | "organization" | "system" | "programme";
+  label: string;
+  passage: string | null;
+  whyMatched: string | null;
+};
+
 export type IntelligenceBrowseOptions = {
   range?: IntelligenceSignalRange;
   lens?: IntelligenceSignalLens;
@@ -139,7 +148,9 @@ export interface IntelligenceStore {
   getSignal(id: string): Promise<IntelligenceSignalSummary | null>;
   searchDocuments(query: string, limit?: number): Promise<IntelligenceDocumentSearchResult[]>;
   getDocument(id: string): Promise<IntelligenceStoredDocument | null>;
+  getDocumentSignals(id: string, limit?: number): Promise<IntelligenceDocumentSignal[]>;
   listDocuments(input?: { limit?: number; before?: string | null }): Promise<IntelligenceStoredDocument[]>;
+  listSignalDocuments(input?: { limit?: number; before?: string | null }): Promise<IntelligenceStoredDocument[]>;
   enqueueJob(input: {
     ownerId: string;
     jobType: IntelligenceJobType;

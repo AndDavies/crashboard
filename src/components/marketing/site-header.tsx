@@ -5,6 +5,7 @@ import { MobileNav, type NavItem } from "@/components/marketing/mobile-nav";
 
 const mainNav: NavItem[] = [
   { href: "/", label: "Home" },
+  { href: "/intelligence", label: "Intelligence" },
   { href: "/blog", label: "Blog" },
   { href: "/wiki", label: "Wiki" },
   { href: "/about", label: "About" },

@@ -46,6 +46,11 @@ export type TrendChartActionRow = TrendAnnotation & {
   signalLabel: string;
 };
 
+export type TrendChartAnnotationGroup = {
+  date: string;
+  count: number;
+};
+
 export type RelatedTrendSignal = {
   id: string;
   kind: TrendSignalKind;
@@ -178,7 +183,14 @@ export function toTrendSignals(data: TrendingAnalysis): TrendSignal[] {
   });
 }
 
-export function v2SignalToUi(signal: IntelligenceSignalSummary): TrendSignal {
+export type V2SignalUiOptions = {
+  evidenceHref?: (item: IntelligenceSignalSummary["evidence"][number]) => string;
+};
+
+export function v2SignalToUi(
+  signal: IntelligenceSignalSummary,
+  options: V2SignalUiOptions = {},
+): TrendSignal {
   return {
     id: signal.key || signal.id,
     label: signal.label,
@@ -213,7 +225,9 @@ export function v2SignalToUi(signal: IntelligenceSignalSummary): TrendSignal {
       title: item.title,
       date: item.publishedAt ?? signal.series.at(-1)?.date ?? "",
       source: item.publisher ?? item.sourceFamily ?? "Retained source",
-      href: item.url || `/dashboard/intelligence/documents/${item.documentId}`,
+      href: options.evidenceHref?.(item)
+        ?? item.url
+        ?? `/dashboard/intelligence/documents/${item.documentId}`,
       passage: item.passage,
       matchReason: item.whyMatched,
     })),
@@ -227,8 +241,11 @@ export function v2SignalToUi(signal: IntelligenceSignalSummary): TrendSignal {
   };
 }
 
-export function v2SignalsToUi(signals: IntelligenceSignalSummary[]) {
-  return signals.map(v2SignalToUi);
+export function v2SignalsToUi(
+  signals: IntelligenceSignalSummary[],
+  options: V2SignalUiOptions = {},
+) {
+  return signals.map((signal) => v2SignalToUi(signal, options));
 }
 
 export function signalChange(signal: TrendSignal) {
@@ -287,4 +304,21 @@ export function chartActionRows(signals: TrendSignal[]): TrendChartActionRow[] {
   return [...unique.values()].sort((left, right) =>
     right.date.localeCompare(left.date) || left.signalLabel.localeCompare(right.signalLabel)
   );
+}
+
+export function chartAnnotationGroups(signals: TrendSignal[]): TrendChartAnnotationGroup[] {
+  const groups = new Map<string, Set<string>>();
+  for (const signal of signals) {
+    const bucketDates = signal.series.map((point) => point.date);
+    for (const annotation of signal.annotations) {
+      const chartDate = chartBucketForDate(bucketDates, annotation.date);
+      if (!chartDate) continue;
+      const actions = groups.get(chartDate) ?? new Set<string>();
+      actions.add(`${signal.id}:${annotation.date}:${annotation.type}:${annotation.label}`);
+      groups.set(chartDate, actions);
+    }
+  }
+  return [...groups.entries()]
+    .map(([date, actions]) => ({ date, count: actions.size }))
+    .sort((left, right) => left.date.localeCompare(right.date));
 }

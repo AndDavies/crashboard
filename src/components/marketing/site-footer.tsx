@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 
 const footerNav = [
   { href: "/", label: "Home" },
+  { href: "/intelligence", label: "Intelligence" },
   { href: "/blog", label: "Blog" },
   { href: "/blog/topics", label: "Topics" },
   { href: "/wiki", label: "Wiki" },
