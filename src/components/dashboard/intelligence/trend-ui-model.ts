@@ -71,6 +71,8 @@ export type TrendSignal = {
   series: TrendSeriesPoint[];
   evidence: TrendEvidence[];
   annotations: TrendAnnotation[];
+  researchStatus: "not_started" | "queued" | "running" | "completed" | "failed";
+  researchCompletedAt: string | null;
 };
 
 export const KIND_LABELS: Record<TrendSignalKind, string> = {
@@ -170,6 +172,8 @@ export function toTrendSignals(data: TrendingAnalysis): TrendSignal[] {
       // The legacy fallback has aggregate action counts but no trustworthy event date.
       // V2 supplies dated annotations; do not invent a point in fallback mode.
       annotations: [],
+      researchStatus: "not_started",
+      researchCompletedAt: null,
     };
   });
 }
@@ -218,6 +222,8 @@ export function v2SignalToUi(signal: IntelligenceSignalSummary): TrendSignal {
       type: item.actionType,
       label: item.label || item.title,
     })),
+    researchStatus: signal.researchStatus,
+    researchCompletedAt: signal.researchCompletedAt,
   };
 }
 

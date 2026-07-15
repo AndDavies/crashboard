@@ -16,6 +16,7 @@ import {
 } from "../src/lib/intelligence/gmail";
 import { encryptCredential } from "../src/lib/intelligence/oauth-crypto";
 import { getTursoIntelligenceStore } from "../src/lib/intelligence/store";
+import { canonicalIntelligenceOwnerId } from "../src/lib/intelligence/owner";
 
 loadLocalIntelligenceKeychain();
 process.env.INTELLIGENCE_STORE = "turso";
@@ -50,7 +51,7 @@ async function main() {
       const tokens = await exchangeGmailAuthorizationCode(code);
       if (!tokens.refresh_token) throw new Error("Google did not return an offline refresh token.");
       const profile = await getGmailProfile(tokens.access_token);
-      const ownerId = `google:${profile.emailAddress.toLocaleLowerCase()}`;
+      const ownerId = canonicalIntelligenceOwnerId(profile.emailAddress);
       await store.upsertSource({
         ownerId,
         sourceType: "gmail",
@@ -94,7 +95,7 @@ async function main() {
   });
 
   const connected = await completion;
-  process.stdout.write(`${JSON.stringify({ connected: true, email: connected.email, ownerId: `google:${connected.email.toLocaleLowerCase()}` }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ connected: true, email: connected.email, ownerId: canonicalIntelligenceOwnerId(connected.email) }, null, 2)}\n`);
 }
 
 main().catch((error) => {

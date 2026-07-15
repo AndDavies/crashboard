@@ -72,6 +72,40 @@ export type IntelligenceJob = {
   attempts: number;
 };
 
+export type IntelligenceResearchSource = {
+  url: string;
+  title: string;
+  publisher: string;
+  publishedAt: string | null;
+  authority: "official" | "independent" | "community";
+  passage: string;
+  supports: string;
+};
+
+export type IntelligenceResearchResult = {
+  whatChanged: string;
+  whyNow: string;
+  whyItMatters: string;
+  whatToWatch: string;
+  assessmentChange: "strengthened" | "weakened" | "unchanged";
+  evidenceStrength: "strong" | "moderate" | "early";
+  sources: IntelligenceResearchSource[];
+  unknowns: string[];
+};
+
+export type IntelligenceResearchRequest = {
+  id: string;
+  ownerId: string;
+  signalId: string;
+  signalLabel: string;
+  question: string | null;
+  status: "pending" | "running" | "completed" | "failed";
+  requestedAt: string;
+  completedAt: string | null;
+  result: IntelligenceResearchResult | null;
+  failure: string | null;
+};
+
 export type IntelligenceSourceConnection = {
   id: string;
   ownerId: string;
@@ -112,7 +146,7 @@ export interface IntelligenceStore {
     payload?: Record<string, unknown>;
     priority?: number;
   }): Promise<string>;
-  leaseNextJob(ownerId: string, leaseOwner: string): Promise<IntelligenceJob | null>;
+  leaseNextJob(ownerId: string, leaseOwner: string, jobType?: IntelligenceJobType): Promise<IntelligenceJob | null>;
   checkpointJob(jobId: string, checkpoint: Record<string, unknown>): Promise<void>;
   completeJob(jobId: string): Promise<void>;
   failJob(jobId: string, failure: string): Promise<void>;
@@ -124,4 +158,14 @@ export interface IntelligenceStore {
     signalLabel: string;
     question?: string | null;
   }): Promise<string>;
+  getResearchRequest(id: string): Promise<IntelligenceResearchRequest | null>;
+  listResearchRequests(ownerId: string, limit?: number): Promise<IntelligenceResearchRequest[]>;
+  markResearchRunning(id: string): Promise<void>;
+  completeResearch(id: string, result: IntelligenceResearchResult): Promise<void>;
+  failResearch(id: string, failure: string): Promise<void>;
+  repairCanonicalOwner(ownerId: string): Promise<{
+    jobsMigrated: number;
+    requestsMigrated: number;
+    signalIdsRepaired: number;
+  }>;
 }

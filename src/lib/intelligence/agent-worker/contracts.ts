@@ -93,5 +93,72 @@ export const IntelligenceAnalysisOutputSchema = z.object({
   warnings: z.array(z.string()),
 }).strict();
 
+const IntelligenceResearchSourceSchema = z.object({
+  url: z.url({ protocol: /^https$/u }),
+  title: z.string().min(3).max(300),
+  publisher: z.string().min(2).max(200),
+  publishedAt: z.string().nullable(),
+  authority: z.enum(["official", "independent", "community"]),
+  passage: z.string().min(10).max(1_200),
+  supports: z.string().min(10).max(500),
+}).strict();
+
+export const IntelligenceResearchBundleSchema = z.object({
+  schemaVersion: z.literal("crashboard-intelligence-research-bundle.v1"),
+  jobId: z.string().min(1),
+  requestId: z.string().uuid(),
+  generatedAt: z.iso.datetime(),
+  question: z.string().nullable(),
+  instructions: z.array(z.string()).min(1),
+  signal: z.object({
+    id: z.string().min(1),
+    key: z.string().min(1),
+    kind: SignalKindSchema,
+    label: z.string().min(1),
+    direction: z.enum(["new", "rising", "sustained", "cooling"]),
+    evidenceStrength: z.enum(["strong", "moderate", "early"]),
+    currentReach: z.number().nonnegative(),
+    previousReach: z.number().nonnegative(),
+    whyNow: z.string().min(1),
+    whyItMatters: z.string().min(1),
+    whatToWatch: z.string().min(1),
+    related: z.array(z.object({ id: z.string(), kind: SignalKindSchema, label: z.string() })),
+    evidence: z.array(z.object({
+      title: z.string(),
+      passage: z.string(),
+      url: z.string().nullable(),
+      publisher: z.string().nullable(),
+      publishedAt: z.string().nullable(),
+      sourceFamily: z.string().nullable(),
+    })).max(10),
+  }).strict(),
+}).strict();
+
+export const IntelligenceResearchOutputSchema = z.object({
+  schemaVersion: z.literal("crashboard-intelligence-research.v1"),
+  jobId: z.string().min(1),
+  requestId: z.string().uuid(),
+  signalId: z.string().min(1),
+  signalLabel: z.string().min(1),
+  completedAt: z.iso.datetime(),
+  whatChanged: z.string().min(20).max(2_000),
+  whyNow: z.string().min(20).max(2_000),
+  whyItMatters: z.string().min(20).max(2_000),
+  whatToWatch: z.string().min(20).max(2_000),
+  assessmentChange: z.enum(["strengthened", "weakened", "unchanged"]),
+  evidenceStrength: z.enum(["strong", "moderate", "early"]),
+  sources: z.array(IntelligenceResearchSourceSchema).min(2).max(20),
+  unknowns: z.array(z.string().min(3).max(500)).max(20),
+}).strict().superRefine((value, context) => {
+  if (!value.sources.some((source) => source.authority === "official")) {
+    context.addIssue({ code: "custom", path: ["sources"], message: "Retain at least one official source." });
+  }
+  if (new Set(value.sources.map((source) => source.url)).size !== value.sources.length) {
+    context.addIssue({ code: "custom", path: ["sources"], message: "Research source URLs must be unique." });
+  }
+});
+
 export type IntelligenceWorkBundle = z.infer<typeof IntelligenceWorkBundleSchema>;
 export type IntelligenceAnalysisOutput = z.infer<typeof IntelligenceAnalysisOutputSchema>;
+export type IntelligenceResearchBundle = z.infer<typeof IntelligenceResearchBundleSchema>;
+export type IntelligenceResearchOutput = z.infer<typeof IntelligenceResearchOutputSchema>;

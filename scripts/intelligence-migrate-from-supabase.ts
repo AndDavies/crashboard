@@ -6,11 +6,11 @@ loadEnvironment({ path: ".env.local", quiet: true });
 import { buildDeterministicSignals } from "../src/lib/intelligence/agent-worker/deterministic";
 import {
   loadLocalIntelligenceKeychain,
-  saveLocalIntelligenceKeychain,
 } from "../src/lib/intelligence/agent-worker/local-keychain";
 import { sourceFamilyName } from "../src/lib/intelligence/sources";
 import { getTursoIntelligenceStore, type IntelligenceStoredDocument } from "../src/lib/intelligence/store";
 import { createAdminClient } from "../src/lib/supabase/admin";
+import { canonicalIntelligenceOwnerId } from "../src/lib/intelligence/owner";
 
 loadLocalIntelligenceKeychain();
 process.env.INTELLIGENCE_STORE = "turso";
@@ -125,10 +125,13 @@ async function main() {
   });
   if (!sourceResult) throw new Error("No legacy Gmail Intelligence source was found.");
 
-  process.env.INTELLIGENCE_OWNER_ID = sourceResult.owner_id;
-  saveLocalIntelligenceKeychain("INTELLIGENCE_OWNER_ID", sourceResult.owner_id);
+  const intelligenceOwnerId = canonicalIntelligenceOwnerId(
+    typeof sourceResult.config?.account_email === "string"
+      ? sourceResult.config.account_email
+      : sourceResult.external_key,
+  );
   await store.upsertSource({
-    ownerId: sourceResult.owner_id,
+    ownerId: intelligenceOwnerId,
     sourceType: "gmail",
     externalKey: sourceResult.external_key,
     name: sourceResult.name,
@@ -209,7 +212,7 @@ async function main() {
   await store.publishRefresh(refreshId);
   process.stdout.write(`${JSON.stringify({
     phase: "complete",
-    ownerIdStored: true,
+    ownerId: intelligenceOwnerId,
     sourceDocuments,
     measurementItems,
     signals: signals.length,

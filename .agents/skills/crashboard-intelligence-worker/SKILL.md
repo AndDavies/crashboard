@@ -12,9 +12,10 @@ Operate the local Codex worker through the deterministic commands in `scripts/in
 1. Work from the Crashboard repository root.
 2. Read [references/worker-contract.md](references/worker-contract.md).
 3. Run `npm run intelligence:agent -- status`.
-4. When signal quality is in question, run `npm run intelligence:agent -- audit-signals` before publishing. The audit must report zero blocked labels and a corpus-scale refresh must represent at least three signal types.
-5. Stop with a clear configuration report when Turso or Gmail is unavailable. Never substitute Supabase.
-6. Report a no-op when `dailyRefreshDue` is false and there are no pending jobs or explicit user requests.
+4. If `pendingResearch` is greater than zero, run `prepare-research`, analyze the bounded research bundle with Codex, and import the validated result before declaring the queue clear.
+5. When signal quality is in question, run `npm run intelligence:agent -- audit-signals` before publishing. The audit must report zero blocked labels and a corpus-scale refresh must represent at least three signal types.
+6. Stop with a clear configuration report when Turso or Gmail is unavailable. Never substitute Supabase.
+7. Report a no-op when `dailyRefreshDue` is false and there are no pending jobs or explicit user requests.
 
 ## Daily refresh
 
@@ -39,7 +40,12 @@ Run `npm run intelligence:backfill -- 5 100` to process at most five Gmail pages
 
 ## Research requests
 
-Lease the queued research job through `prepare`. Search official and original sources first, retain clickable URLs, distinguish confirmed facts from inference, and ensure research-only evidence cannot change trend scores. Import and publish the result through the same validation gate.
+1. Run `npm run intelligence:agent -- prepare-research` to lease exactly one research job and create a bounded `crashboard-intelligence-research-bundle.v1` file.
+2. Read only that bundle. Search official and original sources first, then obtain independent corroboration when available.
+3. Create a `crashboard-intelligence-research.v1` outbox file. Keep every source URL clickable, distinguish confirmed facts from inference, and state important unknowns.
+4. Import with `npm run intelligence:agent -- import-research --file <research-outbox-file>`.
+5. Run `status` again. A successful import marks both the request and job complete and overlays the research narrative and sources without changing trend scores.
+6. If an older dashboard identity left an orphaned pending job, run `npm run intelligence:agent -- repair-owner` once before preparing research.
 
 ## Safety gates
 

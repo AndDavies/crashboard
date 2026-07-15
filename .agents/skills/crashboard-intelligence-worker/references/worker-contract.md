@@ -7,10 +7,11 @@ Required for the shared Turso database:
 - `INTELLIGENCE_STORE=turso`
 - `TURSO_DATABASE_URL`
 - `TURSO_AUTH_TOKEN`
-- `INTELLIGENCE_OWNER_ID`
 - `INTELLIGENCE_TOKEN_ENCRYPTION_KEY`
 - `GOOGLE_GMAIL_CLIENT_ID`
 - `GOOGLE_GMAIL_CLIENT_SECRET`
+
+The owner is always `google:<verified email>`. `INTELLIGENCE_OWNER_EMAIL` may override the default email for a separate private installation. Never use a legacy Supabase UUID as the Turso owner.
 
 Dashboard login additionally requires:
 
@@ -26,9 +27,12 @@ The Google dashboard client defaults to the Gmail client ID and secret. The auth
 npm run intelligence:agent -- init
 npm run intelligence:agent -- status
 npm run intelligence:agent -- audit-signals
+npm run intelligence:agent -- repair-owner
 npm run intelligence:agent -- collect-gmail --mode incremental|backfill --batch 1..100
 npm run intelligence:agent -- prepare --batch 1..100 [--kind backfill]
+npm run intelligence:agent -- prepare-research
 npm run intelligence:agent -- import --file <analysis.json>
+npm run intelligence:agent -- import-research --file <research.json>
 npm run intelligence:agent -- validate --refresh <uuid>
 npm run intelligence:agent -- publish --refresh <uuid> --job <uuid>
 npm run intelligence:agent -- send-brief
@@ -44,6 +48,8 @@ Inbox files use `crashboard-intelligence-work-bundle.v1` and contain no more tha
 Every signal must include a stable ID, kind, label, direction, evidence strength, current and previous share of coverage, item/story/source/action counts, a daily or weekly series, short explanations, and evidence rows whose `documentId` exists in Turso.
 
 Generic calendar terms, interface language, newsletter boilerplate, and ordinary verbs are invalid signal labels. Corpus-scale refreshes must include stable topics plus at least two other supported signal types among keywords, organizations, systems, and programmes. The deterministic layer uses source-balanced ranking so one high-volume newsletter cannot manufacture a top signal.
+
+Research outbox files use `crashboard-intelligence-research.v1`. They require at least two unique HTTPS sources and at least one official source. Import marks the request and its job complete. Research is overlaid at read time, so it can improve explanations and evidence without rewriting reach, momentum, stories, sources, actions, or any historical trend series.
 
 ## Publication invariant
 

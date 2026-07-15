@@ -20,6 +20,8 @@ import { sourceFamilyName } from "../src/lib/intelligence/sources";
 import { getTursoIntelligenceStore, type IntelligenceStoredDocument } from "../src/lib/intelligence/store";
 import {
   IntelligenceAnalysisOutputSchema,
+  IntelligenceResearchBundleSchema,
+  IntelligenceResearchOutputSchema,
   IntelligenceWorkBundleSchema,
 } from "../src/lib/intelligence/agent-worker/contracts";
 import {
@@ -28,6 +30,7 @@ import {
 } from "../src/lib/intelligence/agent-worker/deterministic";
 import { auditSignalLabels } from "../src/lib/intelligence/agent-worker/signal-language";
 import { loadLocalIntelligenceKeychain } from "../src/lib/intelligence/agent-worker/local-keychain";
+import { canonicalIntelligenceOwnerId } from "../src/lib/intelligence/owner";
 
 loadLocalIntelligenceKeychain();
 
@@ -49,7 +52,11 @@ function intArgument(name: string, fallback: number, max: number) {
 }
 
 function ownerId() {
-  return argument("--owner") || process.env.INTELLIGENCE_OWNER_ID?.trim() || "google:m.andrew.davies@gmail.com";
+  const requested = argument("--owner");
+  if (requested?.startsWith("google:")) {
+    return canonicalIntelligenceOwnerId(requested.slice("google:".length));
+  }
+  return canonicalIntelligenceOwnerId();
 }
 
 function words(value: string) {
@@ -153,13 +160,16 @@ async function collectGmail() {
 async function prepareBundle() {
   const store = getTursoIntelligenceStore();
   await store.initialize();
-  const job = await store.leaseNextJob(ownerId(), `codex:${process.pid}`)
-    ?? { id: await store.enqueueJob({ ownerId: ownerId(), jobType: "daily_refresh" }), checkpoint: {} };
-  const leased = "jobType" in job ? job : await store.leaseNextJob(ownerId(), `codex:${process.pid}`);
+  const requestedJobType = argument("--kind") === "backfill" ? "backfill" : "daily_refresh";
+  const job = await store.leaseNextJob(ownerId(), `codex:${process.pid}`, requestedJobType)
+    ?? { id: await store.enqueueJob({ ownerId: ownerId(), jobType: requestedJobType }), checkpoint: {} };
+  const leased = "jobType" in job
+    ? job
+    : await store.leaseNextJob(ownerId(), `codex:${process.pid}`, requestedJobType);
   if (!leased) throw new Error("Could not lease the prepared Intelligence job.");
   const documents = await store.listDocuments({ limit: intArgument("--batch", 10, 100) });
   if (!documents.length) throw new Error("No retained documents are available. Run collect-gmail first.");
-  const refreshId = await store.beginRefresh(argument("--kind") === "backfill" ? "backfill" : "daily");
+  const refreshId = await store.beginRefresh(requestedJobType === "backfill" ? "backfill" : "daily");
   const active = await store.getSignals({ limit: 250 });
   const bundle = IntelligenceWorkBundleSchema.parse({
     schemaVersion: "crashboard-intelligence-work-bundle.v1",
@@ -194,6 +204,79 @@ async function prepareBundle() {
   return { jobId: leased.id, refreshId, file, documents: documents.length };
 }
 
+async function prepareResearchBundle() {
+  const store = getTursoIntelligenceStore();
+  await store.initialize();
+  const leased = await store.leaseNextJob(ownerId(), `codex-research:${process.pid}`, "research");
+  if (!leased) return { noOp: true, reason: "No research request is pending." };
+  const requestId = typeof leased.payload.requestId === "string" ? leased.payload.requestId : "";
+  if (!requestId) {
+    await store.failJob(leased.id, "Research job is missing requestId.");
+    throw new Error("Research job is missing requestId.");
+  }
+  const request = await store.getResearchRequest(requestId);
+  if (!request) {
+    await store.failJob(leased.id, "Research request no longer exists.");
+    throw new Error("Research request no longer exists.");
+  }
+  const signal = await store.getSignal(request.signalId);
+  if (!signal) {
+    const failure = `Signal ${request.signalLabel} is no longer active.`;
+    await store.failResearch(request.id, failure);
+    await store.failJob(leased.id, failure);
+    throw new Error(failure);
+  }
+  const bundle = IntelligenceResearchBundleSchema.parse({
+    schemaVersion: "crashboard-intelligence-research-bundle.v1",
+    jobId: leased.id,
+    requestId: request.id,
+    generatedAt: new Date().toISOString(),
+    question: request.question,
+    instructions: [
+      "Investigate the signal using official and original sources first, then independent corroboration.",
+      "Use the Codex web tools and logged-in Codex account. Do not call the OpenAI API.",
+      "Distinguish confirmed facts from inference and state important unknowns explicitly.",
+      "Retain clickable HTTPS source URLs and short supporting passages.",
+      "Research evidence may enrich the explanation but must not change trend scores or measurement counts.",
+      "Return only JSON matching crashboard-intelligence-research.v1.",
+    ],
+    signal: {
+      id: signal.id,
+      key: signal.key,
+      kind: signal.kind,
+      label: signal.label,
+      direction: signal.direction,
+      evidenceStrength: signal.evidenceStrength,
+      currentReach: signal.currentReach,
+      previousReach: signal.previousReach,
+      whyNow: signal.whyNow,
+      whyItMatters: signal.whyItMatters,
+      whatToWatch: signal.whatToWatch,
+      related: signal.related,
+      evidence: signal.evidence.filter((item) => !item.isResearch).slice(0, 10).map((item) => ({
+        title: item.title,
+        passage: item.passage,
+        url: item.url,
+        publisher: item.publisher,
+        publishedAt: item.publishedAt,
+        sourceFamily: item.sourceFamily,
+      })),
+    },
+  });
+  const directory = resolve(WORK_DIR, "inbox");
+  await mkdir(directory, { recursive: true });
+  const file = resolve(directory, `research-${leased.id}-${request.id}.json`);
+  await writeFile(file, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+  await store.markResearchRunning(request.id);
+  await store.checkpointJob(leased.id, {
+    requestId: request.id,
+    signalId: signal.id,
+    bundleFile: file,
+    preparedAt: new Date().toISOString(),
+  });
+  return { noOp: false, jobId: leased.id, requestId: request.id, signalId: signal.id, signalLabel: signal.label, file };
+}
+
 async function importAnalysis(file: string) {
   const parsed = IntelligenceAnalysisOutputSchema.parse(JSON.parse(await readFile(resolve(file), "utf8")));
   const store = getTursoIntelligenceStore();
@@ -210,6 +293,56 @@ async function importAnalysis(file: string) {
     signalsImported: parsed.signals.length,
   });
   return { jobId: parsed.jobId, refreshId: parsed.refreshId, signals: parsed.signals.length };
+}
+
+async function importResearch(file: string) {
+  const parsed = IntelligenceResearchOutputSchema.parse(JSON.parse(await readFile(resolve(file), "utf8")));
+  const store = getTursoIntelligenceStore();
+  const request = await store.getResearchRequest(parsed.requestId);
+  if (!request) throw new Error("The research request no longer exists.");
+  if (request.signalId !== parsed.signalId || request.signalLabel !== parsed.signalLabel) {
+    throw new Error("Research output does not match the leased signal.");
+  }
+  await store.completeResearch(parsed.requestId, {
+    whatChanged: parsed.whatChanged,
+    whyNow: parsed.whyNow,
+    whyItMatters: parsed.whyItMatters,
+    whatToWatch: parsed.whatToWatch,
+    assessmentChange: parsed.assessmentChange,
+    evidenceStrength: parsed.evidenceStrength,
+    sources: parsed.sources,
+    unknowns: parsed.unknowns,
+  });
+  await store.completeJob(parsed.jobId);
+  return {
+    jobId: parsed.jobId,
+    requestId: parsed.requestId,
+    signalId: parsed.signalId,
+    signalLabel: parsed.signalLabel,
+    sources: parsed.sources.length,
+    completed: true,
+  };
+}
+
+async function repairOwner() {
+  const store = getTursoIntelligenceStore();
+  await store.initialize();
+  return { ownerId: ownerId(), ...(await store.repairCanonicalOwner(ownerId())) };
+}
+
+async function workerStatus() {
+  const store = getTursoIntelligenceStore();
+  const [health, source, requests] = await Promise.all([
+    store.health(),
+    store.getSource(ownerId(), "gmail"),
+    store.listResearchRequests(ownerId(), 100),
+  ]);
+  return {
+    ...health,
+    gmailConnected: Boolean(source?.credential && source.status === "active"),
+    pendingResearch: requests.filter((request) => request.status === "pending" || request.status === "running").length,
+    completedResearch: requests.filter((request) => request.status === "completed").length,
+  };
 }
 
 async function deterministicRun(count: number) {
@@ -336,13 +469,17 @@ async function main() {
   const command = process.argv[2] || "status";
   const store = getTursoIntelligenceStore();
   let result: unknown;
-  if (command === "init") { await store.initialize(); result = await store.health(); }
-  else if (command === "status") result = await store.health();
+  if (command === "init") { await store.initialize(); result = await workerStatus(); }
+  else if (command === "status") result = await workerStatus();
   else if (command === "collect-gmail") result = await collectGmail();
   else if (command === "prepare") result = await prepareBundle();
+  else if (command === "prepare-research") result = await prepareResearchBundle();
   else if (command === "import") {
     const file = argument("--file"); if (!file) throw new Error("Pass --file <analysis.json>.");
     result = await importAnalysis(file);
+  } else if (command === "import-research") {
+    const file = argument("--file"); if (!file) throw new Error("Pass --file <research.json>.");
+    result = await importResearch(file);
   } else if (command === "validate") {
     const refreshId = argument("--refresh"); if (!refreshId) throw new Error("Pass --refresh <id>.");
     result = await store.validateRefresh(refreshId);
@@ -354,6 +491,7 @@ async function main() {
   } else if (command === "smoke") result = await deterministicRun(intArgument("--documents", 10, 100));
   else if (command === "audit-signals") result = await auditSignals();
   else if (command === "refresh") result = await refreshDeterministicSignals();
+  else if (command === "repair-owner") result = await repairOwner();
   else if (command === "send-brief") result = await sendBrief();
   else throw new Error(`Unknown command: ${command}`);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

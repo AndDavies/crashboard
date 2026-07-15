@@ -10,6 +10,7 @@ import {
   syncGmailSource,
 } from "@/lib/intelligence/jobs";
 import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
+import { canonicalIntelligenceOwnerId, intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -29,10 +30,12 @@ async function ownerIdFor(request: NextRequest) {
   if (secret && requireBearerSecret(request, secret, "INTELLIGENCE_JOB_SECRET").ok) {
     const ownerId = request.headers.get("x-crashboard-owner-id")?.trim();
     if (!ownerId) throw new Error("Scheduled sync requires x-crashboard-owner-id.");
-    return ownerId;
+    return ownerId.startsWith("google:")
+      ? canonicalIntelligenceOwnerId(ownerId.slice("google:".length))
+      : canonicalIntelligenceOwnerId();
   }
   const user = await requireDashboardUser();
-  return user.id;
+  return intelligenceUsesTurso() ? intelligenceOwnerIdForUser(user) : user.id;
 }
 
 export async function POST(request: NextRequest) {

@@ -82,4 +82,79 @@ describe("Turso Intelligence generations", () => {
     expect(validation.ok).toBe(false);
     expect(validation.errors.join(" ")).toContain("blocked generic signal labels: July");
   });
+
+  it("repairs an orphaned research job and overlays a validated result without changing trend scores", async () => {
+    const store = new TursoIntelligenceStore(createClient({ url: ":memory:" }));
+    await store.initialize();
+    const docs = documents(12);
+    await store.putDocuments(docs);
+    const refreshId = await store.beginRefresh("test");
+    const builtSignals = buildDeterministicSignals(docs);
+    const signal = builtSignals[0]!;
+    await store.putSignals(refreshId, builtSignals);
+    await store.publishRefresh(refreshId);
+
+    const requestId = await store.enqueueResearch({
+      ownerId: "legacy-owner",
+      signalId: "malformed-signal-key",
+      signalLabel: signal.label,
+      question: "What changed?",
+    });
+    const repair = await store.repairCanonicalOwner("google:andrew@example.com");
+    expect(repair.requestsMigrated).toBe(1);
+    expect(repair.jobsMigrated).toBe(1);
+    expect(repair.signalIdsRepaired).toBe(1);
+
+    const request = await store.getResearchRequest(requestId);
+    expect(request).toMatchObject({
+      ownerId: "google:andrew@example.com",
+      signalId: signal.id,
+      status: "pending",
+    });
+    const job = await store.leaseNextJob("google:andrew@example.com", "codex-test", "research");
+    expect(job?.jobType).toBe("research");
+    await store.markResearchRunning(requestId);
+    expect((await store.getSignal(signal.id))?.researchStatus).toBe("running");
+
+    await store.completeResearch(requestId, {
+      whatChanged: "An official buyer confirmed a new procurement milestone.",
+      whyNow: "The signal strengthened after an official procurement milestone and independent corroboration.",
+      whyItMatters: "The milestone moves the signal from discussion toward funded implementation.",
+      whatToWatch: "Watch the solicitation date, award value, delivery schedule, and operational user.",
+      assessmentChange: "strengthened",
+      evidenceStrength: "strong",
+      sources: [
+        {
+          url: "https://official.example/procurement",
+          title: "Official procurement notice",
+          publisher: "Official buyer",
+          publishedAt: "2026-07-15T12:00:00.000Z",
+          authority: "official",
+          passage: "The buyer confirmed the procurement milestone and delivery requirement.",
+          supports: "Confirms the buyer, procurement stage, and timing.",
+        },
+        {
+          url: "https://independent.example/analysis",
+          title: "Independent programme analysis",
+          publisher: "Independent source",
+          publishedAt: "2026-07-15T13:00:00.000Z",
+          authority: "independent",
+          passage: "Independent reporting corroborated the programme milestone.",
+          supports: "Corroborates the official announcement without changing the measured trend.",
+        },
+      ],
+      unknowns: ["The final award value is not yet public."],
+    });
+    await store.completeJob(job!.id);
+
+    const enriched = await store.getSignal(signal.id);
+    expect(enriched?.researchStatus).toBe("completed");
+    expect(enriched?.whyNow).toContain("official procurement milestone");
+    expect(enriched?.evidence[0]).toMatchObject({
+      url: "https://official.example/procurement",
+      isResearch: true,
+    });
+    expect(enriched?.currentReach).toBeCloseTo(signal.currentReach * 100);
+    expect((await store.listResearchRequests("google:andrew@example.com"))[0]?.status).toBe("completed");
+  });
 });

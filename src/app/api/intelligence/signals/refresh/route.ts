@@ -16,6 +16,7 @@ import {
 } from "@/lib/intelligence/signal-refresh-lease";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
+import { intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
   } | null = null;
   const admin = createAdminClient();
   try {
-    ownerId = (await requireDashboardUser()).id;
+    const user = await requireDashboardUser();
+    ownerId = intelligenceUsesTurso() ? intelligenceOwnerIdForUser(user) : user.id;
     const body = (await request.json().catch(() => ({}))) as {
       phase?: unknown;
       cursor?: number;

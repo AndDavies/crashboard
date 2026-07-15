@@ -10,6 +10,8 @@ import type {
   IntelligenceDocumentSearchResult,
   IntelligenceJob,
   IntelligenceRefreshKind,
+  IntelligenceResearchRequest,
+  IntelligenceResearchResult,
   IntelligenceSourceConnection,
   IntelligenceStore,
   IntelligenceStoredDocument,
@@ -100,6 +102,57 @@ function storedDocument(row: Row): IntelligenceStoredDocument {
     contentHash: text(row.content_hash), editorialTokens: number(row.editorial_tokens),
     segmentationConfidence: row.segmentation_confidence == null ? null : number(row.segmentation_confidence),
     parserVersion: nullableText(row.parser_version), raw: parseJson(row.raw_json, {}),
+  };
+}
+
+function researchRequest(row: Row): IntelligenceResearchRequest {
+  const storedStatus = text(row.status);
+  return {
+    id: text(row.id),
+    ownerId: text(row.owner_id),
+    signalId: text(row.signal_id),
+    signalLabel: text(row.signal_label),
+    question: nullableText(row.question),
+    status: storedStatus === "leased" ? "running" : storedStatus as IntelligenceResearchRequest["status"],
+    requestedAt: text(row.requested_at),
+    completedAt: nullableText(row.completed_at),
+    result: parseJson<IntelligenceResearchResult | null>(row.result_json, null),
+    failure: nullableText(row.failure),
+  };
+}
+
+function signalWithResearch(
+  signal: IntelligenceSignalSummary,
+  request: IntelligenceResearchRequest | undefined,
+): IntelligenceSignalSummary {
+  if (!request) return signal;
+  const result = request.result;
+  const researchEvidence = result?.sources.map((source, index) => ({
+    id: `research:${request.id}:${index}`,
+    documentId: `research:${request.id}:${index}`,
+    title: source.title,
+    passage: source.passage,
+    url: source.url,
+    publisher: source.publisher,
+    publishedAt: source.publishedAt,
+    sourceFamily: source.publisher,
+    authority: source.authority,
+    storyId: `research:${source.url}`,
+    whyMatched: source.supports,
+    isResearch: true,
+  })) ?? [];
+  return {
+    ...signal,
+    ...(result ? {
+      whyNow: result.whyNow,
+      whyItMatters: result.whyItMatters,
+      whatToWatch: result.whatToWatch,
+      evidence: [...researchEvidence, ...signal.evidence].slice(0, 15),
+    } : {}),
+    researchStatus: request.status === "pending"
+      ? "queued"
+      : request.status,
+    researchCompletedAt: request.completedAt,
   };
 }
 
@@ -365,9 +418,9 @@ export class TursoIntelligenceStore implements IntelligenceStore {
       args: [...args, Math.max(1, Math.min(options.limit ?? 80, 250))],
     });
     const days = rangeDays(range);
-    const signals = result.rows.map((row) => {
+    const rawSignals = result.rows.map((row) => {
       const signal = parseJson<IntelligenceSignalSummary>(row.payload_json, null as never);
-      return signalAsPercentage({ ...signal, series: trimSeries(signal.series, days) });
+      return { ...signal, series: trimSeries(signal.series, days) };
     }).filter(Boolean);
     const compareIds = [...new Set(options.compare ?? [])].slice(0, 5);
     let comparison: IntelligenceSignalSummary[] = [];
@@ -379,9 +432,18 @@ export class TursoIntelligenceStore implements IntelligenceStore {
       });
       comparison = compared.rows.map((row) => {
         const signal = parseJson<IntelligenceSignalSummary>(row.payload_json, null as never);
-        return signalAsPercentage({ ...signal, series: trimSeries(signal.series, days) });
+        return { ...signal, series: trimSeries(signal.series, days) };
       }).filter(Boolean);
     }
+    const researchBySignal = await this.latestResearchForSignals(
+      [...rawSignals, ...comparison].map((signal) => signal.id),
+    );
+    const signals = rawSignals.map((signal) => signalAsPercentage(
+      signalWithResearch(signal, researchBySignal.get(signal.id)),
+    ));
+    comparison = comparison.map((signal) => signalAsPercentage(
+      signalWithResearch(signal, researchBySignal.get(signal.id)),
+    ));
     return {
       generatedAt: nullableText(active.completed_at) ?? nowIso(),
       completeThrough: nullableText(active.complete_through) ?? signals[0]?.series.at(-1)?.date ?? "",
@@ -397,9 +459,27 @@ export class TursoIntelligenceStore implements IntelligenceStore {
         WHERE refresh_id=? AND (signal_id=? OR signal_key=?) LIMIT 1`,
       args: [text(active.id), id, id],
     });
-    return result.rows[0]
-      ? signalAsPercentage(parseJson<IntelligenceSignalSummary>(result.rows[0].payload_json, null as never))
-      : null;
+    if (!result.rows[0]) return null;
+    const signal = parseJson<IntelligenceSignalSummary>(result.rows[0].payload_json, null as never);
+    const research = (await this.latestResearchForSignals([signal.id])).get(signal.id);
+    return signalAsPercentage(signalWithResearch(signal, research));
+  }
+
+  private async latestResearchForSignals(signalIds: string[]) {
+    const ids = [...new Set(signalIds)].filter(Boolean);
+    const latest = new Map<string, IntelligenceResearchRequest>();
+    if (!ids.length) return latest;
+    const result = await this.client.execute({
+      sql: `SELECT * FROM intelligence_research_requests
+        WHERE signal_id IN (${placeholders(ids.length)})
+        ORDER BY requested_at DESC`,
+      args: ids,
+    });
+    for (const row of result.rows) {
+      const request = researchRequest(row);
+      if (!latest.has(request.signalId)) latest.set(request.signalId, request);
+    }
+    return latest;
   }
 
   async searchDocuments(query: string, limit = 25): Promise<IntelligenceDocumentSearchResult[]> {
@@ -467,16 +547,26 @@ export class TursoIntelligenceStore implements IntelligenceStore {
     return id;
   }
 
-  async leaseNextJob(ownerId: string, leaseOwner: string): Promise<IntelligenceJob | null> {
+  async leaseNextJob(ownerId: string, leaseOwner: string, jobType?: IntelligenceJob["jobType"]): Promise<IntelligenceJob | null> {
     const time = nowIso();
     const expired = new Date(Date.now() - 30 * 60_000).toISOString();
+    const typeClause = jobType ? "AND job_type=?" : "";
     const result = await this.client.execute({
       sql: `UPDATE intelligence_jobs SET status='leased',lease_owner=?,lease_expires_at=?,attempts=attempts+1,updated_at=?
         WHERE id=(SELECT id FROM intelligence_jobs WHERE owner_id=? AND available_at<=?
           AND (status='pending' OR (status='leased' AND lease_expires_at<?))
+          ${typeClause}
           ORDER BY priority ASC,created_at ASC LIMIT 1)
         RETURNING *`,
-      args: [leaseOwner, new Date(Date.now() + 30 * 60_000).toISOString(), time, ownerId, time, expired],
+      args: [
+        leaseOwner,
+        new Date(Date.now() + 30 * 60_000).toISOString(),
+        time,
+        ownerId,
+        time,
+        expired,
+        ...(jobType ? [jobType] : []),
+      ],
     });
     const row = result.rows[0];
     return row ? {
@@ -538,14 +628,99 @@ export class TursoIntelligenceStore implements IntelligenceStore {
   }
 
   async enqueueResearch(input: { ownerId: string; signalId: string; signalLabel: string; question?: string | null }) {
-    const id = randomUUID();
-    await this.client.execute({
-      sql: `INSERT INTO intelligence_research_requests(id,owner_id,signal_id,signal_label,question,status,requested_at)
-        VALUES(?,?,?,?,?,'pending',?)`,
-      args: [id, input.ownerId, input.signalId, input.signalLabel, input.question ?? null, nowIso()],
+    const existing = await this.client.execute({
+      sql: `SELECT id FROM intelligence_research_requests
+        WHERE owner_id=? AND signal_id=? AND status IN ('pending','leased')
+        ORDER BY requested_at DESC LIMIT 1`,
+      args: [input.ownerId, input.signalId],
     });
-    await this.enqueueJob({ ownerId: input.ownerId, jobType: "research", payload: { requestId: id, signalId: input.signalId } });
+    if (existing.rows[0]) return text(existing.rows[0].id);
+    const id = randomUUID();
+    const jobId = randomUUID();
+    const time = nowIso();
+    await this.client.batch([
+      {
+        sql: `INSERT INTO intelligence_research_requests(id,owner_id,signal_id,signal_label,question,status,requested_at)
+          VALUES(?,?,?,?,?,'pending',?)`,
+        args: [id, input.ownerId, input.signalId, input.signalLabel, input.question ?? null, time],
+      },
+      {
+        sql: `INSERT INTO intelligence_jobs(id,owner_id,job_type,status,priority,payload_json,available_at,created_at,updated_at)
+          VALUES(?,?,'research','pending',50,?,?,?,?)`,
+        args: [jobId, input.ownerId, JSON.stringify({ requestId: id, signalId: input.signalId }), time, time, time],
+      },
+    ], "write");
     return id;
+  }
+
+  async getResearchRequest(id: string) {
+    const result = await this.client.execute({
+      sql: `SELECT * FROM intelligence_research_requests WHERE id=? LIMIT 1`,
+      args: [id],
+    });
+    return result.rows[0] ? researchRequest(result.rows[0]) : null;
+  }
+
+  async listResearchRequests(ownerId: string, limit = 20) {
+    const result = await this.client.execute({
+      sql: `SELECT * FROM intelligence_research_requests WHERE owner_id=?
+        ORDER BY requested_at DESC LIMIT ?`,
+      args: [ownerId, Math.max(1, Math.min(limit, 100))],
+    });
+    return result.rows.map(researchRequest);
+  }
+
+  async markResearchRunning(id: string) {
+    await this.client.execute({
+      sql: `UPDATE intelligence_research_requests SET status='leased',failure=NULL WHERE id=? AND status='pending'`,
+      args: [id],
+    });
+  }
+
+  async completeResearch(id: string, result: IntelligenceResearchResult) {
+    await this.client.execute({
+      sql: `UPDATE intelligence_research_requests
+        SET status='completed',completed_at=?,result_json=?,failure=NULL WHERE id=? AND status IN ('pending','leased')`,
+      args: [nowIso(), JSON.stringify(result), id],
+    });
+  }
+
+  async failResearch(id: string, failure: string) {
+    await this.client.execute({
+      sql: `UPDATE intelligence_research_requests SET status='failed',failure=? WHERE id=?`,
+      args: [failure.slice(0, 4_000), id],
+    });
+  }
+
+  async repairCanonicalOwner(ownerId: string) {
+    const signalSubquery = `SELECT s.signal_id FROM intelligence_signals s
+      JOIN intelligence_active_refresh a ON a.refresh_id=s.refresh_id
+      WHERE lower(s.label)=lower(intelligence_research_requests.signal_label) LIMIT 1`;
+    const results = await this.client.batch([
+      {
+        sql: `UPDATE intelligence_research_requests
+          SET owner_id=?,status=CASE WHEN status='leased' THEN 'pending' ELSE status END
+          WHERE owner_id<>? AND status IN ('pending','leased')`,
+        args: [ownerId, ownerId],
+      },
+      {
+        sql: `UPDATE intelligence_jobs
+          SET owner_id=?,status='pending',lease_owner=NULL,lease_expires_at=NULL,updated_at=?
+          WHERE owner_id<>? AND job_type='research' AND status IN ('pending','leased')`,
+        args: [ownerId, nowIso(), ownerId],
+      },
+      {
+        sql: `UPDATE intelligence_research_requests SET signal_id=(${signalSubquery})
+          WHERE owner_id=? AND status IN ('pending','leased')
+          AND EXISTS (${signalSubquery}) AND signal_id<>(${signalSubquery})`,
+        args: [ownerId],
+      },
+    ], "write");
+    return {
+      requestsMigrated: results[0]?.rowsAffected ?? 0,
+      jobsMigrated: results[1]?.rowsAffected ?? 0,
+      signalIdsRepaired: results[2]?.rowsAffected ?? 0,
+    };
   }
 }
 

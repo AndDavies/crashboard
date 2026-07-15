@@ -6,13 +6,15 @@ import { getGmailSource, gmailAccessTokenForSource } from "@/lib/intelligence/jo
 import { persistIntelligenceDocument } from "@/lib/intelligence/persistence";
 import { bootstrapLongTailConcepts } from "@/lib/intelligence/long-tail";
 import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
+import { intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
-    const ownerId = (await requireDashboardUser()).id;
+    const user = await requireDashboardUser();
+    const ownerId = intelligenceUsesTurso() ? intelligenceOwnerIdForUser(user) : user.id;
     const body = (await request.json().catch(() => ({}))) as { offset?: number; limit?: number };
     if (intelligenceUsesTurso()) {
       const jobId = await getTursoIntelligenceStore().enqueueJob({

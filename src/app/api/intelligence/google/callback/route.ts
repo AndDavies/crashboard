@@ -12,6 +12,7 @@ import {
   getGmailSource,
 } from "@/lib/intelligence/jobs";
 import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
+import { intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export const runtime = "nodejs";
 
@@ -34,8 +35,9 @@ export async function GET(request: NextRequest) {
     const tokens = await exchangeGmailAuthorizationCode(code);
     const store = intelligenceUsesTurso() ? getTursoIntelligenceStore() : null;
     const admin = store ? null : createAdminClient();
+    const intelligenceOwnerId = intelligenceOwnerIdForUser(user);
     const existing = store
-      ? await store.getSource(user.id, "gmail")
+      ? await store.getSource(intelligenceOwnerId, "gmail")
       : await getGmailSource(admin!, user.id);
     const refreshToken = tokens.refresh_token;
     if (!refreshToken && existing) {
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
     });
     if (store) {
       await store.upsertSource({
-        ownerId: user.id,
+        ownerId: intelligenceOwnerId,
         sourceType: "gmail",
         externalKey: profile.emailAddress.toLocaleLowerCase(),
         name: `Gmail · ${profile.emailAddress}`,

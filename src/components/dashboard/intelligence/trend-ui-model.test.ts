@@ -50,8 +50,8 @@ describe("v2 intelligence UI mapping", () => {
         isResearch: true,
       }],
       annotations: [],
-      researchStatus: "not_started",
-      researchCompletedAt: null,
+      researchStatus: "completed",
+      researchCompletedAt: "2026-07-15T11:11:43.201Z",
     };
 
     const result = v2SignalToUi(signal);
@@ -60,6 +60,8 @@ describe("v2 intelligence UI mapping", () => {
     expect(result.evidenceStrength).toBe("Strong");
     expect(result.series[0]?.reach).toBe(23.9);
     expect(result.evidence[0]?.href).toBe("https://example.gov/official-release");
+    expect(result.researchStatus).toBe("completed");
+    expect(result.researchCompletedAt).toBe("2026-07-15T11:11:43.201Z");
     expect(result.related).toEqual([
       { id: "keyword:c-uas", kind: "keyword", label: "C-UAS" },
     ]);

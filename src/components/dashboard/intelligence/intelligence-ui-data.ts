@@ -26,6 +26,7 @@ import {
   getTursoIntelligenceStore,
   intelligenceUsesTurso,
 } from "@/lib/intelligence/store";
+import { intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export type IntelligenceUiData = {
   completeThrough: string;
@@ -103,9 +104,9 @@ export async function getIntelligenceUiData(
 ): Promise<IntelligenceUiData> {
   const query = options.q?.trim() ?? "";
   if (intelligenceUsesTurso()) {
-    await requireDashboardUser();
+    const user = await requireDashboardUser();
     const store = getTursoIntelligenceStore();
-    const [response, search] = await Promise.all([
+    const [response, search, researchRequests] = await Promise.all([
       store.getSignals({
         range: options.range,
         lens: options.lens,
@@ -114,6 +115,7 @@ export async function getIntelligenceUiData(
         limit: options.limit,
       }),
       query ? store.searchDocuments(query, 50) : Promise.resolve([]),
+      store.listResearchRequests(intelligenceOwnerIdForUser(user), 20),
     ]);
     const mapped = v2SignalsToUi([...response.signals, ...response.comparison]);
     return {
@@ -131,7 +133,16 @@ export async function getIntelligenceUiData(
         passage: row.passage,
         matchReason: row.whyMatched,
       })),
-      completedResearch: [],
+      completedResearch: researchRequests
+        .filter((request) => request.status === "completed" && request.result && request.completedAt)
+        .map((request) => ({
+          id: request.id,
+          signalLabel: request.signalLabel,
+          completedAt: request.completedAt!,
+          summary: request.result!.whatChanged,
+          assessmentChange: request.result!.assessmentChange,
+          href: `/dashboard/intelligence/explore?signal=${encodeURIComponent(request.signalId)}`,
+        })),
       dataStatus: response.dataStatus,
       usesLegacyFallback: false,
     };

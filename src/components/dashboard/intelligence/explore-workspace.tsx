@@ -124,7 +124,11 @@ function filteredSeries(signal: TrendSignal, range: Range) {
 }
 
 function ResearchButton({ signal }: { signal: TrendSignal }) {
-  const [state, setState] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [state, setState] = useState<"idle" | "working" | "queued" | "running" | "completed" | "error">(
+    signal.researchStatus === "not_started" || signal.researchStatus === "failed"
+      ? "idle"
+      : signal.researchStatus,
+  );
 
   async function startResearch() {
     setState("working");
@@ -133,16 +137,14 @@ function ResearchButton({ signal }: { signal: TrendSignal }) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          signalId: signal.id.startsWith(`${signal.kind}:`)
-            ? signal.id.slice(signal.kind.length + 1)
-            : signal.id,
+          signalId: signal.id,
           signalKind: signal.kind,
           signalLabel: signal.label,
           reason: "Manual research from Explore",
         }),
       });
       if (!response.ok) throw new Error("Research request failed");
-      setState("done");
+      setState("queued");
     } catch {
       setState("error");
     }
@@ -150,11 +152,21 @@ function ResearchButton({ signal }: { signal: TrendSignal }) {
 
   return (
     <div>
-      <Button onClick={startResearch} disabled={state === "working" || state === "done"}>
-        {state === "done" ? <Check className="size-4" /> : <FlaskConical className="size-4" />}
-        {state === "working" ? "Starting research…" : state === "done" ? "Research queued" : "Research further"}
+      <Button onClick={startResearch} disabled={["working", "queued", "running", "completed"].includes(state)}>
+        {state === "completed" ? <Check className="size-4" /> : <FlaskConical className="size-4" />}
+        {state === "working"
+          ? "Starting research…"
+          : state === "queued"
+            ? "Research queued"
+            : state === "running"
+              ? "Researching…"
+              : state === "completed"
+                ? "Research complete"
+                : "Research further"}
       </Button>
-      {state === "error" ? <p className="mt-2 text-xs text-destructive">Research could not be started. Try again from Sources & automations.</p> : null}
+      {state === "queued" ? <p className="mt-2 max-w-56 text-xs text-muted-foreground">The local Codex worker will process this request.</p> : null}
+      {state === "completed" && signal.researchCompletedAt ? <p className="mt-2 max-w-56 text-xs text-muted-foreground">Completed {formatDate(signal.researchCompletedAt)}. Research sources appear in the evidence list.</p> : null}
+      {state === "error" ? <p className="mt-2 text-xs text-destructive">Research could not be queued. Try again after refreshing this page.</p> : null}
     </div>
   );
 }
@@ -343,7 +355,7 @@ export function ExploreWorkspace({
                   <div className="flex flex-wrap items-center gap-2"><Badge>{DIRECTION_LABELS[selected.direction]}</Badge><span className="text-xs text-muted-foreground">{KIND_LABELS[selected.kind]} · {selected.evidenceStrength} evidence</span></div>
                   <h2 className="mt-3 font-heading text-3xl font-semibold">{titleCase(selected.label)}</h2>
                 </div>
-                <ResearchButton signal={selected} />
+                <ResearchButton key={selected.id} signal={selected} />
               </div>
 
               <div className="mt-6 grid gap-3 border-y border-border py-4 sm:grid-cols-4">

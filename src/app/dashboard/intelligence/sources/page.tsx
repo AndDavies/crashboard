@@ -15,6 +15,7 @@ import { listTopicMergeSuggestions } from "@/lib/intelligence/topic-merge-review
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { IntelligenceRunDiagnostic } from "@/lib/intelligence/types";
 import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
+import { intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export const metadata: Metadata = {
   title: "Sources & Automations · Crashboard Intelligence",
@@ -71,10 +72,12 @@ function sourceType(value: string) {
 
 async function TursoSourcesAutomations({ ownerId }: { ownerId: string }) {
   const store = getTursoIntelligenceStore();
-  const [health, gmail] = await Promise.all([
+  const [health, gmail, researchRequests] = await Promise.all([
     store.health(),
     store.getSource(ownerId, "gmail"),
+    store.listResearchRequests(ownerId, 20),
   ]);
+  const gmailConnected = Boolean(gmail?.credential && gmail.status === "active");
   return (
     <div className="space-y-10 pb-16">
       <header className="border-b border-foreground pb-6">
@@ -85,7 +88,7 @@ async function TursoSourcesAutomations({ ownerId }: { ownerId: string }) {
         </p>
       </header>
 
-      {!gmail ? (
+      {!gmailConnected ? (
         <section className="flex flex-col justify-between gap-5 border border-foreground bg-card p-5 sm:flex-row sm:items-center">
           <div>
             <p className="editorial-kicker">Required connection</p>
@@ -98,7 +101,7 @@ async function TursoSourcesAutomations({ ownerId }: { ownerId: string }) {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="border border-border bg-card p-4"><Database className="size-4 text-muted-foreground" /><p className="mt-5 text-sm font-semibold">{health.ok ? "Connected" : "Unavailable"}</p><p className="mt-1 text-xs text-muted-foreground">Turso Intelligence store</p></div>
-        <div className="border border-border bg-card p-4"><Mail className="size-4 text-muted-foreground" /><p className="mt-5 text-sm font-semibold">{gmail ? "Connected" : "Not connected"}</p><p className="mt-1 text-xs text-muted-foreground">{gmail?.name ?? "Gmail newsletters"}</p></div>
+        <div className="border border-border bg-card p-4"><Mail className="size-4 text-muted-foreground" /><p className="mt-5 text-sm font-semibold">{gmailConnected ? "Connected" : "Not connected"}</p><p className="mt-1 text-xs text-muted-foreground">{gmail?.name ?? "Gmail newsletters"}</p></div>
         <div className="border border-border bg-card p-4"><Activity className="size-4 text-muted-foreground" /><p className="mt-5 font-mono text-3xl font-semibold">{health.pendingJobs}</p><p className="mt-1 text-sm font-medium">pending agent jobs</p></div>
         <div className="border border-border bg-card p-4">{health.dailyRefreshDue ? <Clock3 className="size-4 text-muted-foreground" /> : <CheckCircle2 className="size-4 text-muted-foreground" />}<p className="mt-5 text-sm font-semibold">{health.dailyRefreshDue ? "Refresh due" : "Up to date"}</p><p className="mt-1 text-xs text-muted-foreground">Last active refresh {timestamp(health.activeRefreshCompletedAt)}</p></div>
       </section>
@@ -115,13 +118,43 @@ async function TursoSourcesAutomations({ ownerId }: { ownerId: string }) {
           <div className="border border-border p-3"><p className="font-semibold">3. Publish</p><p className="mt-1 text-xs text-muted-foreground">Only validated refreshes become active.</p></div>
         </div>
       </section>
+
+      <section>
+        <div className="border-b border-foreground pb-3">
+          <p className="editorial-kicker">Research queue</p>
+          <h2 className="mt-1 font-heading text-2xl font-semibold">Deeper signal research</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Requests are completed by the local Codex worker. Research adds explanation and sources without changing trend scores.</p>
+        </div>
+        <div className="border-x border-b border-border">
+          {researchRequests.length ? researchRequests.map((request) => (
+            <article key={request.id} className="grid gap-3 border-t border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-heading text-lg font-semibold">{request.signalLabel}</h3>
+                  <Badge variant={request.status === "failed" ? "destructive" : request.status === "completed" ? "default" : "outline"}>
+                    {request.status === "pending" ? "Queued" : request.status === "running" ? "Researching" : request.status === "completed" ? "Completed" : "Failed"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Requested {timestamp(request.requestedAt)}</p>
+                {request.result ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{request.result.whatChanged}</p> : null}
+                {request.failure ? <p className="mt-3 text-sm text-destructive">{request.failure}</p> : null}
+              </div>
+              {request.status === "completed" ? (
+                <Link href={`/dashboard/intelligence/explore?signal=${encodeURIComponent(request.signalId)}`} className="text-xs font-semibold hover:text-accent">Open researched signal</Link>
+              ) : <span className="text-xs text-muted-foreground">{request.status === "running" ? "Codex is reviewing sources" : "Waiting for the local worker"}</span>}
+            </article>
+          )) : <p className="border-t border-border px-6 py-12 text-center text-sm text-muted-foreground">No research requests yet.</p>}
+        </div>
+      </section>
     </div>
   );
 }
 
 export default async function SourcesAutomationsPage() {
   const user = await requireDashboardUser();
-  if (intelligenceUsesTurso()) return <TursoSourcesAutomations ownerId={user.id} />;
+  if (intelligenceUsesTurso()) {
+    return <TursoSourcesAutomations ownerId={intelligenceOwnerIdForUser(user)} />;
+  }
   const [data, topicMergeSuggestions] = await Promise.all([
     getIntelligenceOperations(),
     listTopicMergeSuggestions(createAdminClient(), user.id),

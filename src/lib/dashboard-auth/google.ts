@@ -64,7 +64,11 @@ export async function exchangeDashboardGoogleCode(code: string, origin?: string)
     throw new Error("Google did not return a verified email address.");
   }
   return {
-    id: process.env.INTELLIGENCE_OWNER_ID?.trim() || `google:${email}`,
+    // Dashboard actions that still write the Supabase-backed blog need the
+    // original auth UUID. Intelligence derives its own stable owner ID from
+    // the verified email and never reuses this actor identifier.
+    id: process.env.DASHBOARD_ACTOR_ID?.trim()
+      || `google:${email}`,
     email,
     name: typeof payload.name === "string" ? payload.name : null,
     picture: typeof payload.picture === "string" ? payload.picture : null,

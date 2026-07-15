@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { INTELLIGENCE_SIGNAL_METRIC_VERSION } from "@/lib/intelligence/signal-metrics-v2";
 import { loadActiveIntelligenceSignalGeneration } from "@/lib/intelligence/signal-generations-v2";
 import { getTursoIntelligenceStore, intelligenceUsesTurso } from "@/lib/intelligence/store";
+import { canonicalIntelligenceOwnerId, intelligenceOwnerIdForUser } from "@/lib/intelligence/owner";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,9 +32,12 @@ async function ownerIdFor(request: NextRequest) {
   if (secret && requireBearerSecret(request, secret, "INTELLIGENCE_JOB_SECRET").ok) {
     const ownerId = request.headers.get("x-crashboard-owner-id")?.trim();
     if (!ownerId) throw new Error("Scheduled research requires x-crashboard-owner-id.");
-    return ownerId;
+    return ownerId.startsWith("google:")
+      ? canonicalIntelligenceOwnerId(ownerId.slice("google:".length))
+      : canonicalIntelligenceOwnerId();
   }
-  return (await requireDashboardUser()).id;
+  const user = await requireDashboardUser();
+  return intelligenceUsesTurso() ? intelligenceOwnerIdForUser(user) : user.id;
 }
 
 function rawSignalId(value: string) {
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
       if (!label) return NextResponse.json({ error: "That signal is no longer available." }, { status: 404 });
       const requestId = await store.enqueueResearch({
         ownerId,
-        signalId: parsed.data.signalId,
+        signalId: signal?.id ?? parsed.data.signalId,
         signalLabel: label,
         question: parsed.data.reason,
       });
