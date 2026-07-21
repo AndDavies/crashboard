@@ -30,6 +30,8 @@
     "backfill:tags": "node --import tsx scripts/backfill-tags.ts",
     "export:wiki": "tsx scripts/export-vault-wiki.ts",
     "check:public-content": "tsx scripts/check-public-content.ts",
+    "defence-wiki:inventory": "NODE_OPTIONS=--conditions=react-server tsx scripts/defence-wiki.ts inventory",
+    "defence-wiki:export": "NODE_OPTIONS=--conditions=react-server tsx scripts/defence-wiki.ts export",
     "pdf:extract": "tsx scripts/pdf-extract.ts"
   },
   "dependencies": {

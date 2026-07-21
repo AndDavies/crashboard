@@ -10,6 +10,7 @@ import { decryptCredential, type EncryptedCredential } from "../src/lib/intellig
 import {
   getGmailMessage,
   gmailMessageToEnvelope,
+  listGmailLabels,
   listGmailMessageIds,
   newsletterBackfillQuery,
   refreshGmailAccessToken,
@@ -101,7 +102,11 @@ function envelopeDocuments(envelope: ReturnType<typeof gmailMessageToEnvelope>):
       editorialTokens: segment.tokenCount || words(segment.contentText),
       segmentationConfidence: segment.confidence,
       parserVersion: segment.parserVersion,
-      raw: { envelopeExternalId: envelope.externalId, segmentMetadata: segment.metadata },
+      raw: {
+        envelopeExternalId: envelope.externalId,
+        envelopeLabels: envelope.labels ?? [],
+        segmentMetadata: segment.metadata,
+      },
     };
   });
 }
@@ -134,10 +139,14 @@ async function collectGmail() {
     pageToken,
     maxResults: intArgument("--batch", 10, 100),
   });
+  const gmailLabels = await listGmailLabels(accessToken);
+  const labelNameById = new Map((gmailLabels.labels ?? []).map((label) => [label.id, label.name]));
   const documents: IntelligenceStoredDocument[] = [];
   for (const item of page.messages ?? []) {
     const message = await getGmailMessage(accessToken, item.id);
-    documents.push(...envelopeDocuments(gmailMessageToEnvelope(message, ownerId())));
+    const envelope = gmailMessageToEnvelope(message, ownerId());
+    envelope.labels = (envelope.labels ?? []).map((label) => labelNameById.get(label) ?? label);
+    documents.push(...envelopeDocuments(envelope));
   }
   await store.putDocuments(documents);
   await store.upsertSource({

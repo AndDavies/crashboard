@@ -135,14 +135,28 @@ The callback stores the offline refresh token encrypted with AES-256-GCM. Plaint
 
 ## Backfill and daily operation
 
-The authoritative six-month window is January 10 through July 10, 2026. The four starting labels are:
+The authoritative six-month window is January 10 through July 10, 2026. The five starting labels are:
 
 - `Newsletters/AI`
 - `Newsletters/Business`
 - `Newsletters/Cybersecurity`
 - `Newsletters/Health and Fitness`
+- `Newsletters/Defence`
 
 The verified ID baseline is 1,927 unique messages. The parent `Newsletters` label is not used as the authoritative search surface.
+
+New Turso document rows retain resolved Gmail label names in `raw_json.envelopeLabels`. This lets the private True North Map Defence Wiki use `Newsletters/Defence` as a strong selection signal without making it the only way defence material is recovered.
+
+## Private defence-wiki source bridge
+
+Crashboard owns its Turso schema and exports only versioned `DefenceSourcePacketV1` files. The private wiki never connects directly to Crashboard tables.
+
+```bash
+npm run defence-wiki:inventory -- --root "/absolute/path/to/True North Map Defence Wiki"
+npm run defence-wiki:export -- --root "/absolute/path/to/True North Map Defence Wiki" --dry-run
+```
+
+Both commands read the current Turso intelligence store without writes. Coarse mixed-newsletter fallbacks are rejected. Accepted newsletter packets contain only an article-level segment or bounded defence-specific sentences and remain discovery-only until corroborated by a durable source.
 
 From the dashboard, **Continue backfill** processes the next checkpointed batch. For a long-running local backfill:
 

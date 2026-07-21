@@ -5,10 +5,11 @@ import {
 } from "@/lib/intelligence/gmail";
 
 describe("newsletterBackfillQuery", () => {
-  it("uses the four child labels and an inclusive end date", () => {
+  it("uses the five child labels and an inclusive end date", () => {
     const query = newsletterBackfillQuery("2026-01-10", "2026-07-10");
     expect(query).toContain('label:"Newsletters/Business"');
     expect(query).toContain('label:"Newsletters/Cybersecurity"');
+    expect(query).toContain('label:"Newsletters/Defence"');
     expect(query).toContain("after:2026/01/10");
     expect(query).toContain("before:2026/07/11");
     expect(query).toContain("-in:spam -in:trash");

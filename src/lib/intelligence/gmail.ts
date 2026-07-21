@@ -22,6 +22,7 @@ export const DEFAULT_NEWSLETTER_LABELS = [
   "Newsletters/AI",
   "Newsletters/Business",
   "Newsletters/Cybersecurity",
+  "Newsletters/Defence",
   "Newsletters/Health and Fitness",
 ] as const;
 
@@ -156,6 +157,13 @@ async function gmailFetch<T>(path: string, accessToken: string) {
 export async function getGmailProfile(accessToken: string) {
   return gmailFetch<{ emailAddress: string; messagesTotal: number; historyId: string }>(
     "/profile",
+    accessToken,
+  );
+}
+
+export async function listGmailLabels(accessToken: string) {
+  return gmailFetch<{ labels?: Array<{ id: string; name: string; type?: string }> }>(
+    "/labels",
     accessToken,
   );
 }
